@@ -1,0 +1,13 @@
+project_id = "xsnxdtsdqjqiyzxscvuz"
+
+# We validate the user's session inside each function (server-side) because the platform JWT check
+# is rejecting otherwise-valid tokens in this environment.
+[functions.ai-tutor]
+verify_jwt = false
+
+[functions.homework-assist]
+verify_jwt = false
+
+[functions.exam-prep]
+verify_jwt = false
+
