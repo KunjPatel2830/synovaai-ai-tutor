@@ -427,6 +427,96 @@ export type Database = {
         }
         Relationships: []
       }
+      pyq_questions: {
+        Row: {
+          correct_option: string
+          created_at: string
+          created_by: string | null
+          difficulty: string | null
+          exam_type: string
+          explanation: string | null
+          id: string
+          options: Json
+          question_text: string
+          shift: string | null
+          subject: string
+          topic: string | null
+          year: number
+        }
+        Insert: {
+          correct_option: string
+          created_at?: string
+          created_by?: string | null
+          difficulty?: string | null
+          exam_type: string
+          explanation?: string | null
+          id?: string
+          options?: Json
+          question_text: string
+          shift?: string | null
+          subject: string
+          topic?: string | null
+          year: number
+        }
+        Update: {
+          correct_option?: string
+          created_at?: string
+          created_by?: string | null
+          difficulty?: string | null
+          exam_type?: string
+          explanation?: string | null
+          id?: string
+          options?: Json
+          question_text?: string
+          shift?: string | null
+          subject?: string
+          topic?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
+      pyq_uploads: {
+        Row: {
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          exam_type: string
+          file_name: string
+          id: string
+          questions_count: number | null
+          shift: string | null
+          status: string
+          uploaded_by: string
+          year: number
+        }
+        Insert: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          exam_type: string
+          file_name: string
+          id?: string
+          questions_count?: number | null
+          shift?: string | null
+          status?: string
+          uploaded_by: string
+          year: number
+        }
+        Update: {
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          exam_type?: string
+          file_name?: string
+          id?: string
+          questions_count?: number | null
+          shift?: string | null
+          status?: string
+          uploaded_by?: string
+          year?: number
+        }
+        Relationships: []
+      }
       student_help_requests: {
         Row: {
           created_at: string
@@ -454,6 +544,36 @@ export type Database = {
           subject?: string
           topic?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      student_teacher_messages: {
+        Row: {
+          created_at: string
+          id: string
+          is_read: boolean
+          message: string
+          sender_id: string
+          student_id: string
+          teacher_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message: string
+          sender_id: string
+          student_id: string
+          teacher_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_read?: boolean
+          message?: string
+          sender_id?: string
+          student_id?: string
+          teacher_id?: string
         }
         Relationships: []
       }
