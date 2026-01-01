@@ -11,3 +11,5 @@ verify_jwt = false
 [functions.exam-prep]
 verify_jwt = false
 
+[functions.parse-pyq-pdf]
+verify_jwt = false

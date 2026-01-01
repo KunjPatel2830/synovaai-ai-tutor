@@ -16,6 +16,9 @@ import { InvitationCodeGenerator } from "@/components/invitation/InvitationCodeG
 import { JoinWithCode } from "@/components/invitation/JoinWithCode";
 import { StudentProgressReport } from "@/components/progress/StudentProgressReport";
 import { BadgesDisplay } from "@/components/badges/BadgesDisplay";
+import { PYQUploader } from "@/components/exam/PYQUploader";
+import { PYQUploadHistory } from "@/components/exam/PYQUploadHistory";
+import { NeedsHelpTab } from "@/components/exam/NeedsHelpTab";
 import {
   Brain,
   FileText,
@@ -286,6 +289,7 @@ function TeacherDashboard() {
   const [students, setStudents] = useState<any[]>([]);
   const [showInvite, setShowInvite] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<{ id: string; name: string } | null>(null);
+  const [activeTab, setActiveTab] = useState<"students" | "pyq" | "help">("students");
 
   useEffect(() => {
     if (user) {
@@ -317,6 +321,8 @@ function TeacherDashboard() {
     }
   };
 
+  const studentIds = students.map(s => s.student_id);
+
   return (
     <AppLayout>
       <div className="max-w-7xl mx-auto space-y-6">
@@ -327,63 +333,112 @@ function TeacherDashboard() {
           </p>
         </div>
 
-        {/* Invitation Code Section */}
-        <GlassCard>
-          <GlassCardHeader className="flex flex-row items-center justify-between">
-            <GlassCardTitle className="flex items-center gap-2">
-              <Link className="h-5 w-5 text-primary" />
-              Invite Students
-            </GlassCardTitle>
-            <Button size="sm" variant="outline" onClick={() => setShowInvite(!showInvite)}>
-              {showInvite ? "Hide" : "Show Codes"}
-            </Button>
-          </GlassCardHeader>
-          {showInvite && user && (
-            <GlassCardContent>
-              <InvitationCodeGenerator userId={user.id} inviterRole="teacher" />
-            </GlassCardContent>
-          )}
-        </GlassCard>
+        {/* Tab Navigation */}
+        <div className="flex gap-2 border-b border-border pb-2">
+          <Button
+            variant={activeTab === "students" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("students")}
+            className="gap-2"
+          >
+            <Users className="h-4 w-4" />
+            My Students
+          </Button>
+          <Button
+            variant={activeTab === "pyq" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("pyq")}
+            className="gap-2"
+          >
+            <ClipboardList className="h-4 w-4" />
+            PYQ Management
+          </Button>
+          <Button
+            variant={activeTab === "help" ? "default" : "ghost"}
+            size="sm"
+            onClick={() => setActiveTab("help")}
+            className="gap-2"
+          >
+            <Brain className="h-4 w-4" />
+            Needs Help
+          </Button>
+        </div>
 
-        <GlassCard>
-          <GlassCardHeader>
-            <GlassCardTitle>My Students ({students.length})</GlassCardTitle>
-          </GlassCardHeader>
-          <GlassCardContent>
-            {students.length > 0 ? (
-              <div className="space-y-4">
-                {students.map((student) => (
-                  <div
-                    key={student.student_id}
-                    className="flex items-center justify-between p-4 rounded-xl bg-muted/50"
-                  >
-                    <span className="font-medium">
-                      {student.display_name || "Student"}
-                    </span>
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setSelectedStudent({
-                        id: student.student_id,
-                        name: student.display_name || "Student"
-                      })}
-                    >
-                      View Progress
-                    </Button>
+        {/* Students Tab */}
+        {activeTab === "students" && (
+          <>
+            {/* Invitation Code Section */}
+            <GlassCard>
+              <GlassCardHeader className="flex flex-row items-center justify-between">
+                <GlassCardTitle className="flex items-center gap-2">
+                  <Link className="h-5 w-5 text-primary" />
+                  Invite Students
+                </GlassCardTitle>
+                <Button size="sm" variant="outline" onClick={() => setShowInvite(!showInvite)}>
+                  {showInvite ? "Hide" : "Show Codes"}
+                </Button>
+              </GlassCardHeader>
+              {showInvite && user && (
+                <GlassCardContent>
+                  <InvitationCodeGenerator userId={user.id} inviterRole="teacher" />
+                </GlassCardContent>
+              )}
+            </GlassCard>
+
+            <GlassCard>
+              <GlassCardHeader>
+                <GlassCardTitle>My Students ({students.length})</GlassCardTitle>
+              </GlassCardHeader>
+              <GlassCardContent>
+                {students.length > 0 ? (
+                  <div className="space-y-4">
+                    {students.map((student) => (
+                      <div
+                        key={student.student_id}
+                        className="flex items-center justify-between p-4 rounded-xl bg-muted/50"
+                      >
+                        <span className="font-medium">
+                          {student.display_name || "Student"}
+                        </span>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => setSelectedStudent({
+                            id: student.student_id,
+                            name: student.display_name || "Student"
+                          })}
+                        >
+                          View Progress
+                        </Button>
+                      </div>
+                    ))}
                   </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                <p className="text-muted-foreground">No students linked yet</p>
-                <p className="text-sm text-muted-foreground mt-2">
-                  Generate an invitation code above and share it with your students
-                </p>
-              </div>
-            )}
-          </GlassCardContent>
-        </GlassCard>
+                ) : (
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                    <p className="text-muted-foreground">No students linked yet</p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      Generate an invitation code above and share it with your students
+                    </p>
+                  </div>
+                )}
+              </GlassCardContent>
+            </GlassCard>
+          </>
+        )}
+
+        {/* PYQ Management Tab */}
+        {activeTab === "pyq" && user && (
+          <div className="space-y-6">
+            <PYQUploader userId={user.id} onUploadComplete={() => {}} />
+            <PYQUploadHistory userId={user.id} />
+          </div>
+        )}
+
+        {/* Needs Help Tab */}
+        {activeTab === "help" && (
+          <NeedsHelpTab linkedStudentIds={studentIds} />
+        )}
       </div>
 
       {selectedStudent && (
