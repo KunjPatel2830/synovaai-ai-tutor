@@ -330,6 +330,7 @@ ${optionsText}`;
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Exams</SelectItem>
+            <SelectItem value="JEE">JEE</SelectItem>
             <SelectItem value="JEE Main">JEE Main</SelectItem>
             <SelectItem value="JEE Advanced">JEE Advanced</SelectItem>
             <SelectItem value="NEET">NEET</SelectItem>

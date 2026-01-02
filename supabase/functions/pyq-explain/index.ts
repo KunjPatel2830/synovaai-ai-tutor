@@ -80,7 +80,21 @@ Provide a detailed explanation.`;
 
     if (!response.ok) {
       const error = await response.text();
-      console.error("[pyq-explain] API error:", error);
+      console.error("[pyq-explain] API error:", response.status, error);
+      
+      if (response.status === 429) {
+        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
+          status: 429,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: "Payment required, please add funds." }), {
+          status: 402,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
       throw new Error(`AI API error: ${response.status}`);
     }
 
