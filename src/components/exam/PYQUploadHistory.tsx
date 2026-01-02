@@ -171,9 +171,9 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
                       {format(new Date(upload.created_at), "MMM d, yyyy")}
                     </TableCell>
                     <TableCell>
-                      {upload.status === "failed" && (
+                      {(upload.status === "failed" || upload.status === "pending") && (
                         <Button
-                          variant="outline"
+                          variant={upload.status === "failed" ? "destructive" : "outline"}
                           size="sm"
                           onClick={() => handleRetry(upload)}
                           disabled={retryingId === upload.id}
