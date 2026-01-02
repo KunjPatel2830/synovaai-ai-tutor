@@ -12,6 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import synovaLogo from "@/assets/synova-logo.png";
+import { ReviewsSection } from "@/components/reviews/ReviewsSection";
 import { 
   Brain, 
   BookOpen, 
@@ -110,6 +111,12 @@ const Landing = () => {
                 className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Language & Voice
+              </button>
+              <button 
+                onClick={() => scrollToSection("reviews")}
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                Reviews
               </button>
             </div>
             <div className="flex items-center gap-3">
@@ -501,6 +508,9 @@ const Landing = () => {
           </div>
         </div>
       </section>
+
+      {/* Reviews Section */}
+      <ReviewsSection />
 
       {/* CTA Section */}
       <section className="py-20 px-4 sm:px-6 lg:px-8">
