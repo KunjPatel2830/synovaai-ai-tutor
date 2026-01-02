@@ -13,3 +13,9 @@ verify_jwt = false
 
 [functions.parse-pyq-pdf]
 verify_jwt = false
+
+[functions.external-ai-tutor]
+verify_jwt = false
+
+[functions.external-create-profile]
+verify_jwt = false
