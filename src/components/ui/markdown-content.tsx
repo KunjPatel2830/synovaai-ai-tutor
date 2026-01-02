@@ -16,6 +16,8 @@ export function MarkdownContent({ content, className }: MarkdownContentProps) {
         remarkPlugins={[remarkMath]}
         rehypePlugins={[rehypeKatex]}
         components={{
+          h2: ({ children }) => <h2 className="text-lg font-bold mt-4 mb-2">{children}</h2>,
+          h3: ({ children }) => <h3 className="text-base font-semibold mt-3 mb-2">{children}</h3>,
           p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
           strong: ({ children }) => <strong className="font-bold">{children}</strong>,
           em: ({ children }) => <em className="italic">{children}</em>,
