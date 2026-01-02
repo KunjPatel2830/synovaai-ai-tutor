@@ -19,7 +19,8 @@ import { ChatHistory } from "@/components/chat/ChatHistory";
 import { PYQQuizChat } from "@/components/exam/PYQQuizChat";
 import { PYQUploader } from "@/components/exam/PYQUploader";
 import { PYQUploadHistory } from "@/components/exam/PYQUploadHistory";
-import { ClipboardList, Play, CheckCircle, XCircle, RotateCcw, Trophy, Mic, MicOff, Volume2, History, BookOpen, Upload } from "lucide-react";
+import { NeedsHelpTab } from "@/components/exam/NeedsHelpTab";
+import { ClipboardList, Play, CheckCircle, XCircle, RotateCcw, Trophy, Mic, MicOff, Volume2, History, BookOpen, Upload, HelpCircle } from "lucide-react";
 import { Loader, LoaderSpinner } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
 
@@ -38,12 +39,13 @@ interface Answer {
 }
 
 type ExamState = "setup" | "quiz" | "results";
-type ExamMode = "ai" | "pyq" | "upload";
+type ExamMode = "ai" | "pyq" | "upload" | "help";
 
 export default function ExamPrep() {
   const { user, userRole } = useAuth();
   const { toast } = useToast();
-  const [mode, setMode] = useState<ExamMode>("ai");
+  const isTeacher = userRole === "teacher" || userRole === "admin";
+  const [mode, setMode] = useState<ExamMode>(isTeacher ? "upload" : "ai");
   const [state, setState] = useState<ExamState>("setup");
   const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
@@ -54,9 +56,28 @@ export default function ExamPrep() {
   const [currentAnswer, setCurrentAnswer] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
+  const [linkedStudentIds, setLinkedStudentIds] = useState<string[]>([]);
 
-  // Check if user is teacher or admin for upload access
-  const canUpload = userRole === "teacher" || userRole === "admin";
+  // Fetch linked students for teachers
+  useEffect(() => {
+    if (isTeacher && user) {
+      fetchLinkedStudents();
+    }
+  }, [isTeacher, user]);
+
+  const fetchLinkedStudents = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from("teacher_student_links")
+        .select("student_id")
+        .eq("teacher_id", user.id);
+      
+      setLinkedStudentIds((data || []).map((d) => d.student_id));
+    } catch (error) {
+      console.error("Failed to fetch linked students:", error);
+    }
+  };
 
   const voice = useVoice();
   const { trackProgress, trackHelpRequest } = useProgressTracker();
@@ -262,105 +283,121 @@ export default function ExamPrep() {
             />
           </div>
 
-          {/* Tabs for different modes */}
+          {/* Tabs for different modes - Different UI for Teachers vs Students */}
           <Tabs value={mode} onValueChange={(v) => setMode(v as ExamMode)} className="flex-1 flex flex-col min-h-0">
-            <TabsList className="grid w-full shrink-0" style={{ gridTemplateColumns: canUpload ? 'repeat(3, 1fr)' : 'repeat(2, 1fr)' }}>
-              <TabsTrigger value="ai" className="flex items-center gap-2">
-                <Play className="h-4 w-4" />
-                AI Quiz
-              </TabsTrigger>
-              <TabsTrigger value="pyq" className="flex items-center gap-2">
-                <BookOpen className="h-4 w-4" />
-                JEE/NEET PYQ
-              </TabsTrigger>
-              {canUpload && (
-                <TabsTrigger value="upload" className="flex items-center gap-2">
-                  <Upload className="h-4 w-4" />
-                  Upload PYQ
-                </TabsTrigger>
-              )}
-            </TabsList>
+            {isTeacher ? (
+              /* Teacher View: Upload PYQ and Needs Help tabs */
+              <>
+                <TabsList className="grid w-full grid-cols-2 shrink-0">
+                  <TabsTrigger value="upload" className="flex items-center gap-2">
+                    <Upload className="h-4 w-4" />
+                    Upload PYQ
+                  </TabsTrigger>
+                  <TabsTrigger value="help" className="flex items-center gap-2">
+                    <HelpCircle className="h-4 w-4" />
+                    Needs Help
+                  </TabsTrigger>
+                </TabsList>
 
-            {/* AI Quiz Tab */}
-            <TabsContent value="ai" className="flex-1 mt-4 overflow-auto">
-              <GlassCard>
-                <GlassCardContent className="p-4 space-y-4">
-                  <div className="flex justify-end">
-                    <ChatHistory mode="exam" onLoadSession={() => {}} />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <Label className="text-sm">Subject</Label>
-                    <Select value={subject} onValueChange={setSubject}>
-                      <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Mathematics">Mathematics</SelectItem>
-                        <SelectItem value="Science">Science</SelectItem>
-                        <SelectItem value="Physics">Physics</SelectItem>
-                        <SelectItem value="Chemistry">Chemistry</SelectItem>
-                        <SelectItem value="Biology">Biology</SelectItem>
-                        <SelectItem value="Language Arts">Language Arts</SelectItem>
-                        <SelectItem value="Social Studies">Social Studies</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                {/* Upload Tab */}
+                <TabsContent value="upload" className="flex-1 mt-4 overflow-auto space-y-4">
+                  {user && (
+                    <>
+                      <PYQUploader userId={user.id} />
+                      <PYQUploadHistory userId={user.id} />
+                    </>
+                  )}
+                </TabsContent>
 
-                  <div className="space-y-2">
-                    <Label className="text-sm">Topic / Chapter</Label>
-                    <div className="flex gap-2">
-                      <Input 
-                        placeholder="e.g., Photosynthesis, Thermodynamics" 
-                        value={topic} 
-                        onChange={(e) => setTopic(e.target.value)}
-                        className="flex-1"
-                      />
-                      <Button
-                        type="button"
-                        variant={voice.isListening ? "destructive" : "outline"}
-                        size="icon"
-                        onClick={voice.isListening ? voice.stopListening : voice.startListening}
-                        className={cn("shrink-0 h-10 w-10", voice.isListening && "animate-pulse")}
-                      >
-                        {voice.isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                {/* Needs Help Tab */}
+                <TabsContent value="help" className="flex-1 mt-4 overflow-auto">
+                  <NeedsHelpTab linkedStudentIds={linkedStudentIds} />
+                </TabsContent>
+              </>
+            ) : (
+              /* Student View: AI Quiz and PYQ Practice tabs */
+              <>
+                <TabsList className="grid w-full grid-cols-2 shrink-0">
+                  <TabsTrigger value="ai" className="flex items-center gap-2">
+                    <Play className="h-4 w-4" />
+                    AI Quiz
+                  </TabsTrigger>
+                  <TabsTrigger value="pyq" className="flex items-center gap-2">
+                    <BookOpen className="h-4 w-4" />
+                    JEE/NEET PYQ
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* AI Quiz Tab */}
+                <TabsContent value="ai" className="flex-1 mt-4 overflow-auto">
+                  <GlassCard>
+                    <GlassCardContent className="p-4 space-y-4">
+                      <div className="flex justify-end">
+                        <ChatHistory mode="exam" onLoadSession={() => {}} />
+                      </div>
+                      
+                      <div className="space-y-2">
+                        <Label className="text-sm">Subject</Label>
+                        <Select value={subject} onValueChange={setSubject}>
+                          <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="Mathematics">Mathematics</SelectItem>
+                            <SelectItem value="Science">Science</SelectItem>
+                            <SelectItem value="Physics">Physics</SelectItem>
+                            <SelectItem value="Chemistry">Chemistry</SelectItem>
+                            <SelectItem value="Biology">Biology</SelectItem>
+                            <SelectItem value="Language Arts">Language Arts</SelectItem>
+                            <SelectItem value="Social Studies">Social Studies</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm">Topic / Chapter</Label>
+                        <div className="flex gap-2">
+                          <Input 
+                            placeholder="e.g., Photosynthesis, Thermodynamics" 
+                            value={topic} 
+                            onChange={(e) => setTopic(e.target.value)}
+                            className="flex-1"
+                          />
+                          <Button
+                            type="button"
+                            variant={voice.isListening ? "destructive" : "outline"}
+                            size="icon"
+                            onClick={voice.isListening ? voice.stopListening : voice.startListening}
+                            className={cn("shrink-0 h-10 w-10", voice.isListening && "animate-pulse")}
+                          >
+                            {voice.isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+
+                      <div className="space-y-2">
+                        <Label className="text-sm">Difficulty</Label>
+                        <Select value={difficulty} onValueChange={setDifficulty}>
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="easy">Easy</SelectItem>
+                            <SelectItem value="medium">Medium</SelectItem>
+                            <SelectItem value="hard">Hard</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <Button className="w-full" onClick={startQuiz} disabled={isLoading}>
+                        {isLoading ? <LoaderSpinner size="sm" className="mr-2" /> : <Play className="h-4 w-4 mr-2" />}
+                        Start AI Practice Test
                       </Button>
-                    </div>
-                  </div>
+                    </GlassCardContent>
+                  </GlassCard>
+                </TabsContent>
 
-                  <div className="space-y-2">
-                    <Label className="text-sm">Difficulty</Label>
-                    <Select value={difficulty} onValueChange={setDifficulty}>
-                      <SelectTrigger><SelectValue /></SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="easy">Easy</SelectItem>
-                        <SelectItem value="medium">Medium</SelectItem>
-                        <SelectItem value="hard">Hard</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  <Button className="w-full" onClick={startQuiz} disabled={isLoading}>
-                    {isLoading ? <LoaderSpinner size="sm" className="mr-2" /> : <Play className="h-4 w-4 mr-2" />}
-                    Start AI Practice Test
-                  </Button>
-                </GlassCardContent>
-              </GlassCard>
-            </TabsContent>
-
-            {/* PYQ Practice Tab */}
-            <TabsContent value="pyq" className="flex-1 mt-4 flex flex-col min-h-0">
-              <PYQQuizChat />
-            </TabsContent>
-
-            {/* Upload Tab (Teachers/Admins only) */}
-            {canUpload && (
-              <TabsContent value="upload" className="flex-1 mt-4 overflow-auto space-y-4">
-                {user && (
-                  <>
-                    <PYQUploader userId={user.id} />
-                    <PYQUploadHistory userId={user.id} />
-                  </>
-                )}
-              </TabsContent>
+                {/* PYQ Practice Tab */}
+                <TabsContent value="pyq" className="flex-1 mt-4 flex flex-col min-h-0">
+                  <PYQQuizChat />
+                </TabsContent>
+              </>
             )}
           </Tabs>
         </div>
