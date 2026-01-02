@@ -517,6 +517,33 @@ export type Database = {
         }
         Relationships: []
       }
+      reviews: {
+        Row: {
+          content: string
+          created_at: string
+          display_name: string
+          id: string
+          rating: number
+          user_id: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          display_name: string
+          id?: string
+          rating: number
+          user_id: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          display_name?: string
+          id?: string
+          rating?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       student_help_requests: {
         Row: {
           created_at: string
