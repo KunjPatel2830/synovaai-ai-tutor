@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -29,6 +29,8 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [retryingId, setRetryingId] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [selectedUploadForRetry, setSelectedUploadForRetry] = useState<Upload | null>(null);
 
   const fetchUploads = async () => {
     setIsLoading(true);
@@ -76,24 +78,78 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
     };
   }, [userId]);
 
-  const handleRetry = async (upload: Upload) => {
-    setRetryingId(upload.id);
-    
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = (error) => reject(error);
+    });
+  };
+
+  const handleRetryClick = (upload: Upload) => {
+    setSelectedUploadForRetry(upload);
+    fileInputRef.current?.click();
+  };
+
+  const handleFileSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !selectedUploadForRetry) return;
+
+    if (file.type !== "application/pdf") {
+      toast({ title: "Please select a PDF file", variant: "destructive" });
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      toast({ title: "File size must be less than 20MB", variant: "destructive" });
+      return;
+    }
+
+    setRetryingId(selectedUploadForRetry.id);
+
     try {
-      // Reset status to pending
+      // Update status to processing
       await supabase
         .from("pyq_uploads")
-        .update({ status: "pending", error_message: null })
-        .eq("id", upload.id);
+        .update({ status: "processing", error_message: null, file_name: file.name })
+        .eq("id", selectedUploadForRetry.id);
 
-      toast({ 
-        title: "Retry initiated", 
-        description: "Please re-upload the PDF file to retry extraction" 
+      // Convert PDF to base64
+      const pdfBase64 = await convertToBase64(file);
+
+      // Call edge function to process PDF
+      const { error: functionError } = await supabase.functions.invoke("parse-pyq-pdf", {
+        body: {
+          uploadId: selectedUploadForRetry.id,
+          pdfBase64,
+          examType: selectedUploadForRetry.exam_type,
+          year: selectedUploadForRetry.year.toString(),
+          shift: selectedUploadForRetry.shift,
+          userId,
+        },
       });
+
+      if (functionError) {
+        await supabase
+          .from("pyq_uploads")
+          .update({ status: "failed", error_message: functionError.message })
+          .eq("id", selectedUploadForRetry.id);
+        throw functionError;
+      }
+
+      toast({ title: "PDF uploaded", description: "Processing started. Check status for updates." });
     } catch (error) {
-      toast({ title: "Retry failed", variant: "destructive" });
+      console.error("Retry error:", error);
+      toast({
+        title: "Retry failed",
+        description: error instanceof Error ? error.message : "Unknown error",
+        variant: "destructive",
+      });
     } finally {
       setRetryingId(null);
+      setSelectedUploadForRetry(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -111,6 +167,14 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
   };
 
   return (
+    <>
+      <input
+        type="file"
+        ref={fileInputRef}
+        accept=".pdf"
+        onChange={handleFileSelect}
+        className="hidden"
+      />
     <GlassCard>
       <GlassCardHeader className="flex flex-row items-center justify-between">
         <GlassCardTitle className="flex items-center gap-2">
@@ -175,7 +239,7 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
                         <Button
                           variant={upload.status === "failed" ? "destructive" : "outline"}
                           size="sm"
-                          onClick={() => handleRetry(upload)}
+                          onClick={() => handleRetryClick(upload)}
                           disabled={retryingId === upload.id}
                         >
                           {retryingId === upload.id ? (
@@ -197,5 +261,6 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
         )}
       </GlassCardContent>
     </GlassCard>
+    </>
   );
 }
