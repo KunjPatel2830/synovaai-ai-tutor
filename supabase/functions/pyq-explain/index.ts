@@ -1,0 +1,103 @@
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+
+serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const { question, options, correctOption, studentAnswer, subject, topic, examType } = await req.json();
+
+    if (!question || !options || !correctOption || !studentAnswer) {
+      throw new Error("Missing required fields");
+    }
+
+    const isCorrect = studentAnswer === correctOption;
+
+    const systemPrompt = `You are an expert ${subject} teacher helping students prepare for ${examType || "competitive exams"} like JEE and NEET.
+
+Your task is to provide a detailed, educational explanation for a question the student just answered.
+
+ALWAYS structure your response with these sections:
+
+## ${isCorrect ? "✅ Correct!" : "❌ Incorrect"}
+
+${!isCorrect ? `The correct answer is **${correctOption}**.` : "Well done!"}
+
+## 📚 Concept Used
+Explain the core concept(s) tested in this question. Be specific about the topic/chapter.
+
+## 🧮 Formula & Approach
+- List the relevant formula(s) in LaTeX format
+- Show the step-by-step approach to solve this problem
+- Explain why option ${correctOption} is correct
+
+## 💡 Key Insight
+Provide a memorable tip or insight that helps students solve similar problems quickly.
+
+## 🔗 Related Topics
+Mention 2-3 related topics the student should revise for a complete understanding.
+
+Keep your explanation clear, concise, and exam-focused. Use LaTeX for all mathematical expressions (e.g., $E = mc^2$, $\\int_0^\\infty$).`;
+
+    const userPrompt = `Question: ${question}
+
+Options:
+A) ${options.A}
+B) ${options.B}
+C) ${options.C}
+D) ${options.D}
+
+Correct Answer: ${correctOption}
+Student's Answer: ${studentAnswer}
+Subject: ${subject}
+${topic ? `Topic: ${topic}` : ""}
+
+Provide a detailed explanation.`;
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        stream: true,
+      }),
+    });
+
+    if (!response.ok) {
+      const error = await response.text();
+      console.error("[pyq-explain] API error:", error);
+      throw new Error(`AI API error: ${response.status}`);
+    }
+
+    // Return streaming response
+    return new Response(response.body, {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
+    });
+  } catch (error) {
+    console.error("[pyq-explain] Error:", error);
+    return new Response(
+      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

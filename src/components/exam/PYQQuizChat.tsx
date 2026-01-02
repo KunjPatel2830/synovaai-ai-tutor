@@ -6,7 +6,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, ArrowRight, RotateCcw, Trophy, Filter, Loader2 } from "lucide-react";
+import { CheckCircle, XCircle, ArrowRight, RotateCcw, Trophy, Filter, Loader2, Sparkles } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 
@@ -24,11 +24,10 @@ interface PYQQuestion {
 }
 
 interface ChatMessage {
-  type: "question" | "answer" | "feedback";
+  type: "question" | "answer" | "feedback" | "ai-explanation";
   content: string;
   isCorrect?: boolean;
-  explanation?: string;
-  correctAnswer?: string;
+  isStreaming?: boolean;
 }
 
 export function PYQQuizChat() {
@@ -40,6 +39,7 @@ export function PYQQuizChat() {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [hasAnswered, setHasAnswered] = useState(false);
+  const [isExplaining, setIsExplaining] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [isComplete, setIsComplete] = useState(false);
 
@@ -63,7 +63,6 @@ export function PYQQuizChat() {
       const { data, error } = await query;
       if (error) throw error;
 
-      // Map and type-cast the data properly
       const mappedQuestions: PYQQuestion[] = (data || []).map((q) => ({
         id: q.id,
         question_text: q.question_text,
@@ -77,17 +76,17 @@ export function PYQQuizChat() {
         year: q.year,
       }));
 
-      // Shuffle questions
       const shuffled = mappedQuestions.sort(() => Math.random() - 0.5);
       setQuestions(shuffled);
       setCurrentIndex(0);
       setMessages([]);
       setHasAnswered(false);
+      setIsExplaining(false);
       setScore({ correct: 0, total: 0 });
       setIsComplete(false);
 
       if (shuffled.length > 0) {
-        addQuestionMessage(shuffled[0]);
+        addQuestionMessage(shuffled[0], 0);
       }
     } catch (error) {
       console.error("Failed to fetch questions:", error);
@@ -102,7 +101,7 @@ export function PYQQuizChat() {
       .from("pyq_questions")
       .select("year")
       .order("year", { ascending: false });
-    
+
     if (data) {
       const uniqueYears = [...new Set(data.map((d) => d.year))];
       setAvailableYears(uniqueYears);
@@ -118,18 +117,141 @@ export function PYQQuizChat() {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  const addQuestionMessage = (question: PYQQuestion) => {
+  const addQuestionMessage = (question: PYQQuestion, index: number) => {
     const optionsText = Object.entries(question.options)
       .map(([key, value]) => `**${key}.** ${value}`)
       .join("\n\n");
 
-    const content = `**Question ${currentIndex + 1}** (${question.exam_type} ${question.year})\n\n${question.question_text}\n\n${optionsText}`;
+    const difficultyBadge = question.difficulty 
+      ? `\`${question.difficulty.toUpperCase()}\`` 
+      : "";
+
+    const content = `### Question ${index + 1} ${difficultyBadge}
+**${question.exam_type} ${question.year}** • ${question.subject}${question.topic ? ` • ${question.topic}` : ""}
+
+${question.question_text}
+
+${optionsText}`;
 
     setMessages((prev) => [...prev, { type: "question", content }]);
   };
 
-  const handleAnswer = (option: string) => {
-    if (hasAnswered) return;
+  const streamExplanation = async (question: PYQQuestion, studentAnswer: string, isCorrect: boolean) => {
+    setIsExplaining(true);
+
+    // Add placeholder for streaming response
+    setMessages((prev) => [
+      ...prev,
+      {
+        type: "ai-explanation",
+        content: "",
+        isStreaming: true,
+        isCorrect,
+      },
+    ]);
+
+    try {
+      const response = await fetch(
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pyq-explain`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({
+            question: question.question_text,
+            options: question.options,
+            correctOption: question.correct_option,
+            studentAnswer,
+            subject: question.subject,
+            topic: question.topic,
+            examType: question.exam_type,
+          }),
+        }
+      );
+
+      if (!response.ok) {
+        throw new Error("Failed to get explanation");
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+      let accumulatedContent = "";
+
+      if (reader) {
+        let textBuffer = "";
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          textBuffer += decoder.decode(value, { stream: true });
+
+          let newlineIndex: number;
+          while ((newlineIndex = textBuffer.indexOf("\n")) !== -1) {
+            let line = textBuffer.slice(0, newlineIndex);
+            textBuffer = textBuffer.slice(newlineIndex + 1);
+
+            if (line.endsWith("\r")) line = line.slice(0, -1);
+            if (line.startsWith(":") || line.trim() === "") continue;
+            if (!line.startsWith("data: ")) continue;
+
+            const jsonStr = line.slice(6).trim();
+            if (jsonStr === "[DONE]") break;
+
+            try {
+              const parsed = JSON.parse(jsonStr);
+              const content = parsed.choices?.[0]?.delta?.content;
+              if (content) {
+                accumulatedContent += content;
+                setMessages((prev) =>
+                  prev.map((m, i) =>
+                    i === prev.length - 1
+                      ? { ...m, content: accumulatedContent }
+                      : m
+                  )
+                );
+              }
+            } catch {
+              // Partial JSON, continue
+            }
+          }
+        }
+      }
+
+      // Finalize streaming
+      setMessages((prev) =>
+        prev.map((m, i) =>
+          i === prev.length - 1
+            ? { ...m, isStreaming: false }
+            : m
+        )
+      );
+    } catch (error) {
+      console.error("Explanation error:", error);
+      // Fallback to stored explanation
+      const fallback = question.explanation || "No detailed explanation available.";
+      setMessages((prev) =>
+        prev.map((m, i) =>
+          i === prev.length - 1
+            ? {
+                ...m,
+                content: isCorrect
+                  ? `## ✅ Correct!\n\n${fallback}`
+                  : `## ❌ Incorrect\n\nThe correct answer is **${question.correct_option}**.\n\n${fallback}`,
+                isStreaming: false,
+              }
+            : m
+        )
+      );
+    } finally {
+      setIsExplaining(false);
+    }
+  };
+
+  const handleAnswer = async (option: string) => {
+    if (hasAnswered || isExplaining) return;
 
     const currentQuestion = questions[currentIndex];
     const isCorrect = option === currentQuestion.correct_option;
@@ -139,19 +261,7 @@ export function PYQQuizChat() {
       ...prev,
       {
         type: "answer",
-        content: `You selected: **${option}**`,
-      },
-    ]);
-
-    // Add feedback message
-    setMessages((prev) => [
-      ...prev,
-      {
-        type: "feedback",
-        content: isCorrect ? "Correct! Well done! 🎉" : `Incorrect. The correct answer is **${currentQuestion.correct_option}**.`,
-        isCorrect,
-        explanation: currentQuestion.explanation || undefined,
-        correctAnswer: currentQuestion.correct_option,
+        content: `Your answer: **${option}. ${currentQuestion.options[option as keyof typeof currentQuestion.options]}**`,
       },
     ]);
 
@@ -161,6 +271,9 @@ export function PYQQuizChat() {
     }));
 
     setHasAnswered(true);
+
+    // Stream AI explanation
+    await streamExplanation(currentQuestion, option, isCorrect);
   };
 
   const handleNext = () => {
@@ -168,7 +281,8 @@ export function PYQQuizChat() {
       const nextIndex = currentIndex + 1;
       setCurrentIndex(nextIndex);
       setHasAnswered(false);
-      addQuestionMessage(questions[nextIndex]);
+      setIsExplaining(false);
+      addQuestionMessage(questions[nextIndex], nextIndex);
     } else {
       setIsComplete(true);
     }
@@ -203,7 +317,6 @@ export function PYQQuizChat() {
     );
   }
 
-  const currentQuestion = questions[currentIndex];
   const scorePercent = score.total > 0 ? Math.round((score.correct / score.total) * 100) : 0;
 
   return (
@@ -243,7 +356,9 @@ export function PYQQuizChat() {
           <SelectContent>
             <SelectItem value="all">All Years</SelectItem>
             {availableYears.map((y) => (
-              <SelectItem key={y} value={y.toString()}>{y}</SelectItem>
+              <SelectItem key={y} value={y.toString()}>
+                {y}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
@@ -272,27 +387,19 @@ export function PYQQuizChat() {
                 key={i}
                 className={cn(
                   "rounded-xl p-4",
-                  msg.type === "question" && "bg-muted/50",
-                  msg.type === "answer" && "bg-primary/10 ml-8",
-                  msg.type === "feedback" && (msg.isCorrect ? "bg-green-500/10 border border-green-500/20" : "bg-red-500/10 border border-red-500/20")
+                  msg.type === "question" && "bg-muted/50 border border-border",
+                  msg.type === "answer" && "bg-primary/10 ml-8 border border-primary/20",
+                  msg.type === "ai-explanation" && "bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/20"
                 )}
               >
-                {msg.type === "feedback" && (
-                  <div className="flex items-center gap-2 mb-2">
-                    {msg.isCorrect ? (
-                      <CheckCircle className="h-5 w-5 text-green-500" />
-                    ) : (
-                      <XCircle className="h-5 w-5 text-red-500" />
-                    )}
+                {msg.type === "ai-explanation" && (
+                  <div className="flex items-center gap-2 mb-3 text-primary">
+                    <Sparkles className="h-4 w-4" />
+                    <span className="text-sm font-medium">AI Explanation</span>
+                    {msg.isStreaming && <Loader2 className="h-3 w-3 animate-spin" />}
                   </div>
                 )}
-                <MarkdownContent content={msg.content} />
-                {msg.explanation && (
-                  <div className="mt-3 pt-3 border-t border-border">
-                    <p className="text-sm font-medium text-muted-foreground mb-1">Explanation:</p>
-                    <MarkdownContent content={msg.explanation} />
-                  </div>
-                )}
+                <MarkdownContent content={msg.content || (msg.isStreaming ? "Generating explanation..." : "")} />
               </div>
             ))}
             <div ref={scrollRef} />
@@ -309,15 +416,25 @@ export function PYQQuizChat() {
                     key={option}
                     variant="outline"
                     onClick={() => handleAnswer(option)}
-                    className="h-12 text-lg font-medium hover:bg-primary hover:text-primary-foreground"
+                    disabled={isExplaining}
+                    className="h-12 text-lg font-medium hover:bg-primary hover:text-primary-foreground transition-all"
                   >
                     {option}
                   </Button>
                 ))}
               </div>
             ) : (
-              <Button onClick={handleNext} className="w-full">
-                {currentIndex < questions.length - 1 ? (
+              <Button
+                onClick={handleNext}
+                className="w-full"
+                disabled={isExplaining}
+              >
+                {isExplaining ? (
+                  <>
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    Generating explanation...
+                  </>
+                ) : currentIndex < questions.length - 1 ? (
                   <>
                     Next Question
                     <ArrowRight className="h-4 w-4 ml-2" />
@@ -336,10 +453,16 @@ export function PYQQuizChat() {
         {/* Results */}
         {isComplete && (
           <div className="p-6 border-t border-border text-center">
-            <Trophy className={cn(
-              "h-12 w-12 mx-auto mb-4",
-              scorePercent >= 70 ? "text-yellow-500" : scorePercent >= 50 ? "text-blue-500" : "text-muted-foreground"
-            )} />
+            <Trophy
+              className={cn(
+                "h-12 w-12 mx-auto mb-4",
+                scorePercent >= 70
+                  ? "text-yellow-500"
+                  : scorePercent >= 50
+                  ? "text-blue-500"
+                  : "text-muted-foreground"
+              )}
+            />
             <h3 className="text-2xl font-bold mb-2">Quiz Complete!</h3>
             <p className="text-lg text-muted-foreground mb-4">
               You scored {score.correct} out of {score.total} ({scorePercent}%)
