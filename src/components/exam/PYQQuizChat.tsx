@@ -2,11 +2,12 @@ import { useState, useEffect, useRef } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
-import { CheckCircle, XCircle, ArrowRight, RotateCcw, Trophy, Filter, Loader2, Sparkles } from "lucide-react";
+import { ArrowRight, RotateCcw, Trophy, Filter, Loader2, Sparkles, Send, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 
@@ -24,7 +25,7 @@ interface PYQQuestion {
 }
 
 interface ChatMessage {
-  type: "question" | "answer" | "feedback" | "ai-explanation";
+  type: "question" | "answer" | "feedback" | "ai-explanation" | "user-query" | "ai-response";
   content: string;
   isCorrect?: boolean;
   isStreaming?: boolean;
@@ -42,6 +43,10 @@ export function PYQQuizChat() {
   const [isExplaining, setIsExplaining] = useState(false);
   const [score, setScore] = useState({ correct: 0, total: 0 });
   const [isComplete, setIsComplete] = useState(false);
+
+  // Follow-up question state
+  const [followUpQuery, setFollowUpQuery] = useState("");
+  const [isAskingFollowUp, setIsAskingFollowUp] = useState(false);
 
   // Filters
   const [examType, setExamType] = useState<string>("all");
@@ -84,6 +89,7 @@ export function PYQQuizChat() {
       setIsExplaining(false);
       setScore({ correct: 0, total: 0 });
       setIsComplete(false);
+      setFollowUpQuery("");
 
       if (shuffled.length > 0) {
         addQuestionMessage(shuffled[0], 0);
@@ -122,8 +128,8 @@ export function PYQQuizChat() {
       .map(([key, value]) => `**${key}.** ${value}`)
       .join("\n\n");
 
-    const difficultyBadge = question.difficulty 
-      ? `\`${question.difficulty.toUpperCase()}\`` 
+    const difficultyBadge = question.difficulty
+      ? `\`${question.difficulty.toUpperCase()}\``
       : "";
 
     const content = `### Question ${index + 1} ${difficultyBadge}
@@ -136,14 +142,17 @@ ${optionsText}`;
     setMessages((prev) => [...prev, { type: "question", content }]);
   };
 
-  const streamExplanation = async (question: PYQQuestion, studentAnswer: string, isCorrect: boolean) => {
-    setIsExplaining(true);
-
+  const streamAIResponse = async (
+    endpoint: string,
+    body: Record<string, unknown>,
+    messageType: "ai-explanation" | "ai-response",
+    isCorrect?: boolean
+  ) => {
     // Add placeholder for streaming response
     setMessages((prev) => [
       ...prev,
       {
-        type: "ai-explanation",
+        type: messageType,
         content: "",
         isStreaming: true,
         isCorrect,
@@ -152,27 +161,24 @@ ${optionsText}`;
 
     try {
       const response = await fetch(
-        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/pyq-explain`,
+        `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/${endpoint}`,
         {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
           },
-          body: JSON.stringify({
-            question: question.question_text,
-            options: question.options,
-            correctOption: question.correct_option,
-            studentAnswer,
-            subject: question.subject,
-            topic: question.topic,
-            examType: question.exam_type,
-          }),
+          body: JSON.stringify(body),
         }
       );
 
       if (!response.ok) {
-        throw new Error("Failed to get explanation");
+        if (response.status === 429) {
+          toast({ title: "Rate limited", description: "Please wait a moment and try again.", variant: "destructive" });
+        } else if (response.status === 402) {
+          toast({ title: "Credits exhausted", description: "Please add more credits.", variant: "destructive" });
+        }
+        throw new Error("Failed to get AI response");
       }
 
       const reader = response.body?.getReader();
@@ -228,26 +234,77 @@ ${optionsText}`;
             : m
         )
       );
+
+      return accumulatedContent;
     } catch (error) {
-      console.error("Explanation error:", error);
-      // Fallback to stored explanation
-      const fallback = question.explanation || "No detailed explanation available.";
+      console.error("AI response error:", error);
+      // Show error in message
       setMessages((prev) =>
         prev.map((m, i) =>
           i === prev.length - 1
             ? {
                 ...m,
-                content: isCorrect
-                  ? `## ✅ Correct!\n\n${fallback}`
-                  : `## ❌ Incorrect\n\nThe correct answer is **${question.correct_option}**.\n\n${fallback}`,
+                content: "Sorry, I couldn't generate a response. Please try again.",
                 isStreaming: false,
               }
             : m
         )
       );
-    } finally {
-      setIsExplaining(false);
+      return null;
     }
+  };
+
+  const streamExplanation = async (question: PYQQuestion, studentAnswer: string, isCorrect: boolean) => {
+    setIsExplaining(true);
+
+    await streamAIResponse(
+      "pyq-explain",
+      {
+        question: question.question_text,
+        options: question.options,
+        correctOption: question.correct_option,
+        studentAnswer,
+        subject: question.subject,
+        topic: question.topic,
+        examType: question.exam_type,
+      },
+      "ai-explanation",
+      isCorrect
+    );
+
+    setIsExplaining(false);
+  };
+
+  const handleAskFollowUp = async () => {
+    if (!followUpQuery.trim() || isAskingFollowUp) return;
+
+    const currentQuestion = questions[currentIndex];
+    const query = followUpQuery.trim();
+    setFollowUpQuery("");
+    setIsAskingFollowUp(true);
+
+    // Add user's question to chat
+    setMessages((prev) => [
+      ...prev,
+      { type: "user-query", content: query },
+    ]);
+
+    await streamAIResponse(
+      "pyq-explain",
+      {
+        question: currentQuestion.question_text,
+        options: currentQuestion.options,
+        correctOption: currentQuestion.correct_option,
+        studentAnswer: "follow-up",
+        subject: currentQuestion.subject,
+        topic: currentQuestion.topic,
+        examType: currentQuestion.exam_type,
+        followUpQuery: query,
+      },
+      "ai-response"
+    );
+
+    setIsAskingFollowUp(false);
   };
 
   const handleAnswer = async (option: string) => {
@@ -282,6 +339,7 @@ ${optionsText}`;
       setCurrentIndex(nextIndex);
       setHasAnswered(false);
       setIsExplaining(false);
+      setFollowUpQuery("");
       addQuestionMessage(questions[nextIndex], nextIndex);
     } else {
       setIsComplete(true);
@@ -390,26 +448,36 @@ ${optionsText}`;
                   "rounded-xl p-4",
                   msg.type === "question" && "bg-muted/50 border border-border",
                   msg.type === "answer" && "bg-primary/10 ml-8 border border-primary/20",
-                  msg.type === "ai-explanation" && "bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/20"
+                  msg.type === "user-query" && "bg-secondary/30 ml-8 border border-secondary/30",
+                  (msg.type === "ai-explanation" || msg.type === "ai-response") &&
+                    "bg-gradient-to-br from-primary/5 to-secondary/5 border border-primary/20"
                 )}
               >
-                {msg.type === "ai-explanation" && (
+                {msg.type === "user-query" && (
+                  <div className="flex items-center gap-2 mb-2 text-secondary-foreground">
+                    <HelpCircle className="h-4 w-4" />
+                    <span className="text-sm font-medium">Your Question</span>
+                  </div>
+                )}
+                {(msg.type === "ai-explanation" || msg.type === "ai-response") && (
                   <div className="flex items-center gap-2 mb-3 text-primary">
                     <Sparkles className="h-4 w-4" />
-                    <span className="text-sm font-medium">AI Explanation</span>
+                    <span className="text-sm font-medium">
+                      {msg.type === "ai-explanation" ? "AI Explanation" : "AI Response"}
+                    </span>
                     {msg.isStreaming && <Loader2 className="h-3 w-3 animate-spin" />}
                   </div>
                 )}
-                <MarkdownContent content={msg.content || (msg.isStreaming ? "Generating explanation..." : "")} />
+                <MarkdownContent content={msg.content || (msg.isStreaming ? "Thinking..." : "")} />
               </div>
             ))}
             <div ref={scrollRef} />
           </div>
         </ScrollArea>
 
-        {/* Answer buttons */}
+        {/* Answer buttons or follow-up input */}
         {!isComplete && (
-          <div className="p-4 border-t border-border">
+          <div className="p-4 border-t border-border space-y-3">
             {!hasAnswered ? (
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {["A", "B", "C", "D"].map((option) => (
@@ -425,28 +493,54 @@ ${optionsText}`;
                 ))}
               </div>
             ) : (
-              <Button
-                onClick={handleNext}
-                className="w-full"
-                disabled={isExplaining}
-              >
-                {isExplaining ? (
-                  <>
-                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Generating explanation...
-                  </>
-                ) : currentIndex < questions.length - 1 ? (
-                  <>
-                    Next Question
-                    <ArrowRight className="h-4 w-4 ml-2" />
-                  </>
-                ) : (
-                  <>
-                    See Results
-                    <Trophy className="h-4 w-4 ml-2" />
-                  </>
-                )}
-              </Button>
+              <>
+                {/* Follow-up question input */}
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Still confused? Ask a follow-up question..."
+                    value={followUpQuery}
+                    onChange={(e) => setFollowUpQuery(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && handleAskFollowUp()}
+                    disabled={isExplaining || isAskingFollowUp}
+                    className="flex-1"
+                  />
+                  <Button
+                    size="icon"
+                    onClick={handleAskFollowUp}
+                    disabled={!followUpQuery.trim() || isExplaining || isAskingFollowUp}
+                  >
+                    {isAskingFollowUp ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Send className="h-4 w-4" />
+                    )}
+                  </Button>
+                </div>
+
+                {/* Next button */}
+                <Button
+                  onClick={handleNext}
+                  className="w-full"
+                  disabled={isExplaining || isAskingFollowUp}
+                >
+                  {isExplaining || isAskingFollowUp ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      {isAskingFollowUp ? "Answering..." : "Generating explanation..."}
+                    </>
+                  ) : currentIndex < questions.length - 1 ? (
+                    <>
+                      Next Question
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </>
+                  ) : (
+                    <>
+                      See Results
+                      <Trophy className="h-4 w-4 ml-2" />
+                    </>
+                  )}
+                </Button>
+              </>
             )}
           </div>
         )}
