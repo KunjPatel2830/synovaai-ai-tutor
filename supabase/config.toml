@@ -22,3 +22,6 @@ verify_jwt = false
 
 [functions.external-create-profile]
 verify_jwt = false
+
+[functions.generate-concept-image]
+verify_jwt = false
