@@ -502,7 +502,11 @@ ${optionsText}`;
                     {msg.isStreaming && <Loader2 className="h-3 w-3 animate-spin" />}
                   </div>
                 )}
-                <MarkdownContent content={msg.content || (msg.isStreaming ? "Generating response..." : "")} />
+                <MarkdownContent 
+                  content={msg.content || (msg.isStreaming ? "Generating response..." : "")} 
+                  enableImageGeneration={!msg.isStreaming && (msg.type === "ai-explanation" || msg.type === "ai-response")}
+                  subject={questions[currentIndex]?.subject}
+                />
               </div>
             ))}
             <div ref={messagesEndRef} />

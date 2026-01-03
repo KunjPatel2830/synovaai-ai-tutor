@@ -78,6 +78,7 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
     { to: "/exam-prep", icon: ClipboardList, label: "Exam Prep" },
     { to: "/doubt-solver", icon: HelpCircle, label: "Doubt Solver" },
     { to: "/study-planner", icon: Calendar, label: "Study Planner" },
+    { to: "/peer-mode", icon: Users, label: "Peer Mode" },
   ];
 
   const teacherLinks = [

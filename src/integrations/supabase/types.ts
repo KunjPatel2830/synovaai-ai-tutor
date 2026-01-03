@@ -350,6 +350,144 @@ export type Database = {
         }
         Relationships: []
       }
+      peer_room_messages: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          message_type: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          message_type?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          message_type?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "peer_room_messages_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "peer_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      peer_room_participants: {
+        Row: {
+          id: string
+          joined_at: string
+          left_at: string | null
+          role: string
+          room_id: string
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          joined_at?: string
+          left_at?: string | null
+          role?: string
+          room_id: string
+          user_id: string
+        }
+        Update: {
+          id?: string
+          joined_at?: string
+          left_at?: string | null
+          role?: string
+          room_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "peer_room_participants_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "peer_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      peer_rooms: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          is_active: boolean | null
+          name: string
+          room_code: string
+          subject: string | null
+          topic: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          is_active?: boolean | null
+          name: string
+          room_code: string
+          subject?: string | null
+          topic?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          room_code?: string
+          subject?: string | null
+          topic?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      peer_whiteboard_data: {
+        Row: {
+          data: Json
+          id: string
+          room_id: string
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          data?: Json
+          id?: string
+          room_id: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          data?: Json
+          id?: string
+          room_id?: string
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "peer_whiteboard_data_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "peer_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       practice_tests: {
         Row: {
           answers: Json | null
@@ -721,6 +859,7 @@ export type Database = {
         }[]
       }
       generate_invitation_code: { Args: never; Returns: string }
+      generate_room_code: { Args: never; Returns: string }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

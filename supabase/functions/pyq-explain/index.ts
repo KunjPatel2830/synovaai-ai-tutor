@@ -83,6 +83,11 @@ Provide a memorable tip or insight that helps students solve similar problems qu
 ## 🔗 Related Topics
 Mention 2-3 related topics the student should revise for a complete understanding.
 
+IMAGE GENERATION:
+- When the concept would benefit from a visual (diagrams, structures, graphs, ray diagrams, etc.), include: "[IMAGE: concept_description]"
+- Example: "[IMAGE: ray diagram for convex lens]", "[IMAGE: energy level diagram]"
+- Place this tag where the image would help most
+
 Keep your explanation clear, concise, and exam-focused. Use LaTeX for all mathematical expressions (e.g., $E = mc^2$, $\\int_0^\\infty$).`;
 
       userPrompt = `Question: ${question}
