@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -33,7 +33,9 @@ interface ChatMessage {
 
 export function PYQQuizChat() {
   const { toast } = useToast();
-  const scrollRef = useRef<HTMLDivElement>(null);
+  const scrollAreaRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const shouldScrollRef = useRef(true);
 
   const [questions, setQuestions] = useState<PYQQuestion[]>([]);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -53,6 +55,12 @@ export function PYQQuizChat() {
   const [subject, setSubject] = useState<string>("all");
   const [year, setYear] = useState<string>("all");
   const [availableYears, setAvailableYears] = useState<number[]>([]);
+
+  const scrollToBottom = useCallback(() => {
+    if (shouldScrollRef.current && messagesEndRef.current) {
+      messagesEndRef.current.scrollIntoView({ behavior: "smooth", block: "end" });
+    }
+  }, []);
 
   const fetchQuestions = async () => {
     setIsLoading(true);
@@ -119,9 +127,13 @@ export function PYQQuizChat() {
     fetchAvailableYears();
   }, []);
 
+  // Scroll to bottom when new messages are added (but not during streaming updates)
   useEffect(() => {
-    scrollRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    const lastMessage = messages[messages.length - 1];
+    if (lastMessage && !lastMessage.isStreaming) {
+      scrollToBottom();
+    }
+  }, [messages.length, scrollToBottom]);
 
   const addQuestionMessage = (question: PYQQuestion, index: number) => {
     const optionsText = Object.entries(question.options)
@@ -211,13 +223,16 @@ ${optionsText}`;
               const content = parsed.choices?.[0]?.delta?.content;
               if (content) {
                 accumulatedContent += content;
-                setMessages((prev) =>
-                  prev.map((m, i) =>
-                    i === prev.length - 1
-                      ? { ...m, content: accumulatedContent }
-                      : m
-                  )
-                );
+                // Use requestAnimationFrame for smoother updates
+                requestAnimationFrame(() => {
+                  setMessages((prev) =>
+                    prev.map((m, i) =>
+                      i === prev.length - 1
+                        ? { ...m, content: accumulatedContent }
+                        : m
+                    )
+                  );
+                });
               }
             } catch {
               // Partial JSON, continue
@@ -230,10 +245,13 @@ ${optionsText}`;
       setMessages((prev) =>
         prev.map((m, i) =>
           i === prev.length - 1
-            ? { ...m, isStreaming: false }
+            ? { ...m, isStreaming: false, content: accumulatedContent }
             : m
         )
       );
+
+      // Scroll to bottom after streaming completes
+      setTimeout(scrollToBottom, 100);
 
       return accumulatedContent;
     } catch (error) {
@@ -340,6 +358,7 @@ ${optionsText}`;
       setHasAnswered(false);
       setIsExplaining(false);
       setFollowUpQuery("");
+      shouldScrollRef.current = true;
       addQuestionMessage(questions[nextIndex], nextIndex);
     } else {
       setIsComplete(true);
@@ -353,6 +372,15 @@ ${optionsText}`;
   const handleApplyFilters = () => {
     fetchQuestions();
   };
+
+  // Handle scroll events to detect manual scrolling
+  const handleScroll = useCallback(() => {
+    if (scrollAreaRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = scrollAreaRef.current;
+      const isNearBottom = scrollHeight - scrollTop - clientHeight < 100;
+      shouldScrollRef.current = isNearBottom;
+    }
+  }, []);
 
   if (isLoading) {
     return (
@@ -438,9 +466,15 @@ ${optionsText}`;
       </div>
 
       {/* Chat area */}
-      <GlassCard className="flex-1 flex flex-col min-h-0">
-        <ScrollArea className="flex-1 p-4">
-          <div className="space-y-4">
+      <GlassCard className="flex-1 flex flex-col min-h-0 overflow-hidden">
+        <ScrollArea 
+          className="flex-1 p-4"
+          onScrollCapture={handleScroll}
+        >
+          <div 
+            ref={scrollAreaRef}
+            className="space-y-4"
+          >
             {messages.map((msg, i) => (
               <div
                 key={i}
@@ -468,10 +502,10 @@ ${optionsText}`;
                     {msg.isStreaming && <Loader2 className="h-3 w-3 animate-spin" />}
                   </div>
                 )}
-                <MarkdownContent content={msg.content || (msg.isStreaming ? "Thinking..." : "")} />
+                <MarkdownContent content={msg.content || (msg.isStreaming ? "Generating response..." : "")} />
               </div>
             ))}
-            <div ref={scrollRef} />
+            <div ref={messagesEndRef} />
           </div>
         </ScrollArea>
 
@@ -500,7 +534,7 @@ ${optionsText}`;
                     placeholder="Still confused? Ask a follow-up question..."
                     value={followUpQuery}
                     onChange={(e) => setFollowUpQuery(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && handleAskFollowUp()}
+                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && handleAskFollowUp()}
                     disabled={isExplaining || isAskingFollowUp}
                     className="flex-1"
                   />
