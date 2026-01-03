@@ -83,10 +83,15 @@ Provide a memorable tip or insight that helps students solve similar problems qu
 ## 🔗 Related Topics
 Mention 2-3 related topics the student should revise for a complete understanding.
 
-IMAGE GENERATION:
-- When the concept would benefit from a visual (diagrams, structures, graphs, ray diagrams, etc.), include: "[IMAGE: concept_description]"
-- Example: "[IMAGE: ray diagram for convex lens]", "[IMAGE: energy level diagram]"
-- Place this tag where the image would help most
+MANDATORY IMAGE GENERATION (VERY IMPORTANT):
+- You MUST include [IMAGE: concept_name] tags for EVERY visual concept
+- This is REQUIRED for: ray diagrams, lens/mirrors, electric circuits, cell structures, chemical structures, graphs, energy diagrams, vector diagrams, free body diagrams, wave patterns, molecular structures, anatomy, geometry figures
+- Format: [IMAGE: descriptive name] - place IMMEDIATELY after introducing the concept
+- Examples:
+  * "The refraction through convex lens... [IMAGE: convex lens ray diagram with focal point]"
+  * "The structure of chloroplast shows... [IMAGE: chloroplast labeled diagram]"
+  * "In this circuit diagram... [IMAGE: parallel circuit with resistors]"
+- NEVER skip this for visual/diagram-based questions!
 
 Keep your explanation clear, concise, and exam-focused. Use LaTeX for all mathematical expressions (e.g., $E = mc^2$, $\\int_0^\\infty$).`;
 
