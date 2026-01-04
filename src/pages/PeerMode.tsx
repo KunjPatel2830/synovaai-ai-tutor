@@ -103,17 +103,26 @@ export default function PeerMode() {
       if (error) throw error;
 
       // Join as creator
-      await supabase.from("peer_room_participants").insert({
+      const { error: participantError } = await supabase.from("peer_room_participants").insert({
         room_id: room.id,
         user_id: user.id,
         role: userRole === "teacher" ? "teacher" : "student",
       });
 
-      // Create whiteboard entry
-      await supabase.from("peer_whiteboard_data").insert({
+      if (participantError) {
+        console.error("Participant insert error:", participantError);
+      }
+
+      // Create whiteboard entry (ignore error as RLS may block until participant is added)
+      const { error: wbError } = await supabase.from("peer_whiteboard_data").insert({
         room_id: room.id,
         data: [],
+        updated_by: user.id,
       });
+
+      if (wbError) {
+        console.error("Whiteboard init error:", wbError);
+      }
 
       setActiveRoom(room);
       toast({ title: "Room created!", description: `Share code: ${roomCode}` });
@@ -121,7 +130,7 @@ export default function PeerMode() {
       setRoomSubject("");
     } catch (error: any) {
       console.error("Create room error:", error);
-      toast({ title: "Failed to create room", variant: "destructive" });
+      toast({ title: "Failed to create room", description: error?.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
