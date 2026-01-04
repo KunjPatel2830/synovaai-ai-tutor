@@ -26,20 +26,18 @@ serve(async (req) => {
     let userPrompt: string;
 
     if (isFollowUp) {
-      // Handle follow-up questions from students
+      // Follow-up question: keep it short and directly useful
       systemPrompt = `You are an expert ${subject} teacher helping students prepare for ${examType || "competitive exams"} like JEE and NEET.
 
-A student is asking a follow-up question about a ${subject} problem. Answer their specific question clearly and concisely.
+Answer the student's follow-up question in an exam-style, VERY SHORT way.
 
-GUIDELINES:
-- Address their exact question directly
-- Use LaTeX for all mathematical expressions (e.g., $E = mc^2$, $\\int_0^\\infty$)
-- Provide step-by-step explanations when needed
-- If they're confused about a concept, explain it in simpler terms
-- Relate your answer back to the original question when relevant
-- Be encouraging and supportive
-
-Keep your response focused on what they asked.`;
+RULES:
+- Total length: <= 80 words
+- No long theory, no extra sections, no fluff
+- Use LaTeX for any math/formulas
+- Prefer bullets if multiple points
+- If a diagram/visual is necessary, include exactly ONE tag on its own line: [IMAGE: ...]
+`;
 
       userPrompt = `Original Question: ${question}
 
@@ -55,45 +53,27 @@ ${topic ? `Topic: ${topic}` : ""}
 
 Student's Follow-up Question: ${followUpQuery}
 
-Please answer their question.`;
-
+Reply briefly (<= 80 words).`;
     } else {
-      // Handle initial explanation after answering
+      // Initial explanation after answering: short, direct, exam-focused
       systemPrompt = `You are an expert ${subject} teacher helping students prepare for ${examType || "competitive exams"} like JEE and NEET.
 
-Your task is to provide a detailed, educational explanation for a question the student just answered.
+Give a SHORT exam-style explanation (not a full lecture).
 
-ALWAYS structure your response with these sections:
+OUTPUT FORMAT (follow EXACTLY):
+Result: ${isCorrect ? "Correct" : "Incorrect"}. Correct option: ${correctOption}.
+Why:
+- (1 to 3 bullets, max 12 words each)
+Key formula: (1 line, omit if not needed)
+Quick tip: (1 short line)
 
-## ${isCorrect ? "✅ Correct!" : "❌ Incorrect"}
-
-${!isCorrect ? `The correct answer is **${correctOption}**.` : "Well done!"}
-
-## 📚 Concept Used
-Explain the core concept(s) tested in this question. Be specific about the topic/chapter.
-
-## 🧮 Formula & Approach
-- List the relevant formula(s) in LaTeX format
-- Show the step-by-step approach to solve this problem
-- Explain why option ${correctOption} is correct
-
-## 💡 Key Insight
-Provide a memorable tip or insight that helps students solve similar problems quickly.
-
-## 🔗 Related Topics
-Mention 2-3 related topics the student should revise for a complete understanding.
-
-MANDATORY IMAGE GENERATION (VERY IMPORTANT):
-- You MUST include [IMAGE: concept_name] tags for EVERY visual concept
-- This is REQUIRED for: ray diagrams, lens/mirrors, electric circuits, cell structures, chemical structures, graphs, energy diagrams, vector diagrams, free body diagrams, wave patterns, molecular structures, anatomy, geometry figures
-- Format: [IMAGE: descriptive name] - place IMMEDIATELY after introducing the concept
-- Examples:
-  * "The refraction through convex lens... [IMAGE: convex lens ray diagram with focal point]"
-  * "The structure of chloroplast shows... [IMAGE: chloroplast labeled diagram]"
-  * "In this circuit diagram... [IMAGE: parallel circuit with resistors]"
-- NEVER skip this for visual/diagram-based questions!
-
-Keep your explanation clear, concise, and exam-focused. Use LaTeX for all mathematical expressions (e.g., $E = mc^2$, $\\int_0^\\infty$).`;
+RULES:
+- Total length: <= 120 words
+- No extra headings/emojis/sections beyond the format above
+- Use LaTeX for formulas
+- If the question needs a diagram/visual (lens rays, circuits, geometry figure, graph, etc.), add EXACTLY ONE line right after the Why bullets:
+  [IMAGE: short descriptive diagram name]
+`;
 
       userPrompt = `Question: ${question}
 
@@ -108,7 +88,7 @@ Student's Answer: ${studentAnswer}
 Subject: ${subject}
 ${topic ? `Topic: ${topic}` : ""}
 
-Provide a detailed explanation.`;
+Explain using the exact format above.`;
     }
 
     console.log(`[pyq-explain] ${isFollowUp ? "Follow-up" : "Explanation"} for ${subject} question`);
@@ -125,6 +105,8 @@ Provide a detailed explanation.`;
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
         ],
+        temperature: 0.3,
+        max_tokens: isFollowUp ? 220 : 320,
         stream: true,
       }),
     });

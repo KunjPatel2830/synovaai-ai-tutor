@@ -136,50 +136,36 @@ export default function PeerMode() {
 
     setIsLoading(true);
     try {
-      const { data: room, error: roomError } = await supabase
-        .from("peer_rooms")
-        .select("*")
-        .eq("room_code", joinCode.toUpperCase())
-        .eq("is_active", true)
-        .single();
+      const { data, error } = await supabase.functions.invoke("peer-join-room", {
+        body: {
+          code: joinCode.toUpperCase(),
+          role: userRole === "teacher" ? "teacher" : "student",
+        },
+      });
 
-      if (roomError || !room) {
+      if (error) throw error;
+
+      const room = (data as any)?.room as Room | undefined;
+      if (!room) {
         toast({ title: "Room not found or inactive", variant: "destructive" });
         return;
       }
-
-      // Check if already a participant
-      const { data: existing } = await supabase
-        .from("peer_room_participants")
-        .select("*")
-        .eq("room_id", room.id)
-        .eq("user_id", user.id)
-        .single();
-
-      if (existing && !existing.left_at) {
-        setActiveRoom(room);
-        setJoinCode("");
-        return;
-      }
-
-      // Join room
-      await supabase.from("peer_room_participants").upsert({
-        room_id: room.id,
-        user_id: user.id,
-        role: userRole === "teacher" ? "teacher" : "student",
-        left_at: null,
-      });
 
       setActiveRoom(room);
       toast({ title: "Joined room!" });
       setJoinCode("");
     } catch (error: any) {
       console.error("Join room error:", error);
-      toast({ title: "Failed to join room", variant: "destructive" });
+      toast({
+        title: "Failed to join room",
+        description: error?.message,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
   };
+
 
   // Leave room
   const leaveRoom = async () => {
