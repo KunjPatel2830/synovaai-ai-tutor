@@ -20,7 +20,7 @@ interface Room {
   subject: string | null;
   topic: string | null;
   created_by: string;
-  is_active: boolean;
+  is_active: boolean | null;
 }
 
 interface Participant {
@@ -85,52 +85,32 @@ export default function PeerMode() {
 
     setIsLoading(true);
     try {
-      // Generate room code
-      const roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
-
-      const { data: room, error } = await supabase
-        .from("peer_rooms")
-        .insert({
+      const { data, error } = await supabase.functions.invoke("peer-create-room", {
+        body: {
           name: roomName.trim(),
-          created_by: user.id,
-          room_code: roomCode,
           subject: roomSubject.trim() || null,
-          is_active: true,
-        })
-        .select()
-        .single();
+          role: userRole === "teacher" ? "teacher" : "student",
+        },
+      });
 
       if (error) throw error;
 
-      // Join as creator
-      const { error: participantError } = await supabase.from("peer_room_participants").insert({
-        room_id: room.id,
-        user_id: user.id,
-        role: userRole === "teacher" ? "teacher" : "student",
-      });
-
-      if (participantError) {
-        console.error("Participant insert error:", participantError);
-      }
-
-      // Create whiteboard entry (ignore error as RLS may block until participant is added)
-      const { error: wbError } = await supabase.from("peer_whiteboard_data").insert({
-        room_id: room.id,
-        data: [],
-        updated_by: user.id,
-      });
-
-      if (wbError) {
-        console.error("Whiteboard init error:", wbError);
+      const room = (data as any)?.room as Room | undefined;
+      if (!room) {
+        throw new Error("Failed to create room");
       }
 
       setActiveRoom(room);
-      toast({ title: "Room created!", description: `Share code: ${roomCode}` });
+      toast({ title: "Room created!", description: `Share code: ${room.room_code}` });
       setRoomName("");
       setRoomSubject("");
     } catch (error: any) {
       console.error("Create room error:", error);
-      toast({ title: "Failed to create room", description: error?.message, variant: "destructive" });
+      toast({
+        title: "Failed to create room",
+        description: error?.message,
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
