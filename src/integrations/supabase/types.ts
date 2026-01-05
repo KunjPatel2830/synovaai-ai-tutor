@@ -871,6 +871,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      is_peer_room_participant: {
+        Args: { _room_id: string; _user_id: string }
+        Returns: boolean
+      }
       link_student_to_caregiver: { Args: { _code: string }; Returns: string }
       link_student_to_teacher: { Args: { _code: string }; Returns: string }
       record_login_attempt: {
