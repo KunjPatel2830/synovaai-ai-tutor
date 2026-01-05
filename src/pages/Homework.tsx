@@ -213,7 +213,7 @@ export default function Homework() {
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto flex flex-col h-[calc(100vh-5rem)]">
+      <div className="flex flex-col h-[calc(100vh-5rem)]">
         {/* Compact Header Row */}
         <div className="flex items-center justify-between gap-4 mb-3 shrink-0">
           <div className="flex items-center gap-3">

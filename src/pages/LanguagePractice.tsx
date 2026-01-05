@@ -123,7 +123,7 @@ export default function LanguagePractice() {
 
   return (
     <AppLayout>
-      <div className="h-[calc(100vh-5rem)] flex flex-col">
+      <div className="h-[calc(100vh-5rem)] flex flex-col w-full">
         {/* Header */}
         <GlassCard className="mb-2 shrink-0">
           <GlassCardHeader className="py-4">

@@ -214,7 +214,7 @@ export default function Tutor() {
   if (!sessionStarted) {
     return (
       <AppLayout>
-        <div className="max-w-2xl mx-auto flex flex-col h-[calc(100vh-4.5rem)]">
+        <div className="flex flex-col h-[calc(100vh-4.5rem)] max-w-2xl mx-auto lg:max-w-3xl">
           {/* Compact Header Row */}
           <div className="flex items-center justify-between gap-4 mb-3 shrink-0">
             <div className="flex items-center gap-3">
@@ -305,7 +305,7 @@ export default function Tutor() {
 
   return (
     <AppLayout>
-      <div className="max-w-4xl mx-auto flex flex-col h-[calc(100vh-5rem)]">
+      <div className="flex flex-col h-[calc(100vh-5rem)]">
         {/* Header with controls */}
         <div className="flex items-center justify-between gap-3 mb-3 shrink-0">
           <VoiceControls

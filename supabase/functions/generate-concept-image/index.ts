@@ -25,10 +25,17 @@ serve(async (req) => {
     console.log(`[generate-concept-image] Generating image for: ${concept}`);
 
     // Create an optimized prompt for educational diagrams
-    const prompt = `Educational scientific diagram of ${concept}${subject ? ` for ${subject}` : ""}. 
-Clean, labeled illustration suitable for students. 
+    const prompt = `Create a clear educational diagram of: ${concept}.
+${subject ? `Subject: ${subject}.` : ""}
 ${context || ""}
-High quality, detailed, clear annotations, professional educational style, white background.`;
+Requirements:
+- Scientific/educational illustration style
+- Clean white or light background
+- Clear labels and annotations
+- High quality, detailed, professional
+- Suitable for students learning this concept
+- Show the actual structure/mechanism being described`;
+
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
