@@ -15,7 +15,7 @@ import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { FileUpload } from "@/components/upload/FileUpload";
 import { FileText, Send, Lightbulb, AlertTriangle, CheckCircle, Mic, MicOff, Volume2, Plus } from "lucide-react";
-import { Loader } from "@/components/ui/loader";
+import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
 interface UploadedFile {
@@ -333,8 +333,10 @@ export default function Homework() {
                   ))}
                   {isLoading && (
                     <div className="flex justify-start">
-                      <div className="bg-card border border-border p-3 rounded-2xl">
-                        <Loader size="sm" />
+                      <div className="bg-card border border-border p-3 rounded-2xl max-w-[80%] space-y-2">
+                        <Skeleton className="h-4 w-48" />
+                        <Skeleton className="h-4 w-40" />
+                        <Skeleton className="h-4 w-32" />
                       </div>
                     </div>
                   )}

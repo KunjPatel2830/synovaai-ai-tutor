@@ -16,8 +16,8 @@ import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { Brain, Send, Mic, MicOff, Volume2, Plus } from "lucide-react";
-import { Loader } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Message {
   role: "user" | "assistant";
@@ -364,8 +364,10 @@ export default function Tutor() {
               ))}
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-card border border-border p-3 rounded-2xl">
-                    <Loader size="sm" />
+                  <div className="bg-card border border-border p-3 rounded-2xl max-w-[80%] space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-32" />
                   </div>
                 </div>
               )}

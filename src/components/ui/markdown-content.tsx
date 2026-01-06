@@ -5,7 +5,13 @@ import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { Loader2, Image as ImageIcon } from "lucide-react";
+import { Image as ImageIcon, X, ZoomIn } from "lucide-react";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogClose,
+} from "@/components/ui/dialog";
 
 interface MarkdownContentProps {
   content: string;
@@ -14,14 +20,11 @@ interface MarkdownContentProps {
   subject?: string;
 }
 
-interface ImageCache {
-  [key: string]: { url: string; loading: boolean; error?: string };
-}
-
 function ConceptImage({ concept, subject }: { concept: string; subject?: string }) {
   const [imageState, setImageState] = useState<{ url?: string; loading: boolean; error?: string }>({
     loading: true,
   });
+  const [isExpanded, setIsExpanded] = useState(false);
 
   useEffect(() => {
     const generateImage = async () => {
@@ -37,7 +40,6 @@ function ConceptImage({ concept, subject }: { concept: string; subject?: string 
         if (response.data?.imageUrl) {
           setImageState({ url: response.data.imageUrl, loading: false });
         } else if (response.data?.text) {
-          // No image but got text response
           setImageState({ loading: false, error: "Could not generate image" });
         } else {
           setImageState({ loading: false, error: "No image generated" });
@@ -53,37 +55,58 @@ function ConceptImage({ concept, subject }: { concept: string; subject?: string 
 
   if (imageState.loading) {
     return (
-      <div className="flex items-center gap-2 p-4 bg-muted/50 rounded-lg my-3 animate-pulse">
-        <Loader2 className="h-5 w-5 animate-spin text-primary" />
-        <span className="text-sm text-muted-foreground">Generating illustration for {concept}...</span>
+      <div className="my-3">
+        <Skeleton className="w-32 h-32 rounded-lg" />
+        <p className="text-xs text-muted-foreground mt-1 italic">Generating: {concept}</p>
       </div>
     );
   }
 
   if (imageState.error || !imageState.url) {
     return (
-      <div className="flex items-center gap-2 p-3 bg-muted/30 rounded-lg my-3 text-muted-foreground">
+      <div className="flex items-center gap-2 p-2 bg-muted/30 rounded-lg my-2 text-muted-foreground">
         <ImageIcon className="h-4 w-4" />
-        <span className="text-sm italic">Diagram: {concept}</span>
+        <span className="text-xs italic">Diagram: {concept}</span>
       </div>
     );
   }
 
   return (
-    <div className="my-4">
-      <img
-        src={imageState.url}
-        alt={concept}
-        className="max-w-full h-auto rounded-lg border border-border shadow-sm"
-        loading="lazy"
-      />
-      <p className="text-xs text-muted-foreground mt-1 text-center italic">{concept}</p>
-    </div>
+    <>
+      <div 
+        className="my-3 inline-block cursor-pointer group relative"
+        onClick={() => setIsExpanded(true)}
+      >
+        <img
+          src={imageState.url}
+          alt={concept}
+          className="w-32 h-32 object-cover rounded-lg border border-border shadow-sm transition-transform hover:scale-105"
+          loading="lazy"
+        />
+        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 rounded-lg transition-colors flex items-center justify-center">
+          <ZoomIn className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
+        </div>
+        <p className="text-xs text-muted-foreground mt-1 text-center italic truncate w-32">{concept}</p>
+      </div>
+
+      <Dialog open={isExpanded} onOpenChange={setIsExpanded}>
+        <DialogContent className="max-w-3xl p-0 bg-transparent border-none">
+          <DialogClose className="absolute top-2 right-2 z-10 h-8 w-8 rounded-full bg-background/80 flex items-center justify-center hover:bg-background">
+            <X className="h-4 w-4" />
+          </DialogClose>
+          <img
+            src={imageState.url}
+            alt={concept}
+            className="w-full h-auto max-h-[80vh] object-contain rounded-lg"
+          />
+          <p className="text-sm text-center text-foreground bg-background/80 py-2 rounded-b-lg">{concept}</p>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
 
 export function MarkdownContent({ content, className, enableImageGeneration = true, subject }: MarkdownContentProps) {
-  // Parse content for [IMAGE: concept] tags and render them
   const parsedContent = useMemo(() => {
     if (!enableImageGeneration) return { text: content, images: [] as { concept: string; index: number }[] };
 
@@ -102,7 +125,6 @@ export function MarkdownContent({ content, className, enableImageGeneration = tr
     return { text: processedContent, images };
   }, [content, enableImageGeneration]);
 
-  // Split content by placeholders and render with images
   const renderContent = () => {
     if (parsedContent.images.length === 0) {
       return (
