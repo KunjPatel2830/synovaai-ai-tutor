@@ -17,7 +17,7 @@ import {
   GlassCardTitle,
 } from "@/components/ui/glass-card";
 import { Globe, Send, Volume2, Mic, RefreshCw } from "lucide-react";
-import { Loader, LoaderSpinner } from "@/components/ui/loader";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 
@@ -215,8 +215,10 @@ export default function LanguagePractice() {
               ))}
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-muted/50 border border-border p-4 rounded-2xl">
-                    <Loader />
+                  <div className="bg-muted/50 border border-border p-4 rounded-2xl max-w-[80%] space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-32" />
                   </div>
                 </div>
               )}
@@ -244,7 +246,7 @@ export default function LanguagePractice() {
                   disabled={!input.trim() || isLoading}
                   className="h-full"
                 >
-                  {isLoading ? <LoaderSpinner size="sm" /> : <Send className="h-5 w-5" />}
+                  <Send className="h-5 w-5" />
                 </Button>
               </div>
             </div>

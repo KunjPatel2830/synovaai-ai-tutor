@@ -6,6 +6,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { ChevronLeft, ChevronRight, Star, Quote, User, LogIn } from "lucide-react";
 import { useNavigate } from "react-router-dom";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface Review {
   id: string;
@@ -65,7 +66,6 @@ export function ReviewsSection() {
 
     setIsSubmitting(true);
 
-    // Get display name from profile or email
     const { data: profile } = await supabase
       .from("profiles")
       .select("display_name")
@@ -102,169 +102,161 @@ export function ReviewsSection() {
     setCurrentIndex((prev) => (prev - 1 + reviews.length) % Math.max(1, reviews.length));
   };
 
-  const getVisibleReviews = () => {
-    if (reviews.length === 0) return [];
-    if (reviews.length <= 3) return reviews;
-    
-    const visible = [];
-    for (let i = -1; i <= 1; i++) {
-      const idx = (currentIndex + i + reviews.length) % reviews.length;
-      visible.push({ ...reviews[idx], position: i });
-    }
-    return visible;
-  };
-
   return (
-    <section id="reviews" className="py-20 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-6xl mx-auto">
-        <h2 className="text-3xl sm:text-4xl font-bold font-display text-center mb-4">
+    <section id="reviews" className="py-16 px-4 sm:px-6 lg:px-8 bg-muted/30">
+      <div className="max-w-5xl mx-auto">
+        <h2 className="text-2xl sm:text-3xl font-bold font-display text-center mb-3">
           What Our <span className="text-primary">Users Say</span>
         </h2>
-        <p className="text-muted-foreground text-center mb-12 max-w-2xl mx-auto">
+        <p className="text-muted-foreground text-center mb-8 text-sm max-w-xl mx-auto">
           Hear from students, teachers, and caregivers who use SYNOVA every day.
         </p>
 
-        {/* Reviews Carousel */}
-        <div className="relative mb-12">
+        {/* Reviews Display */}
+        <div className="mb-10">
           {isLoading ? (
-            <div className="flex justify-center py-20">
-              <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+            <div className="flex gap-4 justify-center">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="w-72 p-5 rounded-xl border border-border bg-card hidden sm:block first:block">
+                  <div className="flex gap-1 mb-3">
+                    {[1, 2, 3, 4, 5].map((s) => (
+                      <Skeleton key={s} className="h-4 w-4 rounded" />
+                    ))}
+                  </div>
+                  <Skeleton className="h-4 w-full mb-2" />
+                  <Skeleton className="h-4 w-3/4 mb-4" />
+                  <div className="flex items-center gap-2 pt-3 border-t border-border">
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                    <div>
+                      <Skeleton className="h-3 w-20 mb-1" />
+                      <Skeleton className="h-2 w-16" />
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
           ) : reviews.length === 0 ? (
-            <div className="text-center py-16 glass rounded-2xl border border-border/50">
-              <Quote className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <p className="text-muted-foreground">No reviews yet. Be the first to share your experience!</p>
+            <div className="text-center py-12 rounded-xl border border-border bg-card">
+              <Quote className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+              <p className="text-muted-foreground text-sm">No reviews yet. Be the first to share your experience!</p>
             </div>
           ) : (
-            <div className="flex items-center justify-center gap-4 min-h-[320px]">
-              {/* Left Arrow */}
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={prevSlide}
-                className="rounded-full shrink-0 hidden sm:flex"
-                disabled={reviews.length <= 1}
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </Button>
+            <div className="relative">
+              {/* Navigation arrows */}
+              {reviews.length > 1 && (
+                <>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={prevSlide}
+                    className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-3 z-10 rounded-full h-8 w-8 hidden sm:flex"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={nextSlide}
+                    className="absolute right-0 top-1/2 -translate-y-1/2 translate-x-3 z-10 rounded-full h-8 w-8 hidden sm:flex"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </>
+              )}
 
-              {/* Cards Container */}
-              <div className="flex items-center justify-center gap-4 overflow-hidden w-full max-w-4xl">
-                {getVisibleReviews().map((review, idx) => {
-                  const isCenter = review.position === 0 || reviews.length <= 3;
-                  return (
-                    <div
-                      key={review.id}
-                      className={`
-                        glass rounded-2xl border border-border/50 p-6 transition-all duration-300
-                        ${isCenter 
-                          ? "scale-100 opacity-100 z-10 w-full max-w-md" 
-                          : "scale-90 opacity-60 hidden lg:block w-72"
-                        }
-                      `}
-                    >
-                      <div className="flex items-center gap-1 mb-4">
-                        {[...Array(5)].map((_, i) => (
-                          <Star
-                            key={i}
-                            className={`w-4 h-4 ${
-                              i < review.rating ? "text-warning fill-warning" : "text-muted-foreground"
-                            }`}
-                          />
-                        ))}
-                      </div>
-                      <Quote className="w-8 h-8 text-primary/30 mb-2" />
-                      <p className="text-foreground mb-6 line-clamp-4">{review.content}</p>
-                      <div className="flex items-center gap-3 pt-4 border-t border-border/50">
-                        <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                          <User className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground">{review.display_name}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(review.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                      </div>
+              {/* Review card */}
+              <div className="max-w-md mx-auto">
+                <div className="p-5 rounded-xl border border-border bg-card">
+                  <div className="flex items-center gap-1 mb-3">
+                    {[...Array(5)].map((_, i) => (
+                      <Star
+                        key={i}
+                        className={`w-4 h-4 ${
+                          i < reviews[currentIndex].rating ? "text-warning fill-warning" : "text-muted-foreground"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-foreground text-sm leading-relaxed mb-4 line-clamp-4">
+                    "{reviews[currentIndex].content}"
+                  </p>
+                  <div className="flex items-center gap-3 pt-3 border-t border-border">
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="w-4 h-4 text-primary" />
                     </div>
-                  );
-                })}
-              </div>
-
-              {/* Right Arrow */}
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={nextSlide}
-                className="rounded-full shrink-0 hidden sm:flex"
-                disabled={reviews.length <= 1}
-              >
-                <ChevronRight className="w-5 h-5" />
-              </Button>
-            </div>
-          )}
-
-          {/* Pagination Dots */}
-          {reviews.length > 1 && (
-            <div className="flex items-center justify-center gap-4 mt-8">
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={prevSlide}
-                className="rounded-full sm:hidden"
-              >
-                <ChevronLeft className="w-5 h-5" />
-              </Button>
-              <div className="flex items-center gap-2">
-                <span className="text-sm text-muted-foreground">
-                  {currentIndex + 1} of {reviews.length}
-                </span>
-                <div className="w-24 h-1 bg-muted rounded-full overflow-hidden">
-                  <div 
-                    className="h-full bg-primary transition-all duration-300"
-                    style={{ width: `${((currentIndex + 1) / reviews.length) * 100}%` }}
-                  />
+                    <div>
+                      <p className="font-medium text-foreground text-sm">{reviews[currentIndex].display_name}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {new Date(reviews[currentIndex].created_at).toLocaleDateString()}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={nextSlide}
-                className="rounded-full sm:hidden"
-              >
-                <ChevronRight className="w-5 h-5" />
-              </Button>
+
+              {/* Dots indicator */}
+              {reviews.length > 1 && (
+                <div className="flex items-center justify-center gap-3 mt-4">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={prevSlide}
+                    className="h-8 w-8 sm:hidden"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </Button>
+                  <div className="flex gap-1.5">
+                    {reviews.map((_, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => setCurrentIndex(idx)}
+                        className={`h-1.5 rounded-full transition-all ${
+                          idx === currentIndex ? "w-4 bg-primary" : "w-1.5 bg-muted-foreground/30"
+                        }`}
+                      />
+                    ))}
+                  </div>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    onClick={nextSlide}
+                    className="h-8 w-8 sm:hidden"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </div>
 
         {/* Add Review Section */}
-        <div className="glass rounded-2xl border border-border/50 p-6 sm:p-8 max-w-xl mx-auto">
+        <div className="max-w-sm mx-auto p-5 rounded-xl border border-border bg-card">
           {!user ? (
             <div className="text-center">
-              <p className="text-muted-foreground mb-4">Sign in to share your experience with SYNOVA</p>
-              <Button onClick={() => navigate("/auth")} className="gap-2">
+              <p className="text-muted-foreground text-sm mb-3">Sign in to share your experience</p>
+              <Button onClick={() => navigate("/auth")} size="sm" className="gap-2">
                 <LogIn className="w-4 h-4" />
-                Sign In to Review
+                Sign In
               </Button>
             </div>
           ) : userHasReview ? (
             <div className="text-center">
-              <p className="text-muted-foreground">Thank you for your review!</p>
+              <p className="text-muted-foreground text-sm">Thank you for your review!</p>
             </div>
           ) : showForm ? (
-            <div className="space-y-4">
+            <div className="space-y-3">
               <div>
-                <label className="text-sm font-medium mb-2 block">Your Rating</label>
+                <label className="text-xs font-medium mb-1.5 block">Rating</label>
                 <div className="flex gap-1">
                   {[1, 2, 3, 4, 5].map((star) => (
                     <button
                       key={star}
                       onClick={() => setNewRating(star)}
-                      className="p-1 hover:scale-110 transition-transform"
+                      className="p-0.5 hover:scale-110 transition-transform"
                     >
                       <Star
-                        className={`w-6 h-6 ${
+                        className={`w-5 h-5 ${
                           star <= newRating ? "text-warning fill-warning" : "text-muted-foreground"
                         }`}
                       />
@@ -273,29 +265,30 @@ export function ReviewsSection() {
                 </div>
               </div>
               <div>
-                <label className="text-sm font-medium mb-2 block">Your Review</label>
+                <label className="text-xs font-medium mb-1.5 block">Your Review</label>
                 <Textarea
                   value={newReview}
                   onChange={(e) => setNewReview(e.target.value)}
-                  placeholder="Share your experience with SYNOVA..."
-                  rows={4}
+                  placeholder="Share your experience..."
+                  rows={3}
                   maxLength={500}
+                  className="text-sm"
                 />
                 <p className="text-xs text-muted-foreground mt-1">{newReview.length}/500</p>
               </div>
               <div className="flex gap-2">
-                <Button onClick={handleSubmit} disabled={isSubmitting}>
-                  {isSubmitting ? "Submitting..." : "Submit Review"}
+                <Button onClick={handleSubmit} disabled={isSubmitting} size="sm">
+                  {isSubmitting ? "Submitting..." : "Submit"}
                 </Button>
-                <Button variant="outline" onClick={() => setShowForm(false)}>
+                <Button variant="outline" size="sm" onClick={() => setShowForm(false)}>
                   Cancel
                 </Button>
               </div>
             </div>
           ) : (
             <div className="text-center">
-              <p className="text-muted-foreground mb-4">Share your experience with SYNOVA</p>
-              <Button onClick={() => setShowForm(true)}>Write a Review</Button>
+              <p className="text-muted-foreground text-sm mb-3">Share your experience with SYNOVA</p>
+              <Button onClick={() => setShowForm(true)} size="sm">Write a Review</Button>
             </div>
           )}
         </div>

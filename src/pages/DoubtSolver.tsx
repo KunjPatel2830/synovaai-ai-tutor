@@ -9,7 +9,7 @@ import {
   GlassCardTitle,
 } from "@/components/ui/glass-card";
 import { HelpCircle, Send, Mic, MicOff, Volume2 } from "lucide-react";
-import { Loader, LoaderSpinner } from "@/components/ui/loader";
+import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client";
 import { cn } from "@/lib/utils";
 
@@ -148,8 +148,10 @@ export default function DoubtSolver() {
               ))}
               {isLoading && (
                 <div className="flex justify-start">
-                  <div className="bg-muted/50 border border-border p-4 rounded-2xl">
-                    <Loader />
+                  <div className="bg-muted/50 border border-border p-4 rounded-2xl max-w-[80%] space-y-2">
+                    <Skeleton className="h-4 w-48" />
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-4 w-32" />
                   </div>
                 </div>
               )}
@@ -185,7 +187,7 @@ export default function DoubtSolver() {
                 disabled={!input.trim() || isLoading}
                 className="h-auto"
               >
-                {isLoading ? <LoaderSpinner size="sm" /> : <Send className="h-5 w-5" />}
+                <Send className="h-5 w-5" />
               </Button>
             </div>
           </div>
