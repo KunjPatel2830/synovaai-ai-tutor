@@ -197,7 +197,7 @@ export default function Dashboard() {
                         colorClasses[action.color as keyof typeof colorClasses]
                       )}
                     >
-                      <Icon className="h-7 w-7 text-primary-foreground" />
+                      <Icon className="h-7 w-7 text-background" />
                     </div>
                     <ArrowRight className="h-5 w-5 text-muted-foreground group-hover:text-primary group-hover:translate-x-1 transition-all duration-300" />
                   </div>
