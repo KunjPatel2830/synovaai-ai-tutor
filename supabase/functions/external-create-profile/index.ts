@@ -6,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Use external Supabase project
+const EXTERNAL_SUPABASE_URL = Deno.env.get('EXTERNAL_SUPABASE_URL') ?? '';
+const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get('EXTERNAL_SUPABASE_ANON_KEY') ?? '';
+const EXTERNAL_SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -13,11 +18,7 @@ serve(async (req) => {
   }
 
   try {
-    // Get external Supabase credentials from secrets
-    const externalUrl = Deno.env.get('EXTERNAL_SUPABASE_URL');
-    const externalServiceKey = Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY');
-
-    if (!externalUrl || !externalServiceKey) {
+    if (!EXTERNAL_SUPABASE_URL || !EXTERNAL_SUPABASE_SERVICE_ROLE_KEY || !EXTERNAL_SUPABASE_ANON_KEY) {
       console.error('Missing external Supabase credentials');
       return new Response(JSON.stringify({ error: 'Server configuration error' }), {
         status: 500,
@@ -34,13 +35,8 @@ serve(async (req) => {
       });
     }
 
-    // Create external Supabase client with service role for server operations
-    const externalSupabase = createClient(externalUrl, externalServiceKey, {
-      auth: { persistSession: false }
-    });
-
     // Create client with user's token to verify their identity
-    const externalSupabaseUser = createClient(externalUrl, externalServiceKey, {
+    const externalSupabaseUser = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_ANON_KEY, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false }
     });
@@ -62,11 +58,16 @@ serve(async (req) => {
 
     console.log(`[external-create-profile] Creating profile for user: ${userId}`);
 
+    // Create external Supabase client with service role for server operations
+    const externalSupabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false }
+    });
+
     // Check if profile already exists
     const { data: existingProfile, error: checkError } = await externalSupabase
       .from('profiles')
       .select('id')
-      .eq('id', userId)
+      .eq('user_id', userId)
       .maybeSingle();
 
     if (checkError) {
@@ -83,17 +84,12 @@ serve(async (req) => {
       });
     }
 
-    // Create profile with id = auth.uid() and default role = 'student'
-    // This runs server-side with service role, so user_id is set securely
+    // Create profile
     const { data: newProfile, error: insertError } = await externalSupabase
       .from('profiles')
       .insert({
-        id: userId,  // id = auth.uid()
-        email: userEmail,
+        user_id: userId,
         display_name: displayName,
-        role: 'student',  // Default role
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString()
       })
       .select()
       .single();
@@ -116,12 +112,38 @@ serve(async (req) => {
       });
     }
 
+    // Also create user role with default 'student'
+    const { error: roleError } = await externalSupabase
+      .from('user_roles')
+      .insert({
+        user_id: userId,
+        role: 'student',
+      });
+
+    if (roleError) {
+      console.error('Error creating user role:', roleError);
+      // Don't fail the request, profile is created
+    }
+
+    // Also create learning streak entry
+    const { error: streakError } = await externalSupabase
+      .from('learning_streaks')
+      .insert({
+        user_id: userId,
+      });
+
+    if (streakError) {
+      console.error('Error creating learning streak:', streakError);
+      // Don't fail the request
+    }
+
     console.log(`[external-create-profile] Successfully created profile for user: ${userId}`);
 
     return new Response(JSON.stringify({
       message: 'Profile created successfully',
       profile: newProfile
     }), {
+      status: 201,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
 
