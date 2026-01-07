@@ -6,6 +6,11 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Use external Supabase project
+const EXTERNAL_SUPABASE_URL = Deno.env.get('EXTERNAL_SUPABASE_URL') ?? '';
+const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get('EXTERNAL_SUPABASE_ANON_KEY') ?? '';
+const EXTERNAL_SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
 // Rate limiting configuration
 const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
 const MAX_REQUESTS_PER_WINDOW = 10;
@@ -35,12 +40,9 @@ serve(async (req) => {
   }
 
   try {
-    // Get external Supabase credentials from secrets
-    const externalUrl = Deno.env.get('EXTERNAL_SUPABASE_URL');
-    const externalServiceKey = Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY');
     const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
 
-    if (!externalUrl || !externalServiceKey) {
+    if (!EXTERNAL_SUPABASE_URL || !EXTERNAL_SUPABASE_ANON_KEY) {
       console.error('Missing external Supabase credentials');
       return new Response(JSON.stringify({ error: 'Server configuration error' }), {
         status: 500,
@@ -65,15 +67,10 @@ serve(async (req) => {
       });
     }
 
-    // Create external Supabase client with service role for server operations
-    const externalSupabase = createClient(externalUrl, externalServiceKey, {
-      auth: { persistSession: false }
-    });
-
     // Create client with user's token to verify their identity
     const externalSupabaseAnon = createClient(
-      externalUrl,
-      Deno.env.get('EXTERNAL_SUPABASE_ANON_KEY') || externalServiceKey,
+      EXTERNAL_SUPABASE_URL,
+      EXTERNAL_SUPABASE_ANON_KEY,
       {
         global: { headers: { Authorization: authHeader } },
         auth: { persistSession: false }
@@ -144,17 +141,22 @@ serve(async (req) => {
       }
     }
 
+    // Create external Supabase client with service role for server operations
+    const externalSupabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_SERVICE_ROLE_KEY, {
+      auth: { persistSession: false }
+    });
+
     // Get user's latest message
     const userMessage = messages[messages.length - 1];
 
-    // Create or get conversation - server-side with service role, using auth.uid() equivalent
+    // Create or get conversation
     let activeConversationId = conversationId;
     
     if (!activeConversationId) {
-      // Create new conversation - user_id set server-side, NOT from frontend
+      // Create new conversation
       const { data: newConversation, error: convError } = await externalSupabase
-        .from('conversations')
-        .insert({ user_id: userId })
+        .from('chat_sessions')
+        .insert({ user_id: userId, mode: 'tutor' })
         .select('id')
         .single();
 
@@ -169,7 +171,7 @@ serve(async (req) => {
     } else {
       // Verify conversation belongs to user
       const { data: existingConv, error: verifyError } = await externalSupabase
-        .from('conversations')
+        .from('chat_sessions')
         .select('id')
         .eq('id', activeConversationId)
         .eq('user_id', userId)
@@ -186,9 +188,9 @@ serve(async (req) => {
 
     // Save user message to external Supabase
     const { error: saveUserMsgError } = await externalSupabase
-      .from('messages')
+      .from('chat_messages')
       .insert({
-        conversation_id: activeConversationId,
+        session_id: activeConversationId,
         role: 'user',
         content: userMessage.content
       });
@@ -207,7 +209,7 @@ serve(async (req) => {
 
 Always be patient, supportive, and focus on helping the student understand rather than just giving answers.`;
 
-    // Call Lovable AI Gateway (server-side, API key never exposed to frontend)
+    // Call Lovable AI Gateway
     console.log(`[external-ai-tutor] Calling AI for user: ${userId}`);
     
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
@@ -261,9 +263,9 @@ Always be patient, supportive, and focus on helping the student understand rathe
 
     // Save assistant message to external Supabase
     const { error: saveAiMsgError } = await externalSupabase
-      .from('messages')
+      .from('chat_messages')
       .insert({
-        conversation_id: activeConversationId,
+        session_id: activeConversationId,
         role: 'assistant',
         content: assistantContent
       });

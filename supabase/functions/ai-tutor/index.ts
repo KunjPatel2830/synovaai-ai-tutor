@@ -6,10 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
-const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// Use external Supabase project
+const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? "";
+const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ?? "";
 
 // Input validation constants
 const MAX_MESSAGE_LENGTH = 4000;
@@ -29,11 +28,9 @@ async function requireUser(req: Request): Promise<{ userId: string } | { error: 
   if (!authHeader?.startsWith("Bearer ")) {
     return { error: jsonResponse({ error: "Unauthorized" }, { status: 401 }) };
   }
-
-  const token = authHeader.replace("Bearer ", "");
   
-  // Create a client with the user's token for proper auth
-  const userSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  // Create a client with the user's token for proper auth against external Supabase
+  const userSupabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } }
   });
 
