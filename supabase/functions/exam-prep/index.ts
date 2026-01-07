@@ -27,12 +27,19 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
 
 async function requireUser(req: Request): Promise<{ userId: string } | { error: Response }> {
   const authHeader = req.headers.get("Authorization") ?? "";
-  const token = authHeader.startsWith("Bearer ") ? authHeader.slice(7) : "";
+  
+  if (!authHeader?.startsWith("Bearer ")) {
+    return { error: jsonResponse({ error: "Unauthorized" }, { status: 401 }) };
+  }
 
-  if (!token) return { error: jsonResponse({ error: "Unauthorized" }, { status: 401 }) };
+  // Create a client with the user's token for proper auth
+  const userSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authHeader } }
+  });
 
-  const { data, error } = await supabase.auth.getUser(token);
+  const { data, error } = await userSupabase.auth.getUser();
   if (error || !data.user) {
+    console.error("Auth error:", error);
     return { error: jsonResponse({ error: "Unauthorized" }, { status: 401 }) };
   }
 
