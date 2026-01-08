@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useToast } from "@/hooks/use-toast";
 
@@ -44,7 +44,7 @@ export function useBadges() {
 
     try {
       // Fetch all available badges
-      const { data: allBadges, error: badgesError } = await supabase
+      const { data: allBadges, error: badgesError } = await externalSupabase
         .from("badges")
         .select("*")
         .order("points", { ascending: true });
@@ -52,7 +52,7 @@ export function useBadges() {
       if (badgesError) throw badgesError;
 
       // Fetch user's earned badges
-      const { data: earnedBadges, error: earnedError } = await supabase
+      const { data: earnedBadges, error: earnedError } = await externalSupabase
         .from("user_badges")
         .select("*, badge:badges(*)")
         .eq("user_id", user.id);
@@ -93,7 +93,7 @@ export function useBadges() {
       try {
         switch (badge.criteria_type) {
           case "sessions_completed": {
-            const { count } = await supabase
+            const { count } = await externalSupabase
               .from("chat_sessions")
               .select("*", { count: "exact", head: true })
               .eq("user_id", user.id);
@@ -101,7 +101,7 @@ export function useBadges() {
             break;
           }
           case "streak_days": {
-            const { data } = await supabase
+            const { data } = await externalSupabase
               .from("learning_streaks")
               .select("current_streak, longest_streak")
               .eq("user_id", user.id)
@@ -110,7 +110,7 @@ export function useBadges() {
             break;
           }
           case "topics_studied": {
-            const { count } = await supabase
+            const { count } = await externalSupabase
               .from("learning_progress")
               .select("*", { count: "exact", head: true })
               .eq("user_id", user.id);
@@ -118,7 +118,7 @@ export function useBadges() {
             break;
           }
           case "topics_mastered": {
-            const { count } = await supabase
+            const { count } = await externalSupabase
               .from("learning_progress")
               .select("*", { count: "exact", head: true })
               .eq("user_id", user.id)
@@ -127,7 +127,7 @@ export function useBadges() {
             break;
           }
           case "homework_questions": {
-            const { count } = await supabase
+            const { count } = await externalSupabase
               .from("student_help_requests")
               .select("*", { count: "exact", head: true })
               .eq("user_id", user.id)
@@ -136,7 +136,7 @@ export function useBadges() {
             break;
           }
           case "voice_sessions": {
-            const { count } = await supabase
+            const { count } = await externalSupabase
               .from("chat_sessions")
               .select("*", { count: "exact", head: true })
               .eq("user_id", user.id)
@@ -145,7 +145,7 @@ export function useBadges() {
             break;
           }
           case "perfect_score": {
-            const { count } = await supabase
+            const { count } = await externalSupabase
               .from("learning_progress")
               .select("*", { count: "exact", head: true })
               .eq("user_id", user.id)
@@ -183,7 +183,7 @@ export function useBadges() {
       if (!bp.earned && bp.current >= bp.target) {
         // Award this badge
         try {
-          const { error } = await supabase
+          const { error } = await externalSupabase
             .from("user_badges")
             .insert({
               user_id: user.id,

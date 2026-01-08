@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { externalSupabase } from "@/lib/external-supabase";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
@@ -78,7 +79,7 @@ export default function Homework() {
       let currentSessionId = sessionId;
       
       if (!currentSessionId) {
-        const { data: session, error } = await supabase
+        const { data: session, error } = await externalSupabase
           .from("chat_sessions")
           .insert({
             user_id: user.id,
@@ -93,7 +94,7 @@ export default function Homework() {
         setSessionId(currentSessionId);
       }
 
-      await supabase.from("chat_messages").insert([
+      await externalSupabase.from("chat_messages").insert([
         { session_id: currentSessionId, role: userMsg.role, content: userMsg.content },
         { session_id: currentSessionId, role: assistantMsg.role, content: assistantMsg.content },
       ]);

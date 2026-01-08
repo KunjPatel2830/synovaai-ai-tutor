@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -29,7 +29,7 @@ export default function Settings() {
   const fetchProfile = async () => {
     if (!user) return;
 
-    const { data } = await supabase
+    const { data } = await externalSupabase
       .from("profiles")
       .select("display_name, grade_level")
       .eq("user_id", user.id)
@@ -46,7 +46,7 @@ export default function Settings() {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase
+      const { error } = await externalSupabase
         .from("profiles")
         .update({
           display_name: displayName,

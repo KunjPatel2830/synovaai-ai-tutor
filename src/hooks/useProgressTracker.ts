@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { useAuth } from "@/contexts/AuthContext";
 
 export function useProgressTracker() {
@@ -11,7 +11,7 @@ export function useProgressTracker() {
     const today = new Date().toISOString().split("T")[0];
 
     // Get current streak data
-    const { data: streakData } = await supabase
+    const { data: streakData } = await externalSupabase
       .from("learning_streaks")
       .select("*")
       .eq("user_id", user.id)
@@ -19,7 +19,7 @@ export function useProgressTracker() {
 
     if (!streakData) {
       // Create streak record if it doesn't exist
-      await supabase.from("learning_streaks").insert({
+      await externalSupabase.from("learning_streaks").insert({
         user_id: user.id,
         current_streak: 1,
         longest_streak: 1,
@@ -45,7 +45,7 @@ export function useProgressTracker() {
 
     const newLongest = Math.max(newStreak, streakData.longest_streak || 0);
 
-    await supabase
+    await externalSupabase
       .from("learning_streaks")
       .update({
         current_streak: newStreak,
@@ -63,7 +63,7 @@ export function useProgressTracker() {
       await updateStreak();
 
       // Check if progress for this topic exists
-      const { data: existingProgress } = await supabase
+      const { data: existingProgress } = await externalSupabase
         .from("learning_progress")
         .select("*")
         .eq("user_id", user.id)
@@ -75,7 +75,7 @@ export function useProgressTracker() {
         const newAttempts = (existingProgress.attempts || 0) + 1;
         const newScore = Math.min(100, Math.max(score, existingProgress.score || 0));
         
-        await supabase
+        await externalSupabase
           .from("learning_progress")
           .update({
             score: newScore,
@@ -86,7 +86,7 @@ export function useProgressTracker() {
           .eq("id", existingProgress.id);
       } else {
         // Create new progress record
-        await supabase.from("learning_progress").insert({
+        await externalSupabase.from("learning_progress").insert({
           user_id: user.id,
           topic,
           score,
@@ -103,7 +103,7 @@ export function useProgressTracker() {
     async (question: string, subject: string, topic: string | null, mode: "tutor" | "homework" | "exam") => {
       if (!user) return;
 
-      await supabase.from("student_help_requests").insert({
+      await externalSupabase.from("student_help_requests").insert({
         user_id: user.id,
         subject,
         topic,

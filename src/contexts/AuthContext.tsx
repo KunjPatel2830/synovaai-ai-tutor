@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { User, Session } from '@supabase/supabase-js';
+import { externalSupabase } from '@/lib/external-supabase';
 import { supabase } from '@/integrations/supabase/client';
 
 type AppRole = 'student' | 'teacher' | 'caregiver' | 'admin';
@@ -23,7 +24,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const fetchUserRole = async (userId: string) => {
-    const { data, error } = await supabase
+    const { data, error } = await externalSupabase
       .from('user_roles')
       .select('role')
       .eq('user_id', userId)
@@ -34,9 +35,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const createProfileIfNeeded = async (userId: string, session: Session) => {
+    try {
+      // Call the edge function to create profile in external Supabase
+      const { error } = await supabase.functions.invoke('external-create-profile', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      
+      if (error) {
+        console.error('Error creating profile:', error);
+      }
+    } catch (err) {
+      console.error('Failed to create profile:', err);
+    }
+  };
+
   useEffect(() => {
-    // Set up auth state listener FIRST
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+    // Set up auth state listener FIRST - using external Supabase
+    const { data: { subscription } } = externalSupabase.auth.onAuthStateChange(
       (event, session) => {
         setSession(session);
         setUser(session?.user ?? null);
@@ -54,8 +72,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     );
 
-    // THEN check for existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    // THEN check for existing session - using external Supabase
+    externalSupabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
       
@@ -72,7 +90,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, displayName: string, role: AppRole) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    const { data, error } = await supabase.auth.signUp({
+    // Sign up using external Supabase
+    const { data, error } = await externalSupabase.auth.signUp({
       email,
       password,
       options: {
@@ -87,9 +106,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error };
     }
 
-    // Insert user role after successful signup
+    // Insert user role after successful signup - in external Supabase
     if (data.user) {
-      const { error: roleError } = await supabase
+      // Create profile
+      const { data: sessionData } = await externalSupabase.auth.getSession();
+      if (sessionData.session) {
+        await createProfileIfNeeded(data.user.id, sessionData.session);
+      }
+
+      const { error: roleError } = await externalSupabase
         .from('user_roles')
         .insert({ user_id: data.user.id, role });
       
@@ -105,7 +130,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    // Sign in using external Supabase
+    const { error } = await externalSupabase.auth.signInWithPassword({
       email,
       password,
     });
@@ -114,7 +140,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const signOut = async () => {
-    await supabase.auth.signOut();
+    // Sign out from external Supabase
+    await externalSupabase.auth.signOut();
     setUserRole(null);
   };
 

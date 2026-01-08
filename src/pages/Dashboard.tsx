@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { cn } from "@/lib/utils";
 import { AppLayout } from "@/components/layout/AppLayout";
 import {
@@ -67,7 +67,7 @@ export default function Dashboard() {
     if (!user) return;
 
     // Fetch profile
-    const { data: profileData } = await supabase
+    const { data: profileData } = await externalSupabase
       .from("profiles")
       .select("display_name")
       .eq("user_id", user.id)
@@ -78,7 +78,7 @@ export default function Dashboard() {
     }
 
     // Fetch streak
-    const { data: streakData } = await supabase
+    const { data: streakData } = await externalSupabase
       .from("learning_streaks")
       .select("current_streak, longest_streak")
       .eq("user_id", user.id)
@@ -89,7 +89,7 @@ export default function Dashboard() {
     }
 
     // Fetch recent progress
-    const { data: progressData } = await supabase
+    const { data: progressData } = await externalSupabase
       .from("learning_progress")
       .select("topic, score, subject_id")
       .eq("user_id", user.id)
@@ -300,14 +300,14 @@ function TeacherDashboard() {
   const fetchStudents = async () => {
     if (!user) return;
 
-    const { data: links } = await supabase
+    const { data: links } = await externalSupabase
       .from("teacher_student_links")
       .select("student_id")
       .eq("teacher_id", user.id);
 
     if (links && links.length > 0) {
       const studentIds = links.map(l => l.student_id);
-      const { data: profiles } = await supabase
+      const { data: profiles } = await externalSupabase
         .from("profiles")
         .select("user_id, display_name")
         .in("user_id", studentIds);
@@ -469,14 +469,14 @@ function CaregiverDashboard() {
   const fetchChildren = async () => {
     if (!user) return;
 
-    const { data: links } = await supabase
+    const { data: links } = await externalSupabase
       .from("caregiver_student_links")
       .select("student_id")
       .eq("caregiver_id", user.id);
 
     if (links && links.length > 0) {
       const studentIds = links.map(l => l.student_id);
-      const { data: profiles } = await supabase
+      const { data: profiles } = await externalSupabase
         .from("profiles")
         .select("user_id, display_name")
         .in("user_id", studentIds);
