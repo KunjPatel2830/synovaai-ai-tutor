@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { externalSupabase } from "@/lib/external-supabase";
 import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
@@ -62,7 +63,7 @@ export default function PeerMode() {
   const fetchDisplayNames = async (userIds: string[]) => {
     if (userIds.length === 0) return;
     
-    const { data } = await supabase
+    const { data } = await externalSupabase
       .from("profiles")
       .select("user_id, display_name")
       .in("user_id", userIds);
@@ -160,7 +161,7 @@ export default function PeerMode() {
   const leaveRoom = async () => {
     if (!user || !activeRoom) return;
 
-    await supabase
+    await externalSupabase
       .from("peer_room_participants")
       .update({ left_at: new Date().toISOString() })
       .eq("room_id", activeRoom.id)
@@ -176,7 +177,7 @@ export default function PeerMode() {
   const sendMessage = async () => {
     if (!user || !activeRoom || !newMessage.trim()) return;
 
-    const { error } = await supabase.from("peer_room_messages").insert({
+    const { error } = await externalSupabase.from("peer_room_messages").insert({
       room_id: activeRoom.id,
       user_id: user.id,
       message: newMessage.trim(),
@@ -194,7 +195,7 @@ export default function PeerMode() {
 
     const loadRoomData = async () => {
       // Load participants
-      const { data: parts } = await supabase
+      const { data: parts } = await externalSupabase
         .from("peer_room_participants")
         .select("*")
         .eq("room_id", activeRoom.id)
@@ -206,7 +207,7 @@ export default function PeerMode() {
       }
 
       // Load messages
-      const { data: msgs } = await supabase
+      const { data: msgs } = await externalSupabase
         .from("peer_room_messages")
         .select("*")
         .eq("room_id", activeRoom.id)
@@ -222,7 +223,7 @@ export default function PeerMode() {
     loadRoomData();
 
     // Subscribe to realtime messages
-    const channel = supabase
+    const channel = externalSupabase
       .channel(`room-${activeRoom.id}`)
       .on(
         "postgres_changes",
@@ -242,9 +243,7 @@ export default function PeerMode() {
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { externalSupabase.removeChannel(channel); };
   }, [activeRoom?.id]);
 
   // Scroll to bottom on new messages

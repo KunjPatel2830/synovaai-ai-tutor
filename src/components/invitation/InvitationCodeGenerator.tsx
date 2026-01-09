@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { Copy, Plus, Loader2 } from "lucide-react";
 
 interface InvitationCodeGeneratorProps {
@@ -28,7 +28,7 @@ export function InvitationCodeGenerator({ userId, inviterRole }: InvitationCodeG
   }, [userId]);
 
   const fetchCodes = async () => {
-    const { data, error } = await supabase
+    const { data, error } = await externalSupabase
       .from("invitation_codes")
       .select("*")
       .eq("created_by", userId)
@@ -50,7 +50,7 @@ export function InvitationCodeGenerator({ userId, inviterRole }: InvitationCodeG
       code += chars.charAt(Math.floor(Math.random() * chars.length));
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await externalSupabase
       .from("invitation_codes")
       .insert({
         code,

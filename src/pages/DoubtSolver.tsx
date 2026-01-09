@@ -10,7 +10,7 @@ import {
 } from "@/components/ui/glass-card";
 import { HelpCircle, Send, Mic, MicOff, Volume2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client"; // Edge functions only
 import { cn } from "@/lib/utils";
 
 interface Message {

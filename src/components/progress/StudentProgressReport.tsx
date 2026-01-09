@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import {
   Dialog,
   DialogContent,
@@ -93,29 +93,29 @@ export function StudentProgressReport({
     setIsLoading(true);
 
     const [progressRes, streakRes, chatRes, homeworkRes, helpRes] = await Promise.all([
-      supabase
+      externalSupabase
         .from("learning_progress")
         .select("*")
         .eq("user_id", studentId)
         .order("last_studied_at", { ascending: false }),
-      supabase
+      externalSupabase
         .from("learning_streaks")
         .select("current_streak, longest_streak, last_activity_date")
         .eq("user_id", studentId)
         .maybeSingle(),
-      supabase
+      externalSupabase
         .from("chat_sessions")
         .select("id, mode, subject, topic, created_at")
         .eq("user_id", studentId)
         .order("created_at", { ascending: false })
         .limit(10),
-      supabase
+      externalSupabase
         .from("homework_sessions")
         .select("id, subject, topic, feedback, created_at")
         .eq("user_id", studentId)
         .order("created_at", { ascending: false })
         .limit(10),
-      supabase
+      externalSupabase
         .from("student_help_requests")
         .select("*")
         .eq("user_id", studentId)

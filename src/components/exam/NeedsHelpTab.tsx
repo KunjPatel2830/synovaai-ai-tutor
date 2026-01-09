@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -37,7 +37,7 @@ export function NeedsHelpTab({ linkedStudentIds }: NeedsHelpTabProps) {
     setIsLoading(true);
     try {
       // Fetch help requests for linked students
-      const { data: requests, error } = await supabase
+      const { data: requests, error } = await externalSupabase
         .from("student_help_requests")
         .select("*")
         .in("user_id", linkedStudentIds)
@@ -47,7 +47,7 @@ export function NeedsHelpTab({ linkedStudentIds }: NeedsHelpTabProps) {
       if (error) throw error;
 
       // Fetch student profiles
-      const { data: profiles } = await supabase
+      const { data: profiles } = await externalSupabase
         .from("profiles")
         .select("user_id, display_name")
         .in("user_id", linkedStudentIds);

@@ -4,7 +4,7 @@ import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useMemo } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client"; // Edge functions only
 import { Image as ImageIcon, X, ZoomIn } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
