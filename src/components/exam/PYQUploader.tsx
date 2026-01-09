@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { externalSupabase } from "@/lib/external-supabase";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -58,7 +59,7 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
 
     try {
       // Create upload record
-      const { data: uploadRecord, error: insertError } = await supabase
+      const { data: uploadRecord, error: insertError } = await externalSupabase
         .from("pyq_uploads")
         .insert({
           uploaded_by: userId,
@@ -90,7 +91,7 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
 
       if (functionError) {
         // Update status to failed
-        await supabase
+        await externalSupabase
           .from("pyq_uploads")
           .update({ status: "failed", error_message: functionError.message })
           .eq("id", uploadRecord.id);

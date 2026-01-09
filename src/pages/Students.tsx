@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardHeader, GlassCardTitle, GlassCardContent } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -35,7 +35,7 @@ export default function Students() {
 
   const fetchStudents = async () => {
     try {
-      const { data: links, error } = await supabase
+      const { data: links, error } = await externalSupabase
         .from("teacher_student_links")
         .select("student_id")
         .eq("teacher_id", user?.id);
@@ -47,12 +47,12 @@ export default function Students() {
 
         for (const link of links) {
           const [profileRes, streakRes] = await Promise.all([
-            supabase
+            externalSupabase
               .from("profiles")
               .select("display_name, grade_level")
               .eq("user_id", link.student_id)
               .single(),
-            supabase
+            externalSupabase
               .from("learning_streaks")
               .select("current_streak, longest_streak")
               .eq("user_id", link.student_id)

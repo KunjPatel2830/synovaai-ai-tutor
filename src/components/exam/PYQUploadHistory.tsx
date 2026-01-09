@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { externalSupabase } from "@/lib/external-supabase";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
   const fetchUploads = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await externalSupabase
         .from("pyq_uploads")
         .select("*")
         .eq("uploaded_by", userId)
@@ -55,7 +56,7 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
     fetchUploads();
     
     // Set up realtime subscription for status updates
-    const channel = supabase
+    const channel = externalSupabase
       .channel("pyq_uploads_changes")
       .on(
         "postgres_changes",
@@ -74,7 +75,7 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      externalSupabase.removeChannel(channel);
     };
   }, [userId]);
 
@@ -110,7 +111,7 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
 
     try {
       // Update status to processing
-      await supabase
+      await externalSupabase
         .from("pyq_uploads")
         .update({ status: "processing", error_message: null, file_name: file.name })
         .eq("id", selectedUploadForRetry.id);
@@ -131,7 +132,7 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
       });
 
       if (functionError) {
-        await supabase
+        await externalSupabase
           .from("pyq_uploads")
           .update({ status: "failed", error_message: functionError.message })
           .eq("id", selectedUploadForRetry.id);

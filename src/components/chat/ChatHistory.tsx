@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -42,7 +42,7 @@ export function ChatHistory({ mode, onLoadSession }: ChatHistoryProps) {
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await externalSupabase
         .from("chat_sessions")
         .select(`
           id,
@@ -61,7 +61,7 @@ export function ChatHistory({ mode, onLoadSession }: ChatHistoryProps) {
       // Get message counts for each session
       const sessionsWithCounts = await Promise.all(
         (data || []).map(async (session) => {
-          const { count } = await supabase
+          const { count } = await externalSupabase
             .from("chat_messages")
             .select("*", { count: "exact", head: true })
             .eq("session_id", session.id);
@@ -87,7 +87,7 @@ export function ChatHistory({ mode, onLoadSession }: ChatHistoryProps) {
   const loadSession = async (session: ChatSession) => {
     setLoadingSessionId(session.id);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await externalSupabase
         .from("chat_messages")
         .select("role, content")
         .eq("session_id", session.id)
@@ -115,13 +115,13 @@ export function ChatHistory({ mode, onLoadSession }: ChatHistoryProps) {
     
     try {
       // Delete messages first (due to foreign key)
-      await supabase
+      await externalSupabase
         .from("chat_messages")
         .delete()
         .eq("session_id", sessionId);
 
       // Then delete session
-      const { error } = await supabase
+      const { error } = await externalSupabase
         .from("chat_sessions")
         .delete()
         .eq("id", sessionId);

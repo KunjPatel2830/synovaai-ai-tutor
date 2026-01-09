@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { Loader2, UserPlus } from "lucide-react";
 
 export function JoinWithCode() {
@@ -33,7 +33,7 @@ export function JoinWithCode() {
     setIsJoining(true);
 
     // First, validate the code to determine the inviter role
-    const { data: validationResult, error: validateError } = await supabase
+    const { data: validationResult, error: validateError } = await externalSupabase
       .rpc("validate_invitation_code", { _code: trimmedCode });
 
     if (validateError) {
@@ -63,7 +63,7 @@ export function JoinWithCode() {
       ? "link_student_to_teacher" 
       : "link_student_to_caregiver";
 
-    const { error: linkError } = await supabase.rpc(linkFunction, { _code: trimmedCode });
+    const { error: linkError } = await externalSupabase.rpc(linkFunction, { _code: trimmedCode });
 
     if (linkError) {
       // Handle specific error messages from the secure function

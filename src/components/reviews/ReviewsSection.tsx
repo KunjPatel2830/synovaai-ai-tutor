@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -42,7 +42,7 @@ export function ReviewsSection() {
 
   const fetchReviews = async () => {
     setIsLoading(true);
-    const { data, error } = await supabase
+    const { data, error } = await externalSupabase
       .from("reviews")
       .select("*")
       .order("created_at", { ascending: false });
@@ -66,7 +66,7 @@ export function ReviewsSection() {
 
     setIsSubmitting(true);
 
-    const { data: profile } = await supabase
+    const { data: profile } = await externalSupabase
       .from("profiles")
       .select("display_name")
       .eq("user_id", user.id)
@@ -74,7 +74,7 @@ export function ReviewsSection() {
 
     const displayName = profile?.display_name || user.email?.split("@")[0] || "Anonymous";
 
-    const { error } = await supabase.from("reviews").insert({
+    const { error } = await externalSupabase.from("reviews").insert({
       user_id: user.id,
       display_name: displayName,
       content: newReview.trim(),

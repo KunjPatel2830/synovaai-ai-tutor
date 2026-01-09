@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -38,7 +38,7 @@ export default function ResetPassword() {
   useEffect(() => {
     // Check if we have a valid recovery session
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await externalSupabase.auth.getSession();
       
       // If no session and no hash in URL, redirect to auth
       if (!session && !window.location.hash.includes("type=recovery")) {
@@ -73,7 +73,7 @@ export default function ResetPassword() {
     setIsLoading(true);
 
     try {
-      const { error } = await supabase.auth.updateUser({
+      const { error } = await externalSupabase.auth.updateUser({
         password: password,
       });
 

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { GlassCard } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -105,7 +105,7 @@ export function PeerWhiteboard({ roomId }: PeerWhiteboardProps) {
   // Load existing whiteboard data
   useEffect(() => {
     const loadWhiteboard = async () => {
-      const { data } = await supabase
+      const { data } = await externalSupabase
         .from("peer_whiteboard_data")
         .select("data")
         .eq("room_id", roomId)
@@ -119,7 +119,7 @@ export function PeerWhiteboard({ roomId }: PeerWhiteboardProps) {
     loadWhiteboard();
 
     // Subscribe to whiteboard updates
-    const channel = supabase
+    const channel = externalSupabase
       .channel(`whiteboard-${roomId}`)
       .on(
         "postgres_changes",
@@ -141,7 +141,7 @@ export function PeerWhiteboard({ roomId }: PeerWhiteboardProps) {
       .subscribe();
 
     return () => {
-      supabase.removeChannel(channel);
+      externalSupabase.removeChannel(channel);
     };
   }, [roomId]);
 
@@ -152,7 +152,7 @@ export function PeerWhiteboard({ roomId }: PeerWhiteboardProps) {
 
   // Save whiteboard to database
   const saveWhiteboard = async (newStrokes: Stroke[]) => {
-    await supabase
+    await externalSupabase
       .from("peer_whiteboard_data")
       .update({ data: JSON.parse(JSON.stringify(newStrokes)), updated_at: new Date().toISOString(), updated_by: user?.id })
       .eq("room_id", roomId);

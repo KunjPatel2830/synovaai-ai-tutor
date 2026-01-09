@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { Button } from "@/components/ui/button";
@@ -32,7 +32,7 @@ export default function VerifyEmail() {
     setIsResending(true);
 
     try {
-      const { error } = await supabase.auth.resend({
+      const { error } = await externalSupabase.auth.resend({
         type: "signup",
         email: user.email,
         options: {
@@ -71,7 +71,7 @@ export default function VerifyEmail() {
 
   const handleRefreshStatus = async () => {
     // Refresh the session to check if email was verified
-    const { data, error } = await supabase.auth.refreshSession();
+    const { data, error } = await externalSupabase.auth.refreshSession();
     
     if (error) {
       toast({

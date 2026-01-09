@@ -12,7 +12,7 @@ import {
 import { Mic, MicOff, Volume2, VolumeX, RefreshCw, Globe } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { supabase } from "@/integrations/supabase/client"; // Edge functions only
 
 interface Message {
   role: "user" | "assistant";
