@@ -116,10 +116,10 @@ serve(async (req) => {
       return jsonResponse({ error: `Invalid difficulty. Must be one of: ${VALID_DIFFICULTIES.join(", ")}` }, { status: 400 });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY not configured");
+    if (!OPENROUTER_API_KEY) {
+      throw new Error("OPENROUTER_API_KEY not configured");
     }
 
     let systemPrompt = "";
@@ -187,14 +187,16 @@ Respond ONLY with valid JSON, no markdown.`;
       return jsonResponse({ error: "Unknown action" }, { status: 400 });
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
+        "HTTP-Referer": "https://synova.app",
+        "X-Title": "SYNOVA Exam Prep",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "xiaomi/mimo-v2-flash:free",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -204,7 +206,7 @@ Respond ONLY with valid JSON, no markdown.`;
 
     if (!response.ok) {
       const t = await response.text();
-      console.error("AI Gateway error:", response.status, t);
+      console.error("OpenRouter error:", response.status, t);
 
       if (response.status === 429) {
         return jsonResponse({ error: "Rate limit exceeded." }, { status: 429 });

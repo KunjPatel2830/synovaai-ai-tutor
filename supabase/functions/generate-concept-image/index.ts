@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -22,36 +22,35 @@ serve(async (req) => {
       );
     }
 
-    console.log(`[generate-concept-image] Generating image for: ${concept}`);
+    console.log(`[generate-concept-image] Generating description for: ${concept}`);
 
-    // Create an optimized prompt for educational diagrams
-    const prompt = `Create a clear educational diagram of: ${concept}.
+    // Since xiaomi/mimo-v2-flash:free is a text model, we'll generate a detailed description instead
+    const prompt = `Create a detailed educational description of: ${concept}.
 ${subject ? `Subject: ${subject}.` : ""}
 ${context || ""}
-Requirements:
-- Scientific/educational illustration style
-- Clean white or light background
-- Clear labels and annotations
-- High quality, detailed, professional
-- Suitable for students learning this concept
-- Show the actual structure/mechanism being described`;
 
+Provide a clear, student-friendly explanation that would help visualize this concept. Include:
+1. Key components or parts
+2. How they relate to each other
+3. Important details to remember
+4. A simple analogy if applicable`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
+        "HTTP-Referer": "https://synova.app",
+        "X-Title": "SYNOVA Concept Image",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash-image-preview",
+        model: "xiaomi/mimo-v2-flash:free",
         messages: [
           {
             role: "user",
             content: prompt,
           },
         ],
-        modalities: ["image", "text"],
       }),
     });
 
@@ -76,24 +75,15 @@ Requirements:
     }
 
     const data = await response.json();
-    const imageUrl = data.choices?.[0]?.message?.images?.[0]?.image_url?.url;
     const textResponse = data.choices?.[0]?.message?.content || "";
 
-    if (!imageUrl) {
-      console.log("[generate-concept-image] No image generated, returning text only");
-      return new Response(
-        JSON.stringify({ text: textResponse, hasImage: false }),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    console.log("[generate-concept-image] Description generated successfully");
 
-    console.log("[generate-concept-image] Image generated successfully");
-
+    // Return text description only (no image generation with this model)
     return new Response(
       JSON.stringify({ 
-        imageUrl, 
         text: textResponse,
-        hasImage: true 
+        hasImage: false 
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
