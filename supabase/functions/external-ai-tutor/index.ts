@@ -40,7 +40,7 @@ serve(async (req) => {
   }
 
   try {
-    const lovableApiKey = Deno.env.get('LOVABLE_API_KEY');
+    const openRouterApiKey = Deno.env.get('OPENROUTER_API_KEY');
 
     if (!EXTERNAL_SUPABASE_URL || !EXTERNAL_SUPABASE_ANON_KEY) {
       console.error('Missing external Supabase credentials');
@@ -50,8 +50,8 @@ serve(async (req) => {
       });
     }
 
-    if (!lovableApiKey) {
-      console.error('Missing LOVABLE_API_KEY');
+    if (!openRouterApiKey) {
+      console.error('Missing OPENROUTER_API_KEY');
       return new Response(JSON.stringify({ error: 'AI service not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -209,17 +209,19 @@ serve(async (req) => {
 
 Always be patient, supportive, and focus on helping the student understand rather than just giving answers.`;
 
-    // Call Lovable AI Gateway
+    // Call OpenRouter API
     console.log(`[external-ai-tutor] Calling AI for user: ${userId}`);
     
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${lovableApiKey}`,
+        'Authorization': `Bearer ${openRouterApiKey}`,
         'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://synova.app',
+        'X-Title': 'SYNOVA AI Tutor',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'xiaomi/mimo-v2-flash:free',
         messages: [
           { role: 'system', content: systemPrompt },
           ...messages
@@ -229,7 +231,7 @@ Always be patient, supportive, and focus on helping the student understand rathe
 
     if (!aiResponse.ok) {
       const errorStatus = aiResponse.status;
-      console.error(`AI Gateway error: ${errorStatus}`);
+      console.error(`OpenRouter error: ${errorStatus}`);
       
       if (errorStatus === 429) {
         return new Response(JSON.stringify({ error: 'AI rate limit exceeded. Please try again later.' }), {

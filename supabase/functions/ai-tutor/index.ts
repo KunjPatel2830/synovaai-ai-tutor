@@ -109,10 +109,10 @@ serve(async (req) => {
       return jsonResponse({ error: validation.error }, { status: 400 });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY not configured");
+    if (!OPENROUTER_API_KEY) {
+      throw new Error("OPENROUTER_API_KEY not configured");
     }
 
     const systemPrompt = `You are SYNOVA, an adaptive AI tutor. Follow these rules strictly:
@@ -161,21 +161,23 @@ CRITICAL LANGUAGE RULE:
 
 Be warm, patient, and encouraging. Celebrate correct answers!`;
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
+        "HTTP-Referer": "https://synova.app",
+        "X-Title": "SYNOVA AI Tutor",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "xiaomi/mimo-v2-flash:free",
         messages: [{ role: "system", content: systemPrompt }, ...validation.messages],
       }),
     });
 
     if (!response.ok) {
       const t = await response.text();
-      console.error("AI Gateway error:", response.status, t);
+      console.error("OpenRouter error:", response.status, t);
 
       if (response.status === 429) {
         return jsonResponse({ error: "Rate limit exceeded. Please try again later." }, { status: 429 });

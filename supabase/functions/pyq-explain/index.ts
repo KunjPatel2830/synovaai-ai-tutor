@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -93,14 +93,16 @@ Explain using the exact format above.`;
 
     console.log(`[pyq-explain] ${isFollowUp ? "Follow-up" : "Explanation"} for ${subject} question`);
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
+        "HTTP-Referer": "https://synova.app",
+        "X-Title": "SYNOVA PYQ Explain",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
+        model: "xiaomi/mimo-v2-flash:free",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
