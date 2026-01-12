@@ -90,7 +90,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signUp = async (email: string, password: string, displayName: string, role: AppRole) => {
     const redirectUrl = `${window.location.origin}/`;
     
-    // Sign up using external Supabase
+    // Sign up using external Supabase - pass role in metadata for the trigger
     const { data, error } = await externalSupabase.auth.signUp({
       email,
       password,
@@ -98,6 +98,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         emailRedirectTo: redirectUrl,
         data: {
           display_name: displayName,
+          role: role, // This is read by the database trigger to set user_roles
         }
       }
     });
@@ -106,23 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return { error };
     }
 
-    // Insert user role after successful signup - in external Supabase
+    // Profile and role are created automatically by database triggers (SECURITY DEFINER)
+    // Just set the local state
     if (data.user) {
-      // Create profile
-      const { data: sessionData } = await externalSupabase.auth.getSession();
-      if (sessionData.session) {
-        await createProfileIfNeeded(data.user.id, sessionData.session);
-      }
-
-      const { error: roleError } = await externalSupabase
-        .from('user_roles')
-        .insert({ user_id: data.user.id, role });
-      
-      if (roleError) {
-        console.error('Failed to set user role:', roleError);
-        return { error: roleError };
-      }
-      
       setUserRole(role);
     }
 
