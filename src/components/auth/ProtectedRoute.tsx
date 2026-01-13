@@ -11,7 +11,8 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ 
   children, 
   allowedRoles,
-  requireEmailVerification = true 
+  // For demo/onboarding we don't block the app behind email verification.
+  requireEmailVerification = false 
 }: ProtectedRouteProps) {
   const { user, userRole, loading } = useAuth();
 

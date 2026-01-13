@@ -88,32 +88,53 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const signUp = async (email: string, password: string, displayName: string, role: AppRole) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    // Sign up using external Supabase - pass role in metadata for the trigger
-    const { data, error } = await externalSupabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          display_name: displayName,
-          role: role, // This is read by the database trigger to set user_roles
-        }
+    try {
+      // Create + auto-confirm user in external Supabase via backend function,
+      // then set the external session so the app opens immediately.
+      const { data, error } = await supabase.functions.invoke('external-signup', {
+        body: {
+          email,
+          password,
+          displayName,
+          role,
+        },
+      });
+
+      if (error) {
+        return { error: new Error(error.message) };
       }
-    });
 
-    if (error) {
-      return { error };
-    }
+      if ((data as any)?.error) {
+        return { error: new Error((data as any).error) };
+      }
 
-    // Profile and role are created automatically by database triggers (SECURITY DEFINER)
-    // Just set the local state
-    if (data.user) {
+      const access_token = (data as any)?.access_token as string | undefined;
+      const refresh_token = (data as any)?.refresh_token as string | undefined;
+
+      if (!access_token || !refresh_token) {
+        return { error: new Error('Signup failed: no session returned') };
+      }
+
+      const { data: sessionData, error: setSessionError } = await externalSupabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+
+      if (setSessionError) {
+        return { error: setSessionError };
+      }
+
+      const nextSession = sessionData.session ?? (await externalSupabase.auth.getSession()).data.session;
+
+      // Update local state immediately to avoid redirect bounce
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
       setUserRole(role);
-    }
 
-    return { error: null };
+      return { error: null };
+    } catch (err) {
+      return { error: err instanceof Error ? err : new Error('Signup failed') };
+    }
   };
 
   const signIn = async (email: string, password: string) => {
