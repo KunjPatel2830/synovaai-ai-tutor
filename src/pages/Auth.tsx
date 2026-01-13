@@ -173,11 +173,17 @@ export default function Auth() {
             setLockoutCountdown(newLockoutStatus.remainingSeconds);
           }
 
+          const remainingAttemptsNote =
+            newLockoutStatus.failedAttempts >= 3
+              ? ` (${5 - newLockoutStatus.failedAttempts} attempts remaining)`
+              : "";
+
           toast({
             title: "Login failed",
-            description: error.message === "Invalid login credentials" 
-              ? `Invalid email or password. ${newLockoutStatus.failedAttempts >= 3 ? `(${5 - newLockoutStatus.failedAttempts} attempts remaining)` : ""}`
-              : error.message,
+            description:
+              error.message === "Invalid login credentials"
+                ? `Invalid email or password. If you just signed up, verify your email first, or use “Forgot your password?” to set a new one.${remainingAttemptsNote}`
+                : error.message,
             variant: "destructive",
           });
         } else {
@@ -212,11 +218,24 @@ export default function Auth() {
             variant: "destructive",
           });
         } else {
-          toast({
-            title: "Welcome to SYNOVA!",
-            description: "Your account has been created successfully.",
-          });
-          navigate("/dashboard");
+          // Try to sign in immediately (works when email confirmation is disabled)
+          const signInResult = await signIn(email, password);
+
+          if (!signInResult.error) {
+            toast({
+              title: "Welcome to SYNOVA!",
+              description: "Your account has been created successfully.",
+            });
+            navigate("/dashboard");
+          } else {
+            toast({
+              title: "Check your email to continue",
+              description:
+                "If this is your first time signing up, open the verification email we sent you, then come back and sign in. If you already had an account, use “Forgot your password?” to set a new one.",
+            });
+            setIsLogin(true);
+            setPassword("");
+          }
         }
       }
     } catch (err) {
