@@ -218,24 +218,11 @@ export default function Auth() {
             variant: "destructive",
           });
         } else {
-          // Try to sign in immediately (works when email confirmation is disabled)
-          const signInResult = await signIn(email, password);
-
-          if (!signInResult.error) {
-            toast({
-              title: "Welcome to SYNOVA!",
-              description: "Your account has been created successfully.",
-            });
-            navigate("/dashboard");
-          } else {
-            toast({
-              title: "Check your email to continue",
-              description:
-                "If this is your first time signing up, open the verification email we sent you, then come back and sign in. If you already had an account, use “Forgot your password?” to set a new one.",
-            });
-            setIsLogin(true);
-            setPassword("");
-          }
+          toast({
+            title: "Welcome to SYNOVA!",
+            description: "Your account has been created successfully.",
+          });
+          navigate("/dashboard");
         }
       }
     } catch (err) {
