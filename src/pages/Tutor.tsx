@@ -129,7 +129,19 @@ export default function Tutor() {
     
     try {
       await waitForRateLimit();
+      
+      // Get access token from external Supabase session
+      const { data: sessionData } = await externalSupabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error("No session token");
+      }
+      
       const response = await supabase.functions.invoke("ai-tutor", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: {
           messages: [{ role: "user", content: systemMessage }],
           mode: "start",
@@ -184,7 +196,19 @@ export default function Tutor() {
 
     try {
       await waitForRateLimit();
+      
+      // Get access token from external Supabase session
+      const { data: sessionData } = await externalSupabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error("No session token");
+      }
+      
       const response = await supabase.functions.invoke("ai-tutor", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
         body: { messages: updatedMessages, mode: "chat" },
       });
 
