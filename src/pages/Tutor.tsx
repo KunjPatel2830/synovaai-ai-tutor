@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { externalSupabase } from "@/lib/external-supabase";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,9 +16,10 @@ import { useProgressTracker } from "@/hooks/useProgressTracker";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
-import { Brain, Send, Mic, MicOff, Volume2, Plus } from "lucide-react";
+import { Brain, Send, Mic, MicOff, Volume2, Plus, Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 
 interface Message {
   role: "user" | "assistant";
@@ -38,6 +39,8 @@ export default function Tutor() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
+  const [aiPaused, setAiPaused] = useState(false);
+  const [pausedMessages, setPausedMessages] = useState<Message[]>([]);
 
   const voice = useVoice();
   const { waitForRateLimit } = useRateLimiter({ minDelayMs: 500 });
@@ -174,6 +177,8 @@ export default function Tutor() {
     setSubject(session.subject || "");
     setSessionId(session.id);
     setSessionStarted(true);
+    setAiPaused(false);
+    setPausedMessages([]);
   };
 
   const startNewSession = () => {
@@ -183,6 +188,48 @@ export default function Tutor() {
     setTopic("");
     setSubject("");
     setLevel("beginner");
+    setAiPaused(false);
+    setPausedMessages([]);
+  };
+
+  const toggleAiPause = () => {
+    if (aiPaused) {
+      // Resume AI - process any paused messages
+      setAiPaused(false);
+      if (pausedMessages.length > 0) {
+        toast({
+          title: "AI Resumed",
+          description: "Processing your messages now...",
+        });
+        // Send a summary of the discussion to the AI
+        const pausedContent = pausedMessages.map(m => `${m.role}: ${m.content}`).join('\n');
+        setPausedMessages([]);
+        // Add a system context message
+        const resumeMessage = `I was thinking/discussing on my own. Here's what I discussed:\n${pausedContent}\n\nPlease continue teaching from where we left off.`;
+        setInput(resumeMessage);
+      } else {
+        toast({
+          title: "AI Resumed",
+          description: "The AI tutor will continue teaching.",
+        });
+      }
+    } else {
+      // Pause AI
+      setAiPaused(true);
+      voice.stopSpeaking();
+      toast({
+        title: "AI Paused",
+        description: "Take your time to think or discuss. Messages won't be sent to AI.",
+      });
+    }
+  };
+
+  const sendPausedMessage = () => {
+    if (!input.trim()) return;
+    const userMessage: Message = { role: "user", content: input };
+    setPausedMessages(prev => [...prev, userMessage]);
+    setMessages(prev => [...prev, userMessage]);
+    setInput("");
   };
 
   const sendMessage = async () => {
@@ -333,23 +380,44 @@ export default function Tutor() {
       <div className="flex flex-col h-[calc(100vh-5rem)]">
         {/* Header with controls */}
         <div className="flex items-center justify-between gap-3 mb-3 shrink-0">
-          <VoiceControls
-            isListening={voice.isListening}
-            isSpeaking={voice.isSpeaking}
-            autoSpeak={voice.autoSpeak}
-            blindMode={voice.blindMode}
-            selectedLanguage={voice.selectedLanguage}
-            voices={voice.voices}
-            selectedVoice={voice.selectedVoice}
-            onStartListening={voice.startListening}
-            onStopListening={voice.stopListening}
-            onStopSpeaking={voice.stopSpeaking}
-            onAutoSpeakChange={voice.setAutoSpeak}
-            onBlindModeChange={voice.setBlindMode}
-            onLanguageChange={voice.setSelectedLanguage}
-            onVoiceChange={voice.setSelectedVoice}
-            compact
-          />
+          <div className="flex items-center gap-2">
+            <VoiceControls
+              isListening={voice.isListening}
+              isSpeaking={voice.isSpeaking}
+              autoSpeak={voice.autoSpeak}
+              blindMode={voice.blindMode}
+              selectedLanguage={voice.selectedLanguage}
+              voices={voice.voices}
+              selectedVoice={voice.selectedVoice}
+              onStartListening={voice.startListening}
+              onStopListening={voice.stopListening}
+              onStopSpeaking={voice.stopSpeaking}
+              onAutoSpeakChange={voice.setAutoSpeak}
+              onBlindModeChange={voice.setBlindMode}
+              onLanguageChange={voice.setSelectedLanguage}
+              onVoiceChange={voice.setSelectedVoice}
+              compact
+            />
+            {/* AI Pause/Resume Button */}
+            <Button
+              variant={aiPaused ? "default" : "outline"}
+              size="sm"
+              onClick={toggleAiPause}
+              className={cn("gap-2", aiPaused && "bg-warning text-warning-foreground hover:bg-warning/90")}
+            >
+              {aiPaused ? (
+                <>
+                  <Play className="h-4 w-4" />
+                  Resume AI
+                </>
+              ) : (
+                <>
+                  <Pause className="h-4 w-4" />
+                  Pause AI
+                </>
+              )}
+            </Button>
+          </div>
           <div className="flex items-center gap-2">
             <ChatHistory mode="tutor" onLoadSession={handleLoadSession} />
             <Button variant="outline" size="sm" onClick={startNewSession} className="gap-2">
@@ -359,34 +427,67 @@ export default function Tutor() {
           </div>
         </div>
 
+        {/* Paused Mode Banner */}
+        {aiPaused && (
+          <div className="mb-3 p-3 rounded-xl bg-warning/10 border border-warning/30 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="bg-warning/20 border-warning text-warning-foreground">
+                <Pause className="h-3 w-3 mr-1" />
+                Thinking Mode
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                AI is paused. Type your thoughts, discuss with peers, or think out loud.
+              </span>
+            </div>
+            {pausedMessages.length > 0 && (
+              <Badge variant="secondary">{pausedMessages.length} messages queued</Badge>
+            )}
+          </div>
+        )}
+
         {/* Chat container - flex-1 to fill remaining space */}
         <div className="flex-1 flex flex-col min-h-0 bg-card/50 rounded-2xl border border-border overflow-hidden">
           {/* Messages area */}
           <ScrollArea className="flex-1">
             <div className="p-4 space-y-3">
-              {messages.map((msg, i) => (
-                <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div className={`max-w-[80%] p-3 rounded-2xl ${msg.role === "user" ? "bg-primary text-primary-foreground" : "bg-card border border-border"}`}>
-                    <div className="flex items-start gap-2">
-                      {msg.role === "assistant" ? (
-                        <MarkdownContent content={msg.content} className="flex-1 overflow-x-auto" />
-                      ) : (
-                        <p className="whitespace-pre-wrap flex-1 text-sm">{msg.content}</p>
-                      )}
-                      {msg.role === "assistant" && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-6 w-6 shrink-0"
-                          onClick={() => voice.speak(msg.content)}
-                        >
-                          <Volume2 className="h-4 w-4" />
-                        </Button>
-                      )}
+              {messages.map((msg, i) => {
+                const isPausedMessage = pausedMessages.some(pm => pm.content === msg.content && pm.role === msg.role);
+                return (
+                  <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+                    <div className={cn(
+                      "max-w-[80%] p-3 rounded-2xl",
+                      msg.role === "user" 
+                        ? isPausedMessage 
+                          ? "bg-warning/80 text-warning-foreground" 
+                          : "bg-primary text-primary-foreground"
+                        : "bg-card border border-border"
+                    )}>
+                      <div className="flex items-start gap-2">
+                        {msg.role === "assistant" ? (
+                          <MarkdownContent content={msg.content} className="flex-1 overflow-x-auto" />
+                        ) : (
+                          <div className="flex-1">
+                            {isPausedMessage && (
+                              <span className="text-xs opacity-75 block mb-1">💭 Thinking...</span>
+                            )}
+                            <p className="whitespace-pre-wrap text-sm">{msg.content}</p>
+                          </div>
+                        )}
+                        {msg.role === "assistant" && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 shrink-0"
+                            onClick={() => voice.speak(msg.content)}
+                          >
+                            <Volume2 className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {isLoading && (
                 <div className="flex justify-start">
                   <div className="bg-card border border-border p-3 rounded-2xl max-w-[80%] space-y-2">
@@ -414,12 +515,17 @@ export default function Tutor() {
             <Input
               value={input}
               onChange={(e) => setInput(e.target.value)}
-              placeholder="Type or speak your answer..."
-              onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              placeholder={aiPaused ? "Type your thoughts (AI paused)..." : "Type or speak your answer..."}
+              onKeyDown={(e) => e.key === "Enter" && (aiPaused ? sendPausedMessage() : sendMessage())}
               disabled={isLoading}
-              className="flex-1 h-10"
+              className={cn("flex-1 h-10", aiPaused && "border-warning/50")}
             />
-            <Button onClick={sendMessage} disabled={isLoading} size="icon" className="h-10 w-10 shrink-0">
+            <Button 
+              onClick={aiPaused ? sendPausedMessage : sendMessage} 
+              disabled={isLoading} 
+              size="icon" 
+              className={cn("h-10 w-10 shrink-0", aiPaused && "bg-warning hover:bg-warning/90")}
+            >
               <Send className="h-4 w-4" />
             </Button>
           </div>
