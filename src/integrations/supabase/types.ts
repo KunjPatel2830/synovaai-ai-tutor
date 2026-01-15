@@ -456,6 +456,44 @@ export type Database = {
         }
         Relationships: []
       }
+      peer_voice_signals: {
+        Row: {
+          created_at: string
+          from_user_id: string
+          id: string
+          room_id: string
+          signal_data: Json
+          signal_type: string
+          to_user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          from_user_id: string
+          id?: string
+          room_id: string
+          signal_data: Json
+          signal_type: string
+          to_user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          from_user_id?: string
+          id?: string
+          room_id?: string
+          signal_data?: Json
+          signal_type?: string
+          to_user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "peer_voice_signals_room_id_fkey"
+            columns: ["room_id"]
+            isOneToOne: false
+            referencedRelation: "peer_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       peer_whiteboard_data: {
         Row: {
           data: Json
