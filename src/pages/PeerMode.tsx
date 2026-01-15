@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
+import { usePeerVoiceChat } from "@/hooks/usePeerVoiceChat";
+import { VoiceChatControls } from "@/components/peer/VoiceChatControls";
 import { Users, Plus, LogIn, Send, Loader2, PenTool, X, Copy, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PeerWhiteboard } from "@/components/peer/PeerWhiteboard";
@@ -58,6 +60,9 @@ export default function PeerMode() {
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [displayNames, setDisplayNames] = useState<Record<string, string>>({});
+
+  // Voice chat hook
+  const voiceChat = usePeerVoiceChat(activeRoom?.id || null, user?.id || null);
 
   // Fetch display names for participants
   const fetchDisplayNames = async (userIds: string[]) => {
@@ -160,6 +165,11 @@ export default function PeerMode() {
   // Leave room
   const leaveRoom = async () => {
     if (!user || !activeRoom) return;
+
+    // Stop voice chat if active
+    if (voiceChat.isVoiceEnabled) {
+      await voiceChat.stopVoiceChat();
+    }
 
     await externalSupabase
       .from("peer_room_participants")
@@ -358,10 +368,10 @@ export default function PeerMode() {
             <div className={cn("flex-1 flex flex-col min-h-0", showWhiteboard && "md:w-1/2")}>
               <GlassCard className="flex-1 flex flex-col min-h-0">
                 {/* Room Header */}
-                <div className="p-4 border-b border-border flex items-center justify-between">
+                <div className="p-4 border-b border-border flex items-center justify-between flex-wrap gap-2">
                   <div>
                     <h2 className="font-semibold">{activeRoom.name}</h2>
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
                       <Badge variant="secondary" className="cursor-pointer" onClick={copyRoomCode}>
                         <Copy className="h-3 w-3 mr-1" />
                         {activeRoom.room_code}
@@ -370,14 +380,26 @@ export default function PeerMode() {
                       <span>• {participants.length} online</span>
                     </div>
                   </div>
-                  <Button
-                    variant={showWhiteboard ? "default" : "outline"}
-                    size="sm"
-                    onClick={() => setShowWhiteboard(!showWhiteboard)}
-                  >
-                    <PenTool className="h-4 w-4 mr-2" />
-                    Whiteboard
-                  </Button>
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Voice Chat Controls */}
+                    <VoiceChatControls
+                      isVoiceEnabled={voiceChat.isVoiceEnabled}
+                      isMuted={voiceChat.isMuted}
+                      isConnecting={voiceChat.isConnecting}
+                      connectedPeers={voiceChat.connectedPeers}
+                      onStartVoice={voiceChat.startVoiceChat}
+                      onStopVoice={voiceChat.stopVoiceChat}
+                      onToggleMute={voiceChat.toggleMute}
+                    />
+                    <Button
+                      variant={showWhiteboard ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => setShowWhiteboard(!showWhiteboard)}
+                    >
+                      <PenTool className="h-4 w-4 mr-2" />
+                      Whiteboard
+                    </Button>
+                  </div>
                 </div>
 
                 {/* Messages */}
