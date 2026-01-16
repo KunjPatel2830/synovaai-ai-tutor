@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
+import { useCurriculumPreference } from "@/hooks/useCurriculumPreference";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -36,8 +37,9 @@ export default function Homework() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [subject, setSubject] = useState("");
-  const [curriculum, setCurriculum] = useState("CBSE");
   const [isLoading, setIsLoading] = useState(false);
+  
+  const { curriculum, setCurriculum } = useCurriculumPreference();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -196,7 +198,6 @@ export default function Homework() {
     setMessages([]);
     setSessionId(null);
     setSubject("");
-    setCurriculum("CBSE");
     setInput("");
   };
 
