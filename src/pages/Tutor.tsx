@@ -13,6 +13,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useRateLimiter } from "@/hooks/useRateLimiter";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
+import { useCurriculumPreference } from "@/hooks/useCurriculumPreference";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -35,8 +36,9 @@ export default function Tutor() {
   const [sessionStarted, setSessionStarted] = useState(false);
   const [topic, setTopic] = useState("");
   const [subject, setSubject] = useState("");
-  const [curriculum, setCurriculum] = useState("CBSE");
   const [level, setLevel] = useState("beginner");
+  
+  const { curriculum, setCurriculum } = useCurriculumPreference();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -191,7 +193,6 @@ export default function Tutor() {
     setSessionId(null);
     setTopic("");
     setSubject("");
-    setCurriculum("CBSE");
     setLevel("beginner");
     setAiPaused(false);
     setPausedMessages([]);

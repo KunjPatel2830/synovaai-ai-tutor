@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
+import { useCurriculumPreference } from "@/hooks/useCurriculumPreference";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { PYQQuizChat } from "@/components/exam/PYQQuizChat";
@@ -50,8 +51,9 @@ export default function ExamPrep() {
   const [state, setState] = useState<ExamState>("setup");
   const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
-  const [curriculum, setCurriculum] = useState("CBSE");
   const [difficulty, setDifficulty] = useState("medium");
+  
+  const { curriculum, setCurriculum } = useCurriculumPreference();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -251,7 +253,6 @@ export default function ExamPrep() {
     setAnswers([]);
     setResults(null);
     setCurrentAnswer("");
-    setCurriculum("CBSE");
     lastSpokenRef.current = "";
   };
 
