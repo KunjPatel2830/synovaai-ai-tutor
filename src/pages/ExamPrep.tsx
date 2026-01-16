@@ -50,6 +50,7 @@ export default function ExamPrep() {
   const [state, setState] = useState<ExamState>("setup");
   const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
+  const [curriculum, setCurriculum] = useState("CBSE");
   const [difficulty, setDifficulty] = useState("medium");
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
@@ -155,7 +156,7 @@ export default function ExamPrep() {
     setIsLoading(true);
     try {
       const response = await supabase.functions.invoke("exam-prep", {
-        body: { action: "generate_questions", subject, topic, difficulty },
+        body: { action: "generate_questions", subject, topic, difficulty, curriculum },
       });
 
       if (response.error) throw response.error;
@@ -250,6 +251,7 @@ export default function ExamPrep() {
     setAnswers([]);
     setResults(null);
     setCurrentAnswer("");
+    setCurriculum("CBSE");
     lastSpokenRef.current = "";
   };
 
@@ -338,6 +340,22 @@ export default function ExamPrep() {
                       </div>
                       
                       <div className="space-y-2">
+                        <Label className="text-sm">Curriculum</Label>
+                        <Select value={curriculum} onValueChange={setCurriculum}>
+                          <SelectTrigger><SelectValue placeholder="Select curriculum" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="CBSE">CBSE</SelectItem>
+                            <SelectItem value="NCERT">NCERT</SelectItem>
+                            <SelectItem value="ICSE">ICSE</SelectItem>
+                            <SelectItem value="Cambridge">Cambridge (IGCSE/A-Level)</SelectItem>
+                            <SelectItem value="IB">International Baccalaureate (IB)</SelectItem>
+                            <SelectItem value="State Board">State Board</SelectItem>
+                            <SelectItem value="General">General / Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
                         <Label className="text-sm">Subject</Label>
                         <Select value={subject} onValueChange={setSubject}>
                           <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
@@ -349,6 +367,10 @@ export default function ExamPrep() {
                             <SelectItem value="Biology">Biology</SelectItem>
                             <SelectItem value="Language Arts">Language Arts</SelectItem>
                             <SelectItem value="Social Studies">Social Studies</SelectItem>
+                            <SelectItem value="History">History</SelectItem>
+                            <SelectItem value="Geography">Geography</SelectItem>
+                            <SelectItem value="Economics">Economics</SelectItem>
+                            <SelectItem value="Computer Science">Computer Science</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>
