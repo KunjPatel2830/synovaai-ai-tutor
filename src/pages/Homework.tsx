@@ -36,6 +36,7 @@ export default function Homework() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [subject, setSubject] = useState("");
+  const [curriculum, setCurriculum] = useState("CBSE");
   const [isLoading, setIsLoading] = useState(false);
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
@@ -163,6 +164,7 @@ export default function Homework() {
         body: { 
           question: questionText, 
           subject,
+          curriculum,
           files: fileData.length > 0 ? fileData : undefined,
         },
       });
@@ -194,6 +196,7 @@ export default function Homework() {
     setMessages([]);
     setSessionId(null);
     setSubject("");
+    setCurriculum("CBSE");
     setInput("");
   };
 
@@ -242,21 +245,45 @@ export default function Homework() {
           />
         </div>
 
-        {/* Subject Selection and History */}
+        {/* Subject and Curriculum Selection */}
         <div className="flex items-center justify-between gap-4 mb-3 shrink-0">
-          <div className="flex items-center gap-3">
-            <span className="text-sm font-medium text-foreground">Subject:</span>
-            <Select value={subject} onValueChange={setSubject}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Select subject" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Mathematics">Mathematics</SelectItem>
-                <SelectItem value="Science">Science</SelectItem>
-                <SelectItem value="Language Arts">Language Arts</SelectItem>
-                <SelectItem value="Social Studies">Social Studies</SelectItem>
-              </SelectContent>
-            </Select>
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-foreground">Curriculum:</span>
+              <Select value={curriculum} onValueChange={setCurriculum}>
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="CBSE">CBSE</SelectItem>
+                  <SelectItem value="NCERT">NCERT</SelectItem>
+                  <SelectItem value="ICSE">ICSE</SelectItem>
+                  <SelectItem value="Cambridge">Cambridge</SelectItem>
+                  <SelectItem value="IB">IB</SelectItem>
+                  <SelectItem value="State Board">State Board</SelectItem>
+                  <SelectItem value="General">General</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-sm font-medium text-foreground">Subject:</span>
+              <Select value={subject} onValueChange={setSubject}>
+                <SelectTrigger className="w-36">
+                  <SelectValue placeholder="Select subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Mathematics">Mathematics</SelectItem>
+                  <SelectItem value="Science">Science</SelectItem>
+                  <SelectItem value="Physics">Physics</SelectItem>
+                  <SelectItem value="Chemistry">Chemistry</SelectItem>
+                  <SelectItem value="Biology">Biology</SelectItem>
+                  <SelectItem value="Language Arts">Language Arts</SelectItem>
+                  <SelectItem value="Social Studies">Social Studies</SelectItem>
+                  <SelectItem value="History">History</SelectItem>
+                  <SelectItem value="Geography">Geography</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <ChatHistory mode="homework" onLoadSession={handleLoadSession} />

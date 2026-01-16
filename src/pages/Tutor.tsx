@@ -35,6 +35,7 @@ export default function Tutor() {
   const [sessionStarted, setSessionStarted] = useState(false);
   const [topic, setTopic] = useState("");
   const [subject, setSubject] = useState("");
+  const [curriculum, setCurriculum] = useState("CBSE");
   const [level, setLevel] = useState("beginner");
   const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -128,7 +129,7 @@ export default function Tutor() {
     setIsLoading(true);
     setSessionId(null);
 
-    const systemMessage = `I want to learn about "${topic}" in ${subject}. My level is ${level}.`;
+    const systemMessage = `I want to learn about "${topic}" in ${subject}. My level is ${level}. I follow the ${curriculum} curriculum.`;
     
     try {
       await waitForRateLimit();
@@ -148,6 +149,9 @@ export default function Tutor() {
         body: {
           messages: [{ role: "user", content: systemMessage }],
           mode: "start",
+          subject,
+          topic,
+          curriculum,
         },
       });
 
@@ -187,6 +191,7 @@ export default function Tutor() {
     setSessionId(null);
     setTopic("");
     setSubject("");
+    setCurriculum("CBSE");
     setLevel("beginner");
     setAiPaused(false);
     setPausedMessages([]);
@@ -256,7 +261,13 @@ export default function Tutor() {
         headers: {
           Authorization: `Bearer ${accessToken}`,
         },
-        body: { messages: updatedMessages, mode: "chat" },
+        body: { 
+          messages: updatedMessages, 
+          mode: "chat",
+          subject,
+          topic,
+          curriculum,
+        },
       });
 
       if (response.error) throw response.error;
@@ -322,14 +333,37 @@ export default function Tutor() {
               </div>
               
               <div className="space-y-2">
+                <Label className="text-sm">Curriculum</Label>
+                <Select value={curriculum} onValueChange={setCurriculum}>
+                  <SelectTrigger><SelectValue placeholder="Select curriculum" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="CBSE">CBSE</SelectItem>
+                    <SelectItem value="NCERT">NCERT</SelectItem>
+                    <SelectItem value="ICSE">ICSE</SelectItem>
+                    <SelectItem value="Cambridge">Cambridge (IGCSE/A-Level)</SelectItem>
+                    <SelectItem value="IB">International Baccalaureate (IB)</SelectItem>
+                    <SelectItem value="State Board">State Board</SelectItem>
+                    <SelectItem value="General">General / Other</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="space-y-2">
                 <Label className="text-sm">Subject</Label>
                 <Select value={subject} onValueChange={setSubject}>
                   <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Mathematics">Mathematics</SelectItem>
                     <SelectItem value="Science">Science</SelectItem>
+                    <SelectItem value="Physics">Physics</SelectItem>
+                    <SelectItem value="Chemistry">Chemistry</SelectItem>
+                    <SelectItem value="Biology">Biology</SelectItem>
                     <SelectItem value="Language Arts">Language Arts</SelectItem>
                     <SelectItem value="Social Studies">Social Studies</SelectItem>
+                    <SelectItem value="History">History</SelectItem>
+                    <SelectItem value="Geography">Geography</SelectItem>
+                    <SelectItem value="Economics">Economics</SelectItem>
+                    <SelectItem value="Computer Science">Computer Science</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
