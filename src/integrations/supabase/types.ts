@@ -147,6 +147,54 @@ export type Database = {
         }
         Relationships: []
       }
+      curriculum_study_progress: {
+        Row: {
+          chapter: string
+          completed_topics: string[] | null
+          created_at: string
+          current_topic_index: number
+          curriculum: string
+          id: string
+          last_studied_at: string | null
+          last_topic: string | null
+          standard: string
+          subject: string
+          total_topics: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chapter: string
+          completed_topics?: string[] | null
+          created_at?: string
+          current_topic_index?: number
+          curriculum: string
+          id?: string
+          last_studied_at?: string | null
+          last_topic?: string | null
+          standard: string
+          subject: string
+          total_topics?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chapter?: string
+          completed_topics?: string[] | null
+          created_at?: string
+          current_topic_index?: number
+          curriculum?: string
+          id?: string
+          last_studied_at?: string | null
+          last_topic?: string | null
+          standard?: string
+          subject?: string
+          total_topics?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       exam_preparations: {
         Row: {
           created_at: string | null
