@@ -12,10 +12,10 @@ serve(async (req) => {
 
   try {
     const { action, curriculum, standard, subject, chapter, currentTopic, messages, completedTopics } = await req.json();
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    if (!OPENROUTER_API_KEY) {
+      throw new Error("OPENROUTER_API_KEY is not configured");
     }
 
     // Curriculum-specific context
@@ -36,7 +36,6 @@ serve(async (req) => {
     let userPrompt = "";
 
     if (action === "get_chapters") {
-      // Get list of chapters for the selected subject and standard
       systemPrompt = `You are SYNOVA, an expert curriculum advisor. ${selectedCurriculumContext}
 
 Your task is to provide a structured list of chapters for a student studying ${subject} in ${standard} standard/grade under ${curriculum} board.
@@ -56,7 +55,6 @@ Be accurate to the actual ${curriculum} curriculum for ${standard} standard ${su
 
       userPrompt = `List all chapters for ${subject} in ${standard} standard under ${curriculum} board. Return ONLY valid JSON.`;
     } else if (action === "get_topics") {
-      // Get list of topics for a specific chapter
       systemPrompt = `You are SYNOVA, an expert curriculum advisor. ${selectedCurriculumContext}
 
 Your task is to provide a detailed list of topics for Chapter: "${chapter}" in ${subject} for ${standard} standard under ${curriculum} board.
@@ -74,7 +72,6 @@ Return ONLY valid JSON array.`;
 
       userPrompt = `List all topics for chapter "${chapter}" in ${subject} (${standard} standard, ${curriculum} board). Return ONLY valid JSON.`;
     } else if (action === "teach_topic") {
-      // Teach a specific topic with explanations and examples
       systemPrompt = `You are SYNOVA, an adaptive AI tutor specializing in ${curriculum} curriculum education for ${standard} standard students.
 
 CURRICULUM ALIGNMENT: ${selectedCurriculumContext}
@@ -112,7 +109,6 @@ Be encouraging and supportive in tone.`;
         ? messages[messages.length - 1].content 
         : `Please teach me about "${currentTopic}" in detail. I'm studying ${chapter} in ${subject}.`;
     } else if (action === "continue_learning") {
-      // Continue from where student left off
       const completedList = completedTopics?.join(", ") || "none yet";
       
       systemPrompt = `You are SYNOVA, an adaptive AI tutor specializing in ${curriculum} curriculum for ${standard} standard.
@@ -137,7 +133,6 @@ ${selectedCurriculumContext}`;
 
       userPrompt = `I'm continuing my study. ${completedTopics && completedTopics.length > 0 ? `I've already learned: ${completedList}.` : ""} Now teach me about "${currentTopic}".`;
     } else if (action === "answer_doubt") {
-      // Handle student questions during a topic
       systemPrompt = `You are SYNOVA, helping a ${standard} standard student studying ${subject} under ${curriculum} curriculum.
 
 Current Chapter: ${chapter}
@@ -158,14 +153,18 @@ ${selectedCurriculumContext}`;
       throw new Error("Invalid action specified");
     }
 
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    console.log(`Curriculum study action: ${action}, subject: ${subject}, chapter: ${chapter}`);
+
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
+        "HTTP-Referer": "https://synovaai-ai-tutor.lovable.app",
+        "X-Title": "SYNOVA AI Tutor",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.0-flash-exp:free",
         messages: [
           { role: "system", content: systemPrompt },
           ...(messages || []),
@@ -176,6 +175,9 @@ ${selectedCurriculumContext}`;
     });
 
     if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`OpenRouter error: ${response.status} - ${errorText}`);
+      
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
@@ -188,7 +190,7 @@ ${selectedCurriculumContext}`;
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      throw new Error(`AI gateway error: ${response.status}`);
+      throw new Error(`AI service error: ${response.status}`);
     }
 
     const data = await response.json();
@@ -197,7 +199,6 @@ ${selectedCurriculumContext}`;
     // For structured data responses, try to parse JSON
     if (action === "get_chapters" || action === "get_topics") {
       try {
-        // Extract JSON from the response (it might be wrapped in markdown code blocks)
         let jsonStr = reply;
         const jsonMatch = reply.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (jsonMatch) {
@@ -209,7 +210,6 @@ ${selectedCurriculumContext}`;
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch {
-        // Return raw reply if JSON parsing fails
         return new Response(
           JSON.stringify({ reply, parseError: true }),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
