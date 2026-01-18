@@ -158,13 +158,15 @@ ${selectedCurriculumContext}`;
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
       headers: {
-        "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://synovaai-ai-tutor.lovable.app",
-        "X-Title": "SYNOVA AI Tutor",
+        // Match other SYNOVA functions for OpenRouter policy/telemetry
+        "HTTP-Referer": "https://synova.app",
+        "X-Title": "SYNOVA Curriculum Study",
       },
       body: JSON.stringify({
-        model: "google/gemini-2.0-flash-exp:free",
+        // Use the same known-good free model used elsewhere in this project
+        model: "xiaomi/mimo-v2-flash:free",
         messages: [
           { role: "system", content: systemPrompt },
           ...(messages || []),
@@ -175,22 +177,43 @@ ${selectedCurriculumContext}`;
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error(`OpenRouter error: ${response.status} - ${errorText}`);
-      
+      const rawErrorText = await response.text();
+
+      let providerMessage = rawErrorText;
+      try {
+        const parsed = JSON.parse(rawErrorText);
+        providerMessage = parsed?.error?.message || parsed?.message || rawErrorText;
+      } catch {
+        // keep raw text
+      }
+
+      console.error("OpenRouter error", {
+        status: response.status,
+        providerMessage,
+      });
+
       if (response.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Please try again in a moment." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
+
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "Service temporarily unavailable. Please try again later." }),
+          JSON.stringify({
+            error: `AI service rejected the request (402). ${providerMessage}`,
+          }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      throw new Error(`AI service error: ${response.status}`);
+
+      return new Response(
+        JSON.stringify({
+          error: `AI service error (${response.status}). ${providerMessage}`,
+        }),
+        { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
     const data = await response.json();
