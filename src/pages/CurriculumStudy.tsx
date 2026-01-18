@@ -111,6 +111,17 @@ export default function CurriculumStudy() {
   }, [voice.transcript, voice.clearTranscript]);
 
   // Auto-speak new assistant messages
+  const cleanForSpeech = useCallback((text: string) => {
+    // Strip markdown-ish characters so TTS doesn't read "hashtag", "star", etc.
+    return text
+      .replace(/```[\s\S]*?```/g, " ")
+      .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+      .replace(/[#*_`>]+/g, "")
+      .replace(/\$+/g, "")
+      .replace(/\s+/g, " ")
+      .trim();
+  }, []);
+
   const lastMessageRef = useRef<string>("");
   useEffect(() => {
     const lastMessage = messages[messages.length - 1];
@@ -121,9 +132,9 @@ export default function CurriculumStudy() {
       voice.autoSpeak
     ) {
       lastMessageRef.current = lastMessage.content;
-      voice.speak(lastMessage.content);
+      voice.speak(cleanForSpeech(lastMessage.content));
     }
-  }, [messages, voice.autoSpeak, voice.speak]);
+  }, [messages, voice.autoSpeak, voice.speak, cleanForSpeech]);
 
   // Load chapters for selected subject
   const loadChapters = async () => {
