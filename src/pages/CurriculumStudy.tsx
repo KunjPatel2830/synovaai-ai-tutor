@@ -638,163 +638,230 @@ export default function CurriculumStudy() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-[calc(100vh-5rem)]">
-        {/* Header */}
-        <div className="flex items-center justify-between gap-3 mb-3 shrink-0">
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" onClick={() => setPhase("select-chapter")}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
-            <div className="min-w-0">
-              <h2 className="text-sm font-medium text-foreground truncate">{selectedChapter?.name}</h2>
-              <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                <span>{subject}</span>
-                <span>•</span>
-                <span>Topic {currentTopicIndex + 1}/{topics.length}</span>
-              </div>
+      <div className="flex gap-4 h-[calc(100vh-5rem)]">
+        {/* NCERT Reference Panel - Left Side */}
+        <GlassCard className="hidden lg:block w-72 shrink-0 overflow-hidden">
+          <div className="p-4 border-b border-border">
+            <div className="flex items-center gap-2 mb-2">
+              <BookOpen className="h-4 w-4 text-primary" />
+              <span className="text-xs font-semibold text-primary uppercase tracking-wide">
+                {curriculum} Reference
+              </span>
             </div>
+            <h3 className="font-bold text-foreground">{subject}</h3>
+            <p className="text-sm text-muted-foreground">{standard} Standard</p>
           </div>
-          <div className="flex items-center gap-2">
-            <VoiceControls
-              isListening={voice.isListening}
-              isSpeaking={voice.isSpeaking}
-              autoSpeak={voice.autoSpeak}
-              blindMode={voice.blindMode}
-              selectedLanguage={voice.selectedLanguage}
-              voices={voice.voices}
-              selectedVoice={voice.selectedVoice}
-              onStartListening={voice.startListening}
-              onStopListening={voice.stopListening}
-              onStopSpeaking={voice.stopSpeaking}
-              onAutoSpeakChange={voice.setAutoSpeak}
-              onBlindModeChange={voice.setBlindMode}
-              onLanguageChange={voice.setSelectedLanguage}
-              onVoiceChange={voice.setSelectedVoice}
-              compact
-            />
-            <Button variant="ghost" size="icon" onClick={resetChapterProgress} title="Reset chapter">
-              <RotateCcw className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* Progress Bar */}
-        <div className="mb-3 shrink-0">
-          <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
-            <span>{currentTopic?.name}</span>
-            <span>{progressPercentage}% complete</span>
-          </div>
-          <Progress value={progressPercentage} className="h-2" />
-        </div>
-
-        {/* Topic Navigation Pills */}
-        <div className="flex gap-1 overflow-x-auto pb-2 mb-3 shrink-0">
-          {topics.map((topic, idx) => (
-            <Badge
-              key={idx}
-              variant={idx === currentTopicIndex ? "default" : completedTopics.includes(topic.name) ? "secondary" : "outline"}
-              className={cn(
-                "shrink-0 cursor-pointer",
-                idx === currentTopicIndex && "ring-2 ring-primary ring-offset-2 ring-offset-background"
-              )}
-              onClick={() => {
-                setCurrentTopicIndex(idx);
-                teachCurrentTopic(topics, idx);
-              }}
-            >
-              {completedTopics.includes(topic.name) && <CheckCircle2 className="h-3 w-3 mr-1" />}
-              {idx + 1}
-            </Badge>
-          ))}
-        </div>
-
-        {/* Messages */}
-        <GlassCard className="flex-1 overflow-hidden">
-          <ScrollArea className="h-full">
-            <div className="p-4 space-y-4">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={cn(
-                    "flex",
-                    message.role === "user" ? "justify-end" : "justify-start"
-                  )}
-                >
-                  <div
-                    className={cn(
-                      "max-w-[90%] rounded-2xl px-4 py-3",
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted"
-                    )}
-                  >
-                    {message.role === "assistant" ? (
-                      <MarkdownContent content={message.content} />
-                    ) : (
-                      <p className="text-sm">{message.content}</p>
-                    )}
-                  </div>
+          <ScrollArea className="h-[calc(100%-8rem)]">
+            <div className="p-4 space-y-3">
+              <div className="bg-primary/5 rounded-lg p-3 border border-primary/20">
+                <p className="text-xs font-medium text-primary mb-1">Chapter {selectedChapter?.number}</p>
+                <p className="text-sm font-semibold text-foreground">{selectedChapter?.name}</p>
+              </div>
+              
+              <div>
+                <p className="text-xs text-muted-foreground mb-2 uppercase tracking-wide">Topics</p>
+                <div className="space-y-1">
+                  {topics.map((topic, idx) => (
+                    <div 
+                      key={idx}
+                      className={cn(
+                        "text-xs p-2 rounded-md cursor-pointer transition-colors",
+                        idx === currentTopicIndex 
+                          ? "bg-primary text-primary-foreground font-medium" 
+                          : completedTopics.includes(topic.name)
+                          ? "bg-muted text-muted-foreground line-through"
+                          : "hover:bg-muted/50 text-foreground"
+                      )}
+                      onClick={() => {
+                        setCurrentTopicIndex(idx);
+                        teachCurrentTopic(topics, idx);
+                      }}
+                    >
+                      <div className="flex items-center gap-2">
+                        {completedTopics.includes(topic.name) && (
+                          <CheckCircle2 className="h-3 w-3 text-green-500" />
+                        )}
+                        <span>{idx + 1}. {topic.name}</span>
+                      </div>
+                    </div>
+                  ))}
                 </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-muted rounded-2xl px-4 py-3">
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  </div>
-                </div>
-              )}
-              <div ref={messagesEndRef} />
+              </div>
+
+              <div className="pt-2 border-t border-border">
+                <p className="text-xs text-muted-foreground">
+                  <span className="font-medium">Note:</span> Following {curriculum} syllabus for {standard} {subject}. Content aligned with textbook chapters.
+                </p>
+              </div>
             </div>
           </ScrollArea>
         </GlassCard>
 
-        {/* Bottom Controls */}
-        <div className="mt-3 space-y-3 shrink-0">
-          {/* Navigation Buttons */}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={goToPreviousTopic}
-              disabled={currentTopicIndex === 0 || isLoading}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Previous
-            </Button>
-            <Button
-              size="sm"
-              onClick={completeTopicAndNext}
-              disabled={isLoading || isChapterComplete}
-              className="flex-1 gap-2"
-            >
-              {isChapterComplete ? (
-                <>
-                  <CheckCircle2 className="h-4 w-4" />
-                  Chapter Complete!
-                </>
-              ) : (
-                <>
-                  Complete & Next
-                  <ArrowRight className="h-4 w-4" />
-                </>
-              )}
-            </Button>
+        {/* Main Content */}
+        <div className="flex flex-col flex-1 min-w-0">
+          {/* Header */}
+          <div className="flex items-center justify-between gap-3 mb-3 shrink-0">
+            <div className="flex items-center gap-2 min-w-0">
+              <Button variant="ghost" size="icon" onClick={() => setPhase("select-chapter")}>
+                <ArrowLeft className="h-5 w-5" />
+              </Button>
+              <div className="min-w-0">
+                <h2 className="text-sm font-medium text-foreground truncate">{selectedChapter?.name}</h2>
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  <span>{subject}</span>
+                  <span>•</span>
+                  <span>Topic {currentTopicIndex + 1}/{topics.length}</span>
+                </div>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <VoiceControls
+                isListening={voice.isListening}
+                isSpeaking={voice.isSpeaking}
+                autoSpeak={voice.autoSpeak}
+                blindMode={voice.blindMode}
+                selectedLanguage={voice.selectedLanguage}
+                voices={voice.voices}
+                selectedVoice={voice.selectedVoice}
+                onStartListening={voice.startListening}
+                onStopListening={voice.stopListening}
+                onStopSpeaking={voice.stopSpeaking}
+                onAutoSpeakChange={voice.setAutoSpeak}
+                onBlindModeChange={voice.setBlindMode}
+                onLanguageChange={voice.setSelectedLanguage}
+                onVoiceChange={voice.setSelectedVoice}
+                compact
+              />
+              <Button variant="ghost" size="icon" onClick={resetChapterProgress} title="Reset chapter">
+                <RotateCcw className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
 
-          {/* Input */}
-          <div className="flex gap-2">
-            <Input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Ask a question about this topic..."
-              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-              disabled={isLoading}
-              className="flex-1"
-            />
-            <Button onClick={sendMessage} disabled={!input.trim() || isLoading}>
-              <Send className="h-4 w-4" />
-            </Button>
+          {/* Progress Bar */}
+          <div className="mb-3 shrink-0">
+            <div className="flex items-center justify-between text-xs text-muted-foreground mb-1">
+              <span className="truncate">{currentTopic?.name}</span>
+              <span className="shrink-0">{progressPercentage}% complete</span>
+            </div>
+            <Progress value={progressPercentage} className="h-2" />
+          </div>
+
+          {/* Topic Navigation Pills - Mobile Only */}
+          <div className="flex gap-1 overflow-x-auto pb-2 mb-3 shrink-0 lg:hidden">
+            {topics.map((topic, idx) => (
+              <Badge
+                key={idx}
+                variant={idx === currentTopicIndex ? "default" : completedTopics.includes(topic.name) ? "secondary" : "outline"}
+                className={cn(
+                  "shrink-0 cursor-pointer",
+                  idx === currentTopicIndex && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                )}
+                onClick={() => {
+                  setCurrentTopicIndex(idx);
+                  teachCurrentTopic(topics, idx);
+                }}
+              >
+                {completedTopics.includes(topic.name) && <CheckCircle2 className="h-3 w-3 mr-1" />}
+                {idx + 1}
+              </Badge>
+            ))}
+          </div>
+
+          {/* Messages */}
+          <GlassCard className="flex-1 overflow-hidden">
+            <ScrollArea className="h-full">
+              <div className="p-4 space-y-4">
+                {messages.length === 0 && !isLoading && (
+                  <div className="text-center text-muted-foreground py-8">
+                    <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-50" />
+                    <p className="text-sm">Loading topic explanation...</p>
+                  </div>
+                )}
+                {messages.map((message, index) => (
+                  <div
+                    key={index}
+                    className={cn(
+                      "flex",
+                      message.role === "user" ? "justify-end" : "justify-start"
+                    )}
+                  >
+                    <div
+                      className={cn(
+                        "max-w-[95%] rounded-2xl px-4 py-3",
+                        message.role === "user"
+                          ? "bg-primary text-primary-foreground"
+                          : "bg-muted"
+                      )}
+                    >
+                      {message.role === "assistant" ? (
+                        <MarkdownContent content={message.content} />
+                      ) : (
+                        <p className="text-sm">{message.content}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
+                {isLoading && (
+                  <div className="flex justify-start">
+                    <div className="bg-muted rounded-2xl px-4 py-3">
+                      <Loader2 className="h-5 w-5 animate-spin" />
+                    </div>
+                  </div>
+                )}
+                <div ref={messagesEndRef} />
+              </div>
+            </ScrollArea>
+          </GlassCard>
+
+          {/* Bottom Controls */}
+          <div className="mt-3 space-y-3 shrink-0">
+            {/* Navigation Buttons */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={goToPreviousTopic}
+                disabled={currentTopicIndex === 0 || isLoading}
+                className="gap-2"
+              >
+                <ArrowLeft className="h-4 w-4" />
+                Previous
+              </Button>
+              <Button
+                size="sm"
+                onClick={completeTopicAndNext}
+                disabled={isLoading || isChapterComplete}
+                className="flex-1 gap-2"
+              >
+                {isChapterComplete ? (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Chapter Complete!
+                  </>
+                ) : (
+                  <>
+                    Complete & Next
+                    <ArrowRight className="h-4 w-4" />
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Input */}
+            <div className="flex gap-2">
+              <Input
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="Ask a question about this topic..."
+                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                disabled={isLoading}
+                className="flex-1"
+              />
+              <Button onClick={sendMessage} disabled={!input.trim() || isLoading}>
+                <Send className="h-4 w-4" />
+              </Button>
+            </div>
           </div>
         </div>
       </div>

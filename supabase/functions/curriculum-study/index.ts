@@ -179,10 +179,11 @@ VERY IMPORTANT OUTPUT RULES:
       subjectLower.includes("bio") ||
       subjectLower.includes("computer");
 
-    // Prefer high-quality free models; avoid Xiaomi as requested.
-    const modelCandidates = isQuantHeavy
-      ? ["qwen/qwen-2.5-72b-instruct:free", "meta-llama/llama-3.3-70b-instruct:free"]
-      : ["meta-llama/llama-3.3-70b-instruct:free", "qwen/qwen-2.5-72b-instruct:free"];
+    // Use reliable free models (qwen 72b is 404ing)
+    const modelCandidates = [
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "google/gemini-2.0-flash-exp:free",
+    ];
 
     console.log("Curriculum study request", { action, curriculum, standard, subject, modelCandidates });
 
