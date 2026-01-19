@@ -241,12 +241,78 @@ Answer the student's question clearly and completely. Give examples if helpful. 
     // 2) Fallback: OpenRouter free models (keeps the app working even when credits are empty)
     if (!reply && OPENROUTER_API_KEY) {
       const modelCandidates = isListAction
-        ? ["google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.3-70b-instruct:free"]
-        : ["meta-llama/llama-3.3-70b-instruct:free", "google/gemini-2.0-flash-exp:free"];
+        ? [
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "google/gemma-3-27b:free",
+            "mistralai/mistral-small-24b-instruct-2501:free",
+          ]
+        : [
+            "meta-llama/llama-3.3-70b-instruct:free",
+            "mistralai/mistral-small-24b-instruct-2501:free",
+          ];
+
+      const responseFormat =
+        action === "get_chapters"
+          ? {
+              type: "json_schema",
+              json_schema: {
+                name: "chapters",
+                strict: true,
+                schema: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      number: { type: "number" },
+                      name: { type: "string" },
+                      topicsCount: { type: "number" },
+                    },
+                    required: ["number", "name", "topicsCount"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+            }
+          : {
+              type: "json_schema",
+              json_schema: {
+                name: "topics",
+                strict: true,
+                schema: {
+                  type: "array",
+                  items: {
+                    type: "object",
+                    properties: {
+                      index: { type: "number" },
+                      name: { type: "string" },
+                      description: { type: "string" },
+                      estimatedMinutes: { type: "number" },
+                    },
+                    required: ["index", "name", "description", "estimatedMinutes"],
+                    additionalProperties: false,
+                  },
+                },
+              },
+            };
 
       let lastErr = "";
 
       for (const model of modelCandidates) {
+        const supportsStructured =
+          isListAction &&
+          (model.includes("llama") || model.includes("gemini") || model.includes("gemma") || model.includes("qwen"));
+
+        const body: Record<string, unknown> = {
+          model,
+          messages: chatMessages,
+          temperature: isListAction ? 0.0 : 0.7,
+          max_tokens: isListAction ? 1200 : 2400,
+        };
+
+        if (supportsStructured) {
+          body.response_format = responseFormat;
+        }
+
         const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
           method: "POST",
           headers: {
@@ -255,11 +321,7 @@ Answer the student's question clearly and completely. Give examples if helpful. 
             "HTTP-Referer": "https://synova.app",
             "X-Title": "SYNOVA Curriculum Study",
           },
-          body: JSON.stringify({
-            model,
-            messages: chatMessages,
-            temperature: isListAction ? 0.2 : 0.7,
-          }),
+          body: JSON.stringify(body),
         });
 
         if (r.ok) {
@@ -273,11 +335,17 @@ Answer the student's question clearly and completely. Give examples if helpful. 
         lastErr = extractErrorMessage(errText);
         console.error("OpenRouter error:", { status: r.status, model, lastErr });
 
+        // auth errors: no point retrying
+        if ([401, 403].includes(r.status)) break;
+        // rate limited: wait on client and retry later
         if (r.status === 429) break;
       }
 
       if (!reply) {
-        return jsonResponse({ error: `AI service temporarily unavailable. ${lastErr || "Please try again."}` }, { status: 502 });
+        return jsonResponse(
+          { error: `AI service temporarily unavailable. ${lastErr || "Please try again."}` },
+          { status: 502 }
+        );
       }
     }
 
@@ -293,16 +361,19 @@ Answer the student's question clearly and completely. Give examples if helpful. 
         // Extract JSON from possible markdown code blocks
         const jsonMatch = reply.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (jsonMatch) jsonStr = jsonMatch[1].trim();
-        
+
         // Try to find JSON array in the response
         const arrayMatch = jsonStr.match(/\[[\s\S]*\]/);
         if (arrayMatch) jsonStr = arrayMatch[0];
-        
+
         const parsed = JSON.parse(jsonStr);
         return jsonResponse({ data: parsed, raw: reply });
       } catch (parseError) {
         console.error("JSON parse error:", parseError, "Raw reply:", reply);
-        return jsonResponse({ reply, parseError: true });
+        return jsonResponse(
+          { error: "AI returned an invalid chapter/topic list format. Please try again." },
+          { status: 502 }
+        );
       }
     }
 
