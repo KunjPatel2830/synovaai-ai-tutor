@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Progress } from "@/components/ui/progress";
 import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
@@ -983,7 +984,7 @@ export default function CurriculumStudy() {
         </GlassCard>
 
         {/* Main Content */}
-        <div className="flex flex-col flex-1 min-w-0">
+        <div className="flex flex-col flex-1 min-w-0 min-h-0">
           {/* Header */}
           <div className="flex items-center justify-between gap-3 mb-3 shrink-0">
             <div className="flex items-center gap-2 min-w-0">
@@ -1098,8 +1099,10 @@ export default function CurriculumStudy() {
                 ))}
                 {isLoading && (
                   <div className="flex justify-start">
-                    <div className="bg-muted rounded-2xl px-4 py-3">
-                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    <div className="bg-card border border-border rounded-2xl px-4 py-3 max-w-[80%] space-y-2">
+                      <Skeleton className="h-4 w-64" />
+                      <Skeleton className="h-4 w-56" />
+                      <Skeleton className="h-4 w-48" />
                     </div>
                   </div>
                 )}
