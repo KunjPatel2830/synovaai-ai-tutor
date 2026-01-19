@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from "react";
+import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { externalSupabase } from "@/lib/external-supabase";
@@ -99,6 +100,22 @@ function writeCache<T>(key: string, value: T) {
   } catch {
     // ignore (storage full / blocked)
   }
+}
+
+async function getInvokeErrorMessage(error: unknown): Promise<string> {
+  // Function returned non-2xx
+  if (error instanceof FunctionsHttpError) {
+    try {
+      const body = await error.context.json();
+      const msg = (body?.error || body?.message || "Function error") as string;
+      return typeof msg === "string" ? msg : JSON.stringify(body);
+    } catch {
+      return "Function error";
+    }
+  }
+
+  if (error instanceof Error) return error.message;
+  return String(error);
 }
 
 export default function CurriculumStudy() {
@@ -213,7 +230,7 @@ export default function CurriculumStudy() {
       }
     } catch (error) {
       console.error("Failed to load chapters:", error);
-      const msg = error instanceof Error ? error.message : String(error);
+      const msg = await getInvokeErrorMessage(error);
       toast({ title: "Failed to load chapters", description: msg, variant: "destructive" });
     } finally {
       setIsLoadingChapters(false);
@@ -299,7 +316,7 @@ export default function CurriculumStudy() {
       }
     } catch (error) {
       console.error("Failed to load topics:", error);
-      const msg = error instanceof Error ? error.message : String(error);
+      const msg = await getInvokeErrorMessage(error);
       toast({ title: "Failed to load topics", description: msg, variant: "destructive" });
       setSelectedChapter(null);
     } finally {
