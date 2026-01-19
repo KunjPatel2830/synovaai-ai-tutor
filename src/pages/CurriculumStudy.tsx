@@ -141,13 +141,14 @@ export default function CurriculumStudy() {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingChapters, setIsLoadingChapters] = useState(false);
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
+  const [hasAutoResumed, setHasAutoResumed] = useState(false);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
   const voice = useVoice();
   const { waitForRateLimit } = useRateLimiter({ minDelayMs: 500 });
   const { trackProgress } = useProgressTracker();
-  const { recentProgress, saveProgress, getChapterProgress, getMostRecentSubject } = useCurriculumStudyProgress();
+  const { recentProgress, isLoading: isProgressLoading, saveProgress, getChapterProgress, getMostRecentSubject } = useCurriculumStudyProgress();
 
   // Auto-scroll to latest message
   useEffect(() => {
@@ -187,6 +188,176 @@ export default function CurriculumStudy() {
       voice.speak(cleanForSpeech(lastMessage.content));
     }
   }, [messages, voice.autoSpeak, voice.speak, cleanForSpeech]);
+
+  // Resume from recent progress (defined early for auto-resume useEffect)
+  const resumeProgress = useCallback(async (progress: typeof recentProgress[0]) => {
+    setCurriculum(progress.curriculum);
+    setStandard(progress.standard);
+    setSubject(progress.subject);
+    
+    // Load chapters and then the specific chapter
+    setIsLoadingChapters(true);
+    try {
+      await waitForRateLimit();
+      
+      const { data: sessionData } = await externalSupabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) throw new Error("No session token");
+      
+      const cacheKey = buildCacheKey(["chapters", progress.curriculum, progress.standard, progress.subject]);
+      const cachedChapters = readCache<Chapter[]>(cacheKey);
+      
+      let chaptersData: Chapter[];
+      
+      if (cachedChapters && cachedChapters.length > 0) {
+        chaptersData = cachedChapters;
+      } else {
+        const response = await supabase.functions.invoke("curriculum-study", {
+          headers: { Authorization: `Bearer ${accessToken}` },
+          body: {
+            action: "get_chapters",
+            curriculum: progress.curriculum,
+            standard: progress.standard,
+            subject: progress.subject,
+          },
+        });
+
+        if (response.error) throw response.error;
+        
+        if (!response.data.data || !Array.isArray(response.data.data)) {
+          throw new Error("Invalid chapter data");
+        }
+        
+        chaptersData = response.data.data;
+        writeCache(cacheKey, chaptersData);
+      }
+      
+      setChapters(chaptersData);
+      const chapter = chaptersData.find((c: Chapter) => c.name === progress.chapter);
+      if (chapter) {
+        // Directly load topics for this chapter
+        setSelectedChapter(chapter);
+        
+        const topicsCacheKey = buildCacheKey(["topics", progress.curriculum, progress.standard, progress.subject, chapter.name]);
+        const cachedTopics = readCache<Topic[]>(topicsCacheKey);
+        
+        if (cachedTopics && cachedTopics.length > 0) {
+          setTopics(cachedTopics);
+          setCurrentTopicIndex(progress.current_topic_index);
+          setCompletedTopics(progress.completed_topics || []);
+          setPhase("studying");
+          // Inline teach logic - will trigger content load via messages effect
+          setIsLoading(true);
+          setMessages([]);
+          try {
+            const currentTopic = cachedTopics[progress.current_topic_index];
+            if (currentTopic) {
+              const teachResponse = await supabase.functions.invoke("curriculum-study", {
+                headers: { Authorization: `Bearer ${accessToken}` },
+                body: {
+                  action: "teach_topic",
+                  curriculum: progress.curriculum,
+                  standard: progress.standard,
+                  subject: progress.subject,
+                  chapter: chapter.name,
+                  currentTopic: currentTopic.name,
+                  completedTopics: progress.completed_topics || [],
+                },
+              });
+              if (teachResponse.data?.reply) {
+                setMessages([{ role: "assistant", content: teachResponse.data.reply }]);
+              }
+            }
+          } catch (teachError) {
+            console.error("Failed to load topic content:", teachError);
+          } finally {
+            setIsLoading(false);
+          }
+        } else {
+          // Fetch topics
+          setIsLoadingTopics(true);
+          const topicsResponse = await supabase.functions.invoke("curriculum-study", {
+            headers: { Authorization: `Bearer ${accessToken}` },
+            body: {
+              action: "get_topics",
+              curriculum: progress.curriculum,
+              standard: progress.standard,
+              subject: progress.subject,
+              chapter: chapter.name,
+            },
+          });
+          
+          if (topicsResponse.error) throw topicsResponse.error;
+          
+          if (topicsResponse.data?.data && Array.isArray(topicsResponse.data.data)) {
+            const topicsData = topicsResponse.data.data;
+            setTopics(topicsData);
+            writeCache(topicsCacheKey, topicsData);
+            setCurrentTopicIndex(progress.current_topic_index);
+            setCompletedTopics(progress.completed_topics || []);
+            setPhase("studying");
+            
+            // Inline teach logic
+            setIsLoading(true);
+            setMessages([]);
+            try {
+              const currentTopic = topicsData[progress.current_topic_index];
+              if (currentTopic) {
+                const teachResponse = await supabase.functions.invoke("curriculum-study", {
+                  headers: { Authorization: `Bearer ${accessToken}` },
+                  body: {
+                    action: "teach_topic",
+                    curriculum: progress.curriculum,
+                    standard: progress.standard,
+                    subject: progress.subject,
+                    chapter: chapter.name,
+                    currentTopic: currentTopic.name,
+                    completedTopics: progress.completed_topics || [],
+                  },
+                });
+                if (teachResponse.data?.reply) {
+                  setMessages([{ role: "assistant", content: teachResponse.data.reply }]);
+                }
+              }
+            } catch (teachError) {
+              console.error("Failed to load topic content:", teachError);
+            } finally {
+              setIsLoading(false);
+            }
+          } else {
+            throw new Error("Invalid topic data");
+          }
+          setIsLoadingTopics(false);
+        }
+      } else {
+        setPhase("select-chapter");
+      }
+    } catch (error) {
+      console.error("Failed to resume:", error);
+      const msg = await getInvokeErrorMessage(error);
+      toast({ title: "Failed to resume progress", description: msg, variant: "destructive" });
+      setPhase("setup");
+    } finally {
+      setIsLoadingChapters(false);
+    }
+  }, [setCurriculum, waitForRateLimit, toast]);
+
+  // Auto-resume from most recent progress on page load
+  useEffect(() => {
+    if (hasAutoResumed || isProgressLoading || phase !== "setup") return;
+    if (recentProgress.length === 0) return;
+    
+    setHasAutoResumed(true);
+    const mostRecent = recentProgress[0];
+    
+    // Auto-resume if there's recent progress
+    toast({
+      title: "Resuming your last session...",
+      description: `${mostRecent.chapter} - ${mostRecent.subject}`,
+    });
+    resumeProgress(mostRecent);
+  }, [recentProgress, isProgressLoading, hasAutoResumed, phase, toast, resumeProgress]);
 
   // Load chapters for selected subject
   const loadChapters = async () => {
@@ -540,52 +711,6 @@ export default function CurriculumStudy() {
     doc.save(fileName);
     toast({ title: "Notes downloaded successfully!" });
   };
-
-  // Resume from recent progress
-  const resumeProgress = async (progress: typeof recentProgress[0]) => {
-    setCurriculum(progress.curriculum);
-    setStandard(progress.standard);
-    setSubject(progress.subject);
-    
-    // Load chapters and then the specific chapter
-    setIsLoadingChapters(true);
-    try {
-      await waitForRateLimit();
-      
-      const { data: sessionData } = await externalSupabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      
-      if (!accessToken) throw new Error("No session token");
-      
-      const response = await supabase.functions.invoke("curriculum-study", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: {
-          action: "get_chapters",
-          curriculum: progress.curriculum,
-          standard: progress.standard,
-          subject: progress.subject,
-        },
-      });
-
-      if (response.error) throw response.error;
-      
-      if (response.data.data && Array.isArray(response.data.data)) {
-        setChapters(response.data.data);
-        const chapter = response.data.data.find((c: Chapter) => c.name === progress.chapter);
-        if (chapter) {
-          await loadTopics(chapter);
-        } else {
-          setPhase("select-chapter");
-        }
-      }
-    } catch (error) {
-      console.error("Failed to resume:", error);
-      toast({ title: "Failed to resume progress", variant: "destructive" });
-    } finally {
-      setIsLoadingChapters(false);
-    }
-  };
-
   // Calculate progress percentage
   const progressPercentage = topics.length > 0 
     ? Math.round((completedTopics.length / topics.length) * 100) 
@@ -938,9 +1063,9 @@ export default function CurriculumStudy() {
           </div>
 
           {/* Messages */}
-          <GlassCard className="flex-1 overflow-hidden">
+          <GlassCard className="flex-1 overflow-hidden min-h-0">
             <ScrollArea className="h-full">
-              <div className="p-4 space-y-4">
+              <div className="p-4 space-y-4 min-h-[200px]">
                 {messages.length === 0 && !isLoading && (
                   <div className="text-center text-muted-foreground py-8">
                     <BookOpen className="h-10 w-10 mx-auto mb-3 opacity-50" />
@@ -951,22 +1076,22 @@ export default function CurriculumStudy() {
                   <div
                     key={index}
                     className={cn(
-                      "flex",
+                      "flex w-full",
                       message.role === "user" ? "justify-end" : "justify-start"
                     )}
                   >
                     <div
                       className={cn(
-                        "max-w-[95%] rounded-2xl px-4 py-3",
+                        "max-w-[95%] rounded-2xl px-4 py-3 text-sm",
                         message.role === "user"
                           ? "bg-primary text-primary-foreground"
-                          : "bg-muted"
+                          : "bg-muted text-foreground"
                       )}
                     >
                       {message.role === "assistant" ? (
-                        <MarkdownContent content={message.content} />
+                        <MarkdownContent content={message.content} className="prose-sm prose-invert max-w-none" />
                       ) : (
-                        <p className="text-sm">{message.content}</p>
+                        <p>{message.content}</p>
                       )}
                     </div>
                   </div>
@@ -974,7 +1099,7 @@ export default function CurriculumStudy() {
                 {isLoading && (
                   <div className="flex justify-start">
                     <div className="bg-muted rounded-2xl px-4 py-3">
-                      <Loader2 className="h-5 w-5 animate-spin" />
+                      <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                     </div>
                   </div>
                 )}
