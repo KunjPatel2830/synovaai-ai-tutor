@@ -12,15 +12,6 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
   });
 }
 
-function extractProviderMessage(raw: string) {
-  try {
-    const parsed = JSON.parse(raw);
-    return parsed?.error?.message || parsed?.message || raw;
-  } catch {
-    return raw;
-  }
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -30,9 +21,9 @@ serve(async (req) => {
     const { action, curriculum, standard, subject, chapter, currentTopic, messages, completedTopics } =
       await req.json();
 
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-    if (!OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY is not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY is not configured");
     }
 
     // Curriculum-specific context
@@ -56,112 +47,122 @@ serve(async (req) => {
     if (action === "get_chapters") {
       systemPrompt = `You are SYNOVA, an expert curriculum advisor. ${selectedCurriculumContext}
 
-Task: List the chapters for ${subject} (${standard}, ${curriculum}).
+Task: List ALL chapters for ${subject} (${standard}, ${curriculum}) from the official textbook.
 
-Output rules:
-- Return ONLY a valid JSON array (no markdown, no code fences).
-- Each item must be: {"number": number, "name": string, "topicsCount": number}.
-- Keep correct chapter order for the board/textbook.
-`;
+CRITICAL: Return ONLY a valid JSON array. No explanations, no markdown, no code fences.
+Each item: {"number": number, "name": "chapter name", "topicsCount": number}
+Keep correct chapter order from the textbook.`;
 
-      userPrompt = `Return the chapter list now.`;
+      userPrompt = `Return the complete chapter list as JSON array.`;
     } else if (action === "get_topics") {
       systemPrompt = `You are SYNOVA, an expert curriculum advisor. ${selectedCurriculumContext}
 
-Task: List the teaching topics for Chapter "${chapter}" in ${subject} (${standard}, ${curriculum}).
+Task: List ALL topics from Chapter "${chapter}" in ${subject} (${standard}, ${curriculum}).
 
-Output rules:
-- Return ONLY a valid JSON array (no markdown, no code fences).
-- Each item must be: {"index": number, "name": string, "description": string, "estimatedMinutes": number}.
-- Order topics from basic to advanced.
-`;
+CRITICAL: Return ONLY a valid JSON array. No explanations, no markdown, no code fences.
+Each item: {"index": number, "name": "topic name", "description": "brief description", "estimatedMinutes": number}
+Order: basic to advanced, matching textbook sequence.`;
 
-      userPrompt = `Return the topics list now.`;
+      userPrompt = `Return the complete topics list as JSON array.`;
     } else if (action === "teach_topic") {
-      systemPrompt = `You are SYNOVA, an adaptive tutor for ${curriculum} curriculum (${standard}).
+      systemPrompt = `You are SYNOVA, a brilliant teacher for ${curriculum} curriculum (${standard}).
 
-Context:
 Subject: ${subject}
 Chapter: ${chapter}
 Topic: ${currentTopic}
 
 CURRICULUM ALIGNMENT: ${selectedCurriculumContext}
 
-VERY IMPORTANT OUTPUT RULES:
-- Output PLAIN TEXT ONLY.
-- Do NOT use markdown. Do NOT use: #, ##, ###, **, *, backticks, bullets like "-" or "•".
-- Use short sentences. Be direct. No filler like "Sure" / "Let's dive in".
-- Explain the topic step-by-step.
+YOUR TASK: Teach this topic COMPLETELY and THOROUGHLY. Give a FULL explanation that a student can understand.
 
-Use this exact format and labels (in this order):
-TOPIC:
+OUTPUT FORMAT (use these exact headings):
+
+TOPIC: [topic name]
+
 INTRODUCTION:
-CORE EXPLANATION:
-IMPORTANT LINES (EXAM):
-1)
-2)
-3)
-DEFINITIONS (if any):
-FORMULAS (if any, use $...$ for math):
-WORKED EXAMPLE 1:
-WORKED EXAMPLE 2:
-PRACTICE QUESTIONS:
-1)
-2)
-`;
+[2-3 sentences introducing the topic and why it matters]
 
-      userPrompt =
-        messages && messages.length > 0
-          ? messages[messages.length - 1].content
-          : `Teach the topic now.`;
+CORE EXPLANATION:
+[Detailed explanation of the concept. Use simple language. Break down complex ideas into steps. Give real-world examples. This should be 4-6 paragraphs minimum.]
+
+IMPORTANT LINES FOR EXAMS:
+1) [Key statement to memorize]
+2) [Key statement to memorize]
+3) [Key statement to memorize]
+
+DEFINITIONS:
+[List any important terms and their definitions]
+
+FORMULAS:
+[List formulas using LaTeX like $formula$ if applicable]
+
+WORKED EXAMPLE 1:
+[Step-by-step solved problem]
+
+WORKED EXAMPLE 2:
+[Another step-by-step solved problem]
+
+PRACTICE QUESTIONS:
+1) [Question for student to try]
+2) [Question for student to try]
+
+REMEMBER: Be thorough and complete. Students depend on your explanation to understand the topic fully.`;
+
+      userPrompt = "Teach this topic now with a complete, detailed explanation.";
     } else if (action === "continue_learning") {
       const completedList = completedTopics?.join(", ") || "none";
 
-      systemPrompt = `You are SYNOVA, an adaptive tutor for ${curriculum} curriculum (${standard}).
+      systemPrompt = `You are SYNOVA, a brilliant teacher for ${curriculum} curriculum (${standard}).
 
-Context:
 Subject: ${subject}
 Chapter: ${chapter}
 Current topic: ${currentTopic}
-Completed topics: ${completedList}
+Already completed: ${completedList}
 
 CURRICULUM ALIGNMENT: ${selectedCurriculumContext}
 
-VERY IMPORTANT OUTPUT RULES:
-- Output PLAIN TEXT ONLY.
-- Do NOT use markdown. Do NOT use: #, ##, ###, **, *, backticks, bullets like "-" or "•".
-- Be direct and structured.
+YOUR TASK: Teach this NEW topic COMPLETELY. Start with a brief recap of what was learned before, then give a FULL explanation of the current topic.
 
-Use this exact format and labels (in this order):
-TOPIC:
-RECAP (2-4 lines):
+OUTPUT FORMAT (use these exact headings):
+
+TOPIC: [topic name]
+
+QUICK RECAP:
+[2-3 sentences connecting to previously learned concepts]
+
 CORE EXPLANATION:
-IMPORTANT LINES (EXAM):
-1)
-2)
-3)
-WORKED EXAMPLE 1:
-PRACTICE QUESTIONS:
-1)
-2)
-`;
+[Detailed explanation of the concept. Use simple language. Break down complex ideas into steps. Give real-world examples. This should be 4-6 paragraphs minimum.]
 
-      userPrompt = `Continue teaching from the current topic now.`;
+IMPORTANT LINES FOR EXAMS:
+1) [Key statement to memorize]
+2) [Key statement to memorize]
+3) [Key statement to memorize]
+
+DEFINITIONS:
+[List any important terms and their definitions]
+
+FORMULAS:
+[List formulas using LaTeX like $formula$ if applicable]
+
+WORKED EXAMPLE:
+[Step-by-step solved problem]
+
+PRACTICE QUESTIONS:
+1) [Question for student to try]
+2) [Question for student to try]
+
+REMEMBER: Be thorough and complete. Students depend on your explanation.`;
+
+      userPrompt = "Continue teaching with a complete explanation of the current topic.";
     } else if (action === "answer_doubt") {
       systemPrompt = `You are SYNOVA, helping a ${standard} student studying ${subject} under ${curriculum} curriculum.
 
-Context:
 Chapter: ${chapter}
 Topic: ${currentTopic}
 
 CURRICULUM ALIGNMENT: ${selectedCurriculumContext}
 
-VERY IMPORTANT OUTPUT RULES:
-- Output PLAIN TEXT ONLY.
-- Do NOT use markdown. Do NOT use: #, ##, ###, **, *, backticks.
-- Keep the answer focused on the student's question.
-- If needed, give one small example.
-`;
+Answer the student's question clearly and completely. Give examples if helpful. Keep the answer focused but thorough.`;
 
       userPrompt =
         messages && messages.length > 0
@@ -171,89 +172,59 @@ VERY IMPORTANT OUTPUT RULES:
       return jsonResponse({ error: "Invalid action specified" }, { status: 400 });
     }
 
-    const subjectLower = String(subject || "").toLowerCase();
-    const isQuantHeavy =
-      subjectLower.includes("math") ||
-      subjectLower.includes("physics") ||
-      subjectLower.includes("chem") ||
-      subjectLower.includes("bio") ||
-      subjectLower.includes("computer");
+    console.log("Curriculum study request", { action, curriculum, standard, subject, chapter, currentTopic });
 
-    // Use reliable free models (qwen 72b is 404ing)
-    const modelCandidates = [
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "google/gemini-2.0-flash-exp:free",
-    ];
+    // Use Lovable AI Gateway
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          ...(messages || []),
+          { role: "user", content: userPrompt }
+        ],
+        temperature: action === "get_chapters" || action === "get_topics" ? 0.2 : 0.7,
+      }),
+    });
 
-    console.log("Curriculum study request", { action, curriculum, standard, subject, modelCandidates });
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("AI gateway error:", response.status, errorText);
 
-    let response: Response | null = null;
-
-    for (let i = 0; i < modelCandidates.length; i++) {
-      const model = modelCandidates[i];
-
-      response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://synova.app",
-          "X-Title": "SYNOVA Curriculum Study",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: "system", content: systemPrompt }, ...(messages || []), { role: "user", content: userPrompt }],
-          temperature: action === "get_chapters" || action === "get_topics" ? 0.2 : 0.6,
-        }),
-      });
-
-      if (response.ok) {
-        console.log("OpenRouter used model", { model });
-        break;
-      }
-
-      const rawErrorText = await response.text();
-      const providerMessage = extractProviderMessage(rawErrorText);
-
-      console.error("OpenRouter error", {
-        model,
-        status: response.status,
-        providerMessage,
-      });
-
-      // If rate-limited, switching models usually won't help.
       if (response.status === 429) {
         return jsonResponse({ error: "Rate limit exceeded. Please try again in a moment." }, { status: 429 });
       }
-
-      const isLastTry = i === modelCandidates.length - 1;
-      const shouldTryNextModel = !isLastTry && [400, 402, 404, 502, 503].includes(response.status);
-
-      if (shouldTryNextModel) continue;
-
-      // Final error surface
       if (response.status === 402) {
-        return jsonResponse({ error: `AI service returned 402. ${providerMessage}` }, { status: 402 });
+        return jsonResponse({ error: "Payment required. Please add credits to continue." }, { status: 402 });
       }
-
-      return jsonResponse({ error: `AI service error (${response.status}). ${providerMessage}` }, { status: 502 });
-    }
-
-    if (!response) {
-      return jsonResponse({ error: "AI request failed." }, { status: 502 });
+      return jsonResponse({ error: "AI service temporarily unavailable. Please try again." }, { status: 502 });
     }
 
     const data = await response.json();
     const reply = data.choices?.[0]?.message?.content || "";
 
+    console.log("AI response received", { action, replyLength: reply.length });
+
     if (action === "get_chapters" || action === "get_topics") {
       try {
         let jsonStr = reply;
+        // Extract JSON from possible markdown code blocks
         const jsonMatch = reply.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (jsonMatch) jsonStr = jsonMatch[1].trim();
+        
+        // Try to find JSON array in the response
+        const arrayMatch = jsonStr.match(/\[[\s\S]*\]/);
+        if (arrayMatch) jsonStr = arrayMatch[0];
+        
         const parsed = JSON.parse(jsonStr);
         return jsonResponse({ data: parsed, raw: reply });
-      } catch {
+      } catch (parseError) {
+        console.error("JSON parse error:", parseError, "Raw reply:", reply);
         return jsonResponse({ reply, parseError: true });
       }
     }
