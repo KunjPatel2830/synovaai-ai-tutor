@@ -3,7 +3,7 @@ import remarkMath from "remark-math";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, forwardRef } from "react";
 import { supabase } from "@/integrations/supabase/client"; // Edge functions only
 import { Image as ImageIcon, X, ZoomIn } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -106,97 +106,99 @@ function ConceptImage({ concept, subject }: { concept: string; subject?: string 
   );
 }
 
-export function MarkdownContent({ content, className, enableImageGeneration = true, subject }: MarkdownContentProps) {
-  const parsedContent = useMemo(() => {
-    if (!enableImageGeneration) return { text: content, images: [] as { concept: string; index: number }[] };
+export const MarkdownContent = forwardRef<HTMLDivElement, MarkdownContentProps>(
+  function MarkdownContent({ content, className, enableImageGeneration = true, subject }, ref) {
+    const markdownComponents = {
+      h2: ({ children }: { children?: React.ReactNode }) => <h2 className="text-lg font-bold mt-4 mb-2 text-foreground">{children}</h2>,
+      h3: ({ children }: { children?: React.ReactNode }) => <h3 className="text-base font-semibold mt-3 mb-2 text-foreground">{children}</h3>,
+      p: ({ children }: { children?: React.ReactNode }) => <p className="mb-2 last:mb-0 text-foreground">{children}</p>,
+      strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-bold text-foreground">{children}</strong>,
+      em: ({ children }: { children?: React.ReactNode }) => <em className="italic">{children}</em>,
+      ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc pl-4 mb-2 text-foreground">{children}</ul>,
+      ol: ({ children }: { children?: React.ReactNode }) => <ol className="list-decimal pl-4 mb-2 text-foreground">{children}</ol>,
+      li: ({ children }: { children?: React.ReactNode }) => <li className="mb-1">{children}</li>,
+      code: ({ children }: { children?: React.ReactNode }) => (
+        <code className="bg-muted px-1 py-0.5 rounded text-sm font-mono">{children}</code>
+      ),
+      pre: ({ children }: { children?: React.ReactNode }) => (
+        <pre className="bg-muted p-2 rounded overflow-x-auto mb-2">{children}</pre>
+      ),
+    };
 
-    const imageRegex = /\[IMAGE:\s*([^\]]+)\]/gi;
-    const images: { concept: string; placeholder: string }[] = [];
-    let match;
-    let processedContent = content;
+    const parsedContent = useMemo(() => {
+      if (!enableImageGeneration) return { text: content, images: [] as { concept: string; index: number }[] };
 
-    while ((match = imageRegex.exec(content)) !== null) {
-      const concept = match[1].trim();
-      const placeholder = `__IMAGE_PLACEHOLDER_${images.length}__`;
-      images.push({ concept, placeholder });
-      processedContent = processedContent.replace(match[0], `\n\n${placeholder}\n\n`);
-    }
+      const imageRegex = /\[IMAGE:\s*([^\]]+)\]/gi;
+      const images: { concept: string; placeholder: string }[] = [];
+      let match;
+      let processedContent = content;
 
-    return { text: processedContent, images };
-  }, [content, enableImageGeneration]);
+      while ((match = imageRegex.exec(content)) !== null) {
+        const concept = match[1].trim();
+        const placeholder = `__IMAGE_PLACEHOLDER_${images.length}__`;
+        images.push({ concept, placeholder });
+        processedContent = processedContent.replace(match[0], `\n\n${placeholder}\n\n`);
+      }
 
-  const renderContent = () => {
-    if (parsedContent.images.length === 0) {
-      return (
-        <ReactMarkdown
-          remarkPlugins={[remarkMath]}
-          rehypePlugins={[rehypeKatex]}
-          components={markdownComponents}
-        >
-          {parsedContent.text}
-        </ReactMarkdown>
-      );
-    }
+      return { text: processedContent, images };
+    }, [content, enableImageGeneration]);
 
-    const parts: React.ReactNode[] = [];
-    let remainingText = parsedContent.text;
-
-    parsedContent.images.forEach((img, idx) => {
-      const [before, after] = remainingText.split(img.placeholder);
-      
-      if (before) {
-        parts.push(
+    const renderContent = () => {
+      if (parsedContent.images.length === 0) {
+        return (
           <ReactMarkdown
-            key={`text-${idx}`}
             remarkPlugins={[remarkMath]}
             rehypePlugins={[rehypeKatex]}
             components={markdownComponents}
           >
-            {before}
+            {parsedContent.text}
           </ReactMarkdown>
         );
       }
 
-      parts.push(<ConceptImage key={`img-${idx}`} concept={img.concept} subject={subject} />);
-      remainingText = after || "";
-    });
+      const parts: React.ReactNode[] = [];
+      let remainingText = parsedContent.text;
 
-    if (remainingText) {
-      parts.push(
-        <ReactMarkdown
-          key="text-final"
-          remarkPlugins={[remarkMath]}
-          rehypePlugins={[rehypeKatex]}
-          components={markdownComponents}
-        >
-          {remainingText}
-        </ReactMarkdown>
-      );
-    }
+      parsedContent.images.forEach((img, idx) => {
+        const [before, after] = remainingText.split(img.placeholder);
+        
+        if (before) {
+          parts.push(
+            <ReactMarkdown
+              key={`text-${idx}`}
+              remarkPlugins={[remarkMath]}
+              rehypePlugins={[rehypeKatex]}
+              components={markdownComponents}
+            >
+              {before}
+            </ReactMarkdown>
+          );
+        }
 
-    return <>{parts}</>;
-  };
+        parts.push(<ConceptImage key={`img-${idx}`} concept={img.concept} subject={subject} />);
+        remainingText = after || "";
+      });
 
-  const markdownComponents = {
-    h2: ({ children }: { children?: React.ReactNode }) => <h2 className="text-lg font-bold mt-4 mb-2">{children}</h2>,
-    h3: ({ children }: { children?: React.ReactNode }) => <h3 className="text-base font-semibold mt-3 mb-2">{children}</h3>,
-    p: ({ children }: { children?: React.ReactNode }) => <p className="mb-2 last:mb-0">{children}</p>,
-    strong: ({ children }: { children?: React.ReactNode }) => <strong className="font-bold">{children}</strong>,
-    em: ({ children }: { children?: React.ReactNode }) => <em className="italic">{children}</em>,
-    ul: ({ children }: { children?: React.ReactNode }) => <ul className="list-disc pl-4 mb-2">{children}</ul>,
-    ol: ({ children }: { children?: React.ReactNode }) => <ol className="list-decimal pl-4 mb-2">{children}</ol>,
-    li: ({ children }: { children?: React.ReactNode }) => <li className="mb-1">{children}</li>,
-    code: ({ children }: { children?: React.ReactNode }) => (
-      <code className="bg-muted px-1 py-0.5 rounded text-sm font-mono">{children}</code>
-    ),
-    pre: ({ children }: { children?: React.ReactNode }) => (
-      <pre className="bg-muted p-2 rounded overflow-x-auto mb-2">{children}</pre>
-    ),
-  };
+      if (remainingText) {
+        parts.push(
+          <ReactMarkdown
+            key="text-final"
+            remarkPlugins={[remarkMath]}
+            rehypePlugins={[rehypeKatex]}
+            components={markdownComponents}
+          >
+            {remainingText}
+          </ReactMarkdown>
+        );
+      }
 
-  return (
-    <div className={cn("prose prose-sm dark:prose-invert max-w-none", className)}>
-      {renderContent()}
-    </div>
-  );
-}
+      return <>{parts}</>;
+    };
+
+    return (
+      <div ref={ref} className={cn("prose prose-sm dark:prose-invert max-w-none text-foreground", className)}>
+        {renderContent()}
+      </div>
+    );
+  }
+);
