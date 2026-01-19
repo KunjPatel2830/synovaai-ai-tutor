@@ -67,6 +67,40 @@ const SUBJECTS = [
   "Economics", "Computer Science", "English", "Hindi"
 ];
 
+const CACHE_TTL_MS = 1000 * 60 * 60 * 24 * 7; // 7 days
+
+function buildCacheKey(parts: Array<string | number | null | undefined>) {
+  return [
+    "cs-cache",
+    ...parts.map((p) => String(p ?? "").trim().replace(/\s+/g, "_")),
+  ].join(":");
+}
+
+function readCache<T>(key: string): T | null {
+  try {
+    if (typeof window === "undefined") return null;
+    const raw = window.localStorage.getItem(key);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as { v: T; t: number };
+    if (!parsed?.t || Date.now() - parsed.t > CACHE_TTL_MS) {
+      window.localStorage.removeItem(key);
+      return null;
+    }
+    return parsed.v;
+  } catch {
+    return null;
+  }
+}
+
+function writeCache<T>(key: string, value: T) {
+  try {
+    if (typeof window === "undefined") return;
+    window.localStorage.setItem(key, JSON.stringify({ v: value, t: Date.now() }));
+  } catch {
+    // ignore (storage full / blocked)
+  }
+}
+
 export default function CurriculumStudy() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -140,16 +174,24 @@ export default function CurriculumStudy() {
   // Load chapters for selected subject
   const loadChapters = async () => {
     if (!subject) return;
-    
+
+    const cacheKey = buildCacheKey(["chapters", curriculum, standard, subject]);
+    const cached = readCache<Chapter[]>(cacheKey);
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setChapters(cached);
+      setPhase("select-chapter");
+      return;
+    }
+
     setIsLoadingChapters(true);
     try {
       await waitForRateLimit();
-      
+
       const { data: sessionData } = await externalSupabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
-      
+
       if (!accessToken) throw new Error("No session token");
-      
+
       const response = await supabase.functions.invoke("curriculum-study", {
         headers: { Authorization: `Bearer ${accessToken}` },
         body: {
@@ -161,16 +203,18 @@ export default function CurriculumStudy() {
       });
 
       if (response.error) throw response.error;
-      
-      if (response.data.data && Array.isArray(response.data.data)) {
+
+      if (response.data?.data && Array.isArray(response.data.data)) {
         setChapters(response.data.data);
+        writeCache(cacheKey, response.data.data);
         setPhase("select-chapter");
       } else {
         throw new Error("Invalid chapter data");
       }
     } catch (error) {
       console.error("Failed to load chapters:", error);
-      toast({ title: "Failed to load chapters", variant: "destructive" });
+      const msg = error instanceof Error ? error.message : String(error);
+      toast({ title: "Failed to load chapters", description: msg, variant: "destructive" });
     } finally {
       setIsLoadingChapters(false);
     }
@@ -178,17 +222,44 @@ export default function CurriculumStudy() {
 
   // Load topics for selected chapter
   const loadTopics = async (chapter: Chapter) => {
-    setIsLoadingTopics(true);
     setSelectedChapter(chapter);
-    
+
+    const cacheKey = buildCacheKey(["topics", curriculum, standard, subject, chapter.name]);
+    const cached = readCache<Topic[]>(cacheKey);
+
+    if (cached && Array.isArray(cached) && cached.length > 0) {
+      setTopics(cached);
+
+      // Check for existing progress
+      const existingProgress = await getChapterProgress(curriculum, standard, subject, chapter.name);
+      if (existingProgress) {
+        setCurrentTopicIndex(existingProgress.current_topic_index);
+        setCompletedTopics(existingProgress.completed_topics || []);
+
+        toast({
+          title: "Resuming from where you left",
+          description: `Continuing from topic ${existingProgress.current_topic_index + 1}`,
+        });
+      } else {
+        setCurrentTopicIndex(0);
+        setCompletedTopics([]);
+      }
+
+      setPhase("studying");
+      await teachCurrentTopic(cached, existingProgress?.current_topic_index || 0);
+      return;
+    }
+
+    setIsLoadingTopics(true);
+
     try {
       await waitForRateLimit();
-      
+
       const { data: sessionData } = await externalSupabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
-      
+
       if (!accessToken) throw new Error("No session token");
-      
+
       const response = await supabase.functions.invoke("curriculum-study", {
         headers: { Authorization: `Bearer ${accessToken}` },
         body: {
@@ -201,17 +272,17 @@ export default function CurriculumStudy() {
       });
 
       if (response.error) throw response.error;
-      
-      if (response.data.data && Array.isArray(response.data.data)) {
+
+      if (response.data?.data && Array.isArray(response.data.data)) {
         setTopics(response.data.data);
-        
+        writeCache(cacheKey, response.data.data);
+
         // Check for existing progress
         const existingProgress = await getChapterProgress(curriculum, standard, subject, chapter.name);
         if (existingProgress) {
           setCurrentTopicIndex(existingProgress.current_topic_index);
           setCompletedTopics(existingProgress.completed_topics || []);
-          
-          // Show toast about resuming
+
           toast({
             title: "Resuming from where you left",
             description: `Continuing from topic ${existingProgress.current_topic_index + 1}`,
@@ -220,16 +291,16 @@ export default function CurriculumStudy() {
           setCurrentTopicIndex(0);
           setCompletedTopics([]);
         }
-        
+
         setPhase("studying");
-        // Start teaching the current topic
         await teachCurrentTopic(response.data.data, existingProgress?.current_topic_index || 0);
       } else {
         throw new Error("Invalid topic data");
       }
     } catch (error) {
       console.error("Failed to load topics:", error);
-      toast({ title: "Failed to load topics", variant: "destructive" });
+      const msg = error instanceof Error ? error.message : String(error);
+      toast({ title: "Failed to load topics", description: msg, variant: "destructive" });
       setSelectedChapter(null);
     } finally {
       setIsLoadingTopics(false);

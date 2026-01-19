@@ -12,6 +12,15 @@ function jsonResponse(body: unknown, init?: ResponseInit) {
   });
 }
 
+function extractErrorMessage(raw: string) {
+  try {
+    const parsed = JSON.parse(raw);
+    return parsed?.error?.message || parsed?.message || parsed?.error || raw;
+  } catch {
+    return raw;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -22,8 +31,10 @@ serve(async (req) => {
       await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY is not configured");
+    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+
+    if (!LOVABLE_API_KEY && !OPENROUTER_API_KEY) {
+      throw new Error("No AI provider is configured");
     }
 
     // Curriculum-specific context
@@ -174,41 +185,107 @@ Answer the student's question clearly and completely. Give examples if helpful. 
 
     console.log("Curriculum study request", { action, curriculum, standard, subject, chapter, currentTopic });
 
-    // Use Lovable AI Gateway
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: systemPrompt },
-          ...(messages || []),
-          { role: "user", content: userPrompt }
-        ],
-        temperature: action === "get_chapters" || action === "get_topics" ? 0.2 : 0.7,
-      }),
-    });
+    const chatMessages = [
+      { role: "system", content: systemPrompt },
+      ...(messages || []),
+      { role: "user", content: userPrompt },
+    ];
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+    const isListAction = action === "get_chapters" || action === "get_topics";
 
-      if (response.status === 429) {
-        return jsonResponse({ error: "Rate limit exceeded. Please try again in a moment." }, { status: 429 });
+    let reply = "";
+    let provider: "lovable" | "openrouter" | "none" = "none";
+
+    // 1) Try Lovable AI first, but fallback if credits are exhausted (402) or temporary errors.
+    if (LOVABLE_API_KEY) {
+      const lovableModel = isListAction ? "google/gemini-2.5-flash-lite" : "google/gemini-3-flash-preview";
+
+      const lovableResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: lovableModel,
+          messages: chatMessages,
+          temperature: isListAction ? 0.2 : 0.7,
+        }),
+      });
+
+      if (lovableResp.ok) {
+        const lovableJson = await lovableResp.json();
+        reply = lovableJson.choices?.[0]?.message?.content || "";
+        provider = "lovable";
+      } else {
+        const errorText = await lovableResp.text();
+        const providerMessage = extractErrorMessage(errorText);
+        console.error("AI gateway error:", lovableResp.status, providerMessage);
+
+        const canFallback = Boolean(OPENROUTER_API_KEY) && [402, 429, 500, 502, 503].includes(lovableResp.status);
+        if (!canFallback) {
+          if (lovableResp.status === 429) {
+            return jsonResponse({ error: "Rate limit exceeded. Please try again in a moment." }, { status: 429 });
+          }
+          if (lovableResp.status === 402) {
+            return jsonResponse(
+              { error: "Not enough AI credits for this workspace. Please add credits to continue." },
+              { status: 402 }
+            );
+          }
+          return jsonResponse({ error: "AI service temporarily unavailable. Please try again." }, { status: 502 });
+        }
       }
-      if (response.status === 402) {
-        return jsonResponse({ error: "Payment required. Please add credits to continue." }, { status: 402 });
+    }
+
+    // 2) Fallback: OpenRouter free models (keeps the app working even when credits are empty)
+    if (!reply && OPENROUTER_API_KEY) {
+      const modelCandidates = isListAction
+        ? ["google/gemini-2.0-flash-exp:free", "meta-llama/llama-3.3-70b-instruct:free"]
+        : ["meta-llama/llama-3.3-70b-instruct:free", "google/gemini-2.0-flash-exp:free"];
+
+      let lastErr = "";
+
+      for (const model of modelCandidates) {
+        const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+            "Content-Type": "application/json",
+            "HTTP-Referer": "https://synova.app",
+            "X-Title": "SYNOVA Curriculum Study",
+          },
+          body: JSON.stringify({
+            model,
+            messages: chatMessages,
+            temperature: isListAction ? 0.2 : 0.7,
+          }),
+        });
+
+        if (r.ok) {
+          const j = await r.json();
+          reply = j.choices?.[0]?.message?.content || "";
+          provider = "openrouter";
+          break;
+        }
+
+        const errText = await r.text();
+        lastErr = extractErrorMessage(errText);
+        console.error("OpenRouter error:", { status: r.status, model, lastErr });
+
+        if (r.status === 429) break;
       }
+
+      if (!reply) {
+        return jsonResponse({ error: `AI service temporarily unavailable. ${lastErr || "Please try again."}` }, { status: 502 });
+      }
+    }
+
+    if (!reply) {
       return jsonResponse({ error: "AI service temporarily unavailable. Please try again." }, { status: 502 });
     }
 
-    const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "";
-
-    console.log("AI response received", { action, replyLength: reply.length });
+    console.log("AI response received", { action, provider, replyLength: reply.length });
 
     if (action === "get_chapters" || action === "get_topics") {
       try {
