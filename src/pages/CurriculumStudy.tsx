@@ -263,7 +263,7 @@ export default function CurriculumStudy() {
       }
 
       setPhase("studying");
-      await teachCurrentTopic(cached, existingProgress?.current_topic_index || 0);
+      await teachCurrentTopic(cached, existingProgress?.current_topic_index || 0, chapter.name);
       return;
     }
 
@@ -310,7 +310,7 @@ export default function CurriculumStudy() {
         }
 
         setPhase("studying");
-        await teachCurrentTopic(response.data.data, existingProgress?.current_topic_index || 0);
+        await teachCurrentTopic(response.data.data, existingProgress?.current_topic_index || 0, chapter.name);
       } else {
         throw new Error("Invalid topic data");
       }
@@ -325,25 +325,32 @@ export default function CurriculumStudy() {
   };
 
   // Teach the current topic
-  const teachCurrentTopic = async (topicsList: Topic[] = topics, topicIndex: number = currentTopicIndex) => {
-    if (topicsList.length === 0 || !selectedChapter) return;
-    
+  const teachCurrentTopic = async (
+    topicsList: Topic[] = topics,
+    topicIndex: number = currentTopicIndex,
+    chapterNameOverride?: string
+  ) => {
+    if (topicsList.length === 0) return;
+
+    const chapterName = chapterNameOverride ?? selectedChapter?.name;
+    if (!chapterName) return;
+
     const currentTopic = topicsList[topicIndex];
     if (!currentTopic) return;
-    
+
     setIsLoading(true);
     setMessages([]);
-    
+
     try {
       await waitForRateLimit();
-      
+
       const { data: sessionData } = await externalSupabase.auth.getSession();
       const accessToken = sessionData.session?.access_token;
-      
+
       if (!accessToken) throw new Error("No session token");
-      
+
       const action = completedTopics.length > 0 ? "continue_learning" : "teach_topic";
-      
+
       const response = await supabase.functions.invoke("curriculum-study", {
         headers: { Authorization: `Bearer ${accessToken}` },
         body: {
@@ -351,23 +358,22 @@ export default function CurriculumStudy() {
           curriculum,
           standard,
           subject,
-          chapter: selectedChapter.name,
+          chapter: chapterName,
           currentTopic: currentTopic.name,
           completedTopics,
         },
       });
 
       if (response.error) throw response.error;
-      
-      setMessages([
-        { role: "assistant", content: response.data.reply },
-      ]);
-      
+
+      setMessages([{ role: "assistant", content: response.data.reply }]);
+
       // Track progress
       await trackProgress(currentTopic.name, subject, 50);
     } catch (error) {
       console.error("Failed to teach topic:", error);
-      toast({ title: "Failed to load topic content", variant: "destructive" });
+      const msg = await getInvokeErrorMessage(error);
+      toast({ title: "Failed to load topic content", description: msg, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
