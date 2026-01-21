@@ -12,6 +12,7 @@ import { HelpCircle, Send, Mic, MicOff, Volume2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { supabase } from "@/integrations/supabase/client"; // Edge functions only
 import { cn } from "@/lib/utils";
+import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface Message {
   role: "user" | "assistant";
@@ -75,7 +76,9 @@ export default function DoubtSolver() {
     setIsLoading(true);
 
     try {
+      const accessToken = await getExternalAccessToken();
       const response = await supabase.functions.invoke("ai-tutor", {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: {
           messages: updatedMessages.map(msg => ({ role: msg.role, content: msg.content })),
           mode: "doubt",

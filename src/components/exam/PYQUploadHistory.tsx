@@ -8,6 +8,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Badge } from "@/components/ui/badge";
 import { History, RefreshCw, RotateCcw, Loader2 } from "lucide-react";
 import { format } from "date-fns";
+import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface Upload {
   id: string;
@@ -120,7 +121,9 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
       const pdfBase64 = await convertToBase64(file);
 
       // Call edge function to process PDF
+      const accessToken = await getExternalAccessToken();
       const { error: functionError } = await supabase.functions.invoke("parse-pyq-pdf", {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: {
           uploadId: selectedUploadForRetry.id,
           pdfBase64,

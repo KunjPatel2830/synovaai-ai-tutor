@@ -15,6 +15,7 @@ import { VoiceChatControls } from "@/components/peer/VoiceChatControls";
 import { Users, Plus, LogIn, Send, Loader2, PenTool, X, Copy, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PeerWhiteboard } from "@/components/peer/PeerWhiteboard";
+import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface Room {
   id: string;
@@ -91,7 +92,9 @@ export default function PeerMode() {
 
     setIsLoading(true);
     try {
+      const accessToken = await getExternalAccessToken();
       const { data, error } = await supabase.functions.invoke("peer-create-room", {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: {
           name: roomName.trim(),
           subject: roomSubject.trim() || null,
@@ -131,7 +134,9 @@ export default function PeerMode() {
 
     setIsLoading(true);
     try {
+      const accessToken = await getExternalAccessToken();
       const { data, error } = await supabase.functions.invoke("peer-join-room", {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: {
           code: joinCode.toUpperCase(),
           role: userRole === "teacher" ? "teacher" : "student",
