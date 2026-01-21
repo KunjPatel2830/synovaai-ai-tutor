@@ -13,6 +13,7 @@ import { Mic, MicOff, Volume2, VolumeX, RefreshCw, Globe } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client"; // Edge functions only
+import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface Message {
   role: "user" | "assistant";
@@ -198,7 +199,10 @@ export default function VoiceTutor() {
       }));
       aiMessages.push({ role: "user", content: `${languageInstruction}${question}` });
 
+      const accessToken = await getExternalAccessToken();
+
       const response = await supabase.functions.invoke("ai-tutor", {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: {
           messages: aiMessages,
           mode: "chat",

@@ -5,6 +5,7 @@ import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
 import { useState, useEffect, useMemo, forwardRef } from "react";
 import { supabase } from "@/integrations/supabase/client"; // Edge functions only
+import { getExternalAccessToken } from "@/lib/external-auth";
 import { Image as ImageIcon, X, ZoomIn } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -29,7 +30,9 @@ function ConceptImage({ concept, subject }: { concept: string; subject?: string 
   useEffect(() => {
     const generateImage = async () => {
       try {
+        const accessToken = await getExternalAccessToken();
         const response = await supabase.functions.invoke("generate-concept-image", {
+          headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
           body: { concept, subject },
         });
 

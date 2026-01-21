@@ -19,6 +19,7 @@ import { FileUpload } from "@/components/upload/FileUpload";
 import { FileText, Send, Lightbulb, AlertTriangle, CheckCircle, Mic, MicOff, Volume2, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface UploadedFile {
   file: File;
@@ -162,7 +163,9 @@ export default function Homework() {
       // Track the help request for teachers/caregivers to see
       await trackHelpRequest(questionText, subject, null, "homework");
       
+      const accessToken = await getExternalAccessToken();
       const response = await supabase.functions.invoke("homework-assist", {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: { 
           question: questionText, 
           subject,

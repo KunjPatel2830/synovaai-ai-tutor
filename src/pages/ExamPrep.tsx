@@ -25,6 +25,7 @@ import { NeedsHelpTab } from "@/components/exam/NeedsHelpTab";
 import { ClipboardList, Play, CheckCircle, XCircle, RotateCcw, Trophy, Mic, MicOff, Volume2, History, BookOpen, Upload, HelpCircle } from "lucide-react";
 import { Loader, LoaderSpinner } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
+import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface Question {
   id: number;
@@ -157,7 +158,9 @@ export default function ExamPrep() {
 
     setIsLoading(true);
     try {
+      const accessToken = await getExternalAccessToken();
       const response = await supabase.functions.invoke("exam-prep", {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: { action: "generate_questions", subject, topic, difficulty, curriculum },
       });
 
