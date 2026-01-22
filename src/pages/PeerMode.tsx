@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { externalSupabase } from "@/lib/external-supabase";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -92,19 +92,19 @@ export default function PeerMode() {
 
     setIsLoading(true);
     try {
-      const accessToken = await getExternalAccessToken();
-      const { data, error } = await supabase.functions.invoke("peer-create-room", {
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-        body: {
+      const res = await invokeBackendFunction<{ room: Room }>(
+        "peer-create-room",
+        {
           name: roomName.trim(),
           subject: roomSubject.trim() || null,
           role: userRole === "teacher" ? "teacher" : "student",
         },
-      });
+        { timeoutMs: 20000, retries: 1, label: "peer:create" }
+      );
 
-      if (error) throw error;
+      if (!res.ok) throw new Error(res.error || "Failed");
 
-      const room = (data as any)?.room as Room | undefined;
+      const room = res.data?.room as Room | undefined;
       if (!room) {
         throw new Error("Failed to create room");
       }
@@ -134,18 +134,18 @@ export default function PeerMode() {
 
     setIsLoading(true);
     try {
-      const accessToken = await getExternalAccessToken();
-      const { data, error } = await supabase.functions.invoke("peer-join-room", {
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-        body: {
+      const res = await invokeBackendFunction<{ room: Room }>(
+        "peer-join-room",
+        {
           code: joinCode.toUpperCase(),
           role: userRole === "teacher" ? "teacher" : "student",
         },
-      });
+        { timeoutMs: 20000, retries: 1, label: "peer:join" }
+      );
 
-      if (error) throw error;
+      if (!res.ok) throw new Error(res.error || "Failed");
 
-      const room = (data as any)?.room as Room | undefined;
+      const room = res.data?.room as Room | undefined;
       if (!room) {
         toast({ title: "Room not found or inactive", variant: "destructive" });
         return;

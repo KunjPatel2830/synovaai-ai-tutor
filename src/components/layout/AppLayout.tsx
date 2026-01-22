@@ -1,11 +1,13 @@
 import { ReactNode } from "react";
 import { Sidebar } from "./Sidebar";
+import { useNavigationPerf } from "@/hooks/useNavigationPerf";
 interface AppLayoutProps {
   children: ReactNode;
 }
 export function AppLayout({
   children
 }: AppLayoutProps) {
+  useNavigationPerf();
   return <div className="min-h-screen bg-background">
       <Sidebar />
       {/* pt-16 on mobile for header, lg:pt-0 and lg:ml-64 for desktop sidebar */}

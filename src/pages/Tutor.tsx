@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { externalSupabase } from "@/lib/external-supabase";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { useCurriculumPreference } from "@/hooks/useCurriculumPreference";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
-import { Brain, Send, Mic, MicOff, Volume2, Plus, Pause, Play } from "lucide-react";
+import { Brain, Send, Mic, MicOff, Volume2, Plus, Pause, Play, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -44,6 +44,7 @@ export default function Tutor() {
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [aiPaused, setAiPaused] = useState(false);
   const [pausedMessages, setPausedMessages] = useState<Message[]>([]);
+  const inFlightControllerRef = useRef<AbortController | null>(null);
 
   const voice = useVoice();
   const { waitForRateLimit } = useRateLimiter({ minDelayMs: 500 });
@@ -130,38 +131,35 @@ export default function Tutor() {
     setSessionStarted(true);
     setIsLoading(true);
     setSessionId(null);
+    inFlightControllerRef.current?.abort();
+    inFlightControllerRef.current = new AbortController();
 
     const systemMessage = `I want to learn about "${topic}" in ${subject}. My level is ${level}. I follow the ${curriculum} curriculum.`;
     
     try {
       await waitForRateLimit();
-      
-      // Get access token from external Supabase session
-      const { data: sessionData } = await externalSupabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      
-      if (!accessToken) {
-        throw new Error("No session token");
-      }
-      
-      const response = await supabase.functions.invoke("ai-tutor", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: {
+
+      const res = await invokeBackendFunction<{ reply: string }>(
+        "ai-tutor",
+        {
           messages: [{ role: "user", content: systemMessage }],
           mode: "start",
           subject,
           topic,
           curriculum,
         },
-      });
-
-      if (response.error) throw response.error;
+        {
+          signal: inFlightControllerRef.current.signal,
+          timeoutMs: 25000,
+          retries: 1,
+          label: "tutor:start",
+        }
+      );
+      if (!res.ok) throw new Error(res.error || "Failed");
       
       const newMessages: Message[] = [
         { role: "user", content: systemMessage },
-        { role: "assistant", content: response.data.reply },
+        { role: "assistant", content: res.data?.reply ?? "" },
       ];
       
       setMessages(newMessages);
@@ -170,7 +168,9 @@ export default function Tutor() {
       // Track progress when session starts
       await trackProgress(topic, subject, 10);
     } catch (error) {
-      toast({ title: "Failed to start session", variant: "destructive" });
+      if ((error as any)?.name !== "AbortError") {
+        toast({ title: "Failed to start session", variant: "destructive" });
+      }
       setSessionStarted(false);
     } finally {
       setIsLoading(false);
@@ -246,34 +246,31 @@ export default function Tutor() {
     setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
+    inFlightControllerRef.current?.abort();
+    inFlightControllerRef.current = new AbortController();
 
     try {
       await waitForRateLimit();
-      
-      // Get access token from external Supabase session
-      const { data: sessionData } = await externalSupabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      
-      if (!accessToken) {
-        throw new Error("No session token");
-      }
-      
-      const response = await supabase.functions.invoke("ai-tutor", {
-        headers: {
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: { 
-          messages: updatedMessages, 
+
+      const res = await invokeBackendFunction<{ reply: string }>(
+        "ai-tutor",
+        {
+          messages: updatedMessages,
           mode: "chat",
           subject,
           topic,
           curriculum,
         },
-      });
+        {
+          signal: inFlightControllerRef.current.signal,
+          timeoutMs: 25000,
+          retries: 1,
+          label: "tutor:chat",
+        }
+      );
+      if (!res.ok) throw new Error(res.error || "Failed");
 
-      if (response.error) throw response.error;
-
-      const assistantMessage = { role: "assistant" as const, content: response.data.reply };
+      const assistantMessage = { role: "assistant" as const, content: res.data?.reply ?? "" };
       const finalMessages = [...updatedMessages, assistantMessage];
       setMessages(finalMessages);
       
@@ -289,10 +286,18 @@ export default function Tutor() {
       const currentScore = Math.min(80, 10 + messages.length * 5);
       await trackProgress(topic, subject, currentScore);
     } catch (error) {
-      toast({ title: "Failed to get response", variant: "destructive" });
+      if ((error as any)?.name !== "AbortError") {
+        toast({ title: "Failed to get response", variant: "destructive" });
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const stopRequest = () => {
+    inFlightControllerRef.current?.abort();
+    setIsLoading(false);
+    toast({ title: "Stopped", description: "Request cancelled." });
   };
 
   if (!sessionStarted) {
@@ -555,6 +560,18 @@ export default function Tutor() {
               disabled={isLoading}
               className={cn("flex-1 h-10", aiPaused && "border-warning/50")}
             />
+            {isLoading && !aiPaused && (
+              <Button
+                type="button"
+                variant="outline"
+                size="icon"
+                onClick={stopRequest}
+                className="h-10 w-10 shrink-0"
+                title="Stop"
+              >
+                <Square className="h-4 w-4" />
+              </Button>
+            )}
             <Button 
               onClick={aiPaused ? sendPausedMessage : sendMessage} 
               disabled={isLoading} 

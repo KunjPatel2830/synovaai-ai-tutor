@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { externalSupabase } from "@/lib/external-supabase";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -158,16 +158,16 @@ export default function ExamPrep() {
 
     setIsLoading(true);
     try {
-      const accessToken = await getExternalAccessToken();
-      const response = await supabase.functions.invoke("exam-prep", {
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-        body: { action: "generate_questions", subject, topic, difficulty, curriculum },
-      });
+      const res = await invokeBackendFunction<{ questions: Question[] }>(
+        "exam-prep",
+        { action: "generate_questions", subject, topic, difficulty, curriculum },
+        { timeoutMs: 30000, retries: 1, label: "exam:generate" }
+      );
 
-      if (response.error) throw response.error;
+      if (!res.ok) throw new Error(res.error || "Failed");
 
-      if (response.data.questions) {
-        setQuestions(response.data.questions);
+      if (res.data?.questions) {
+        setQuestions(res.data.questions);
         setState("quiz");
         setCurrentQuestion(0);
         setAnswers([]);

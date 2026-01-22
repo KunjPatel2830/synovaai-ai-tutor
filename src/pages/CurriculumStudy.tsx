@@ -3,6 +3,7 @@ import { FunctionsHttpError } from "@supabase/supabase-js";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { externalSupabase } from "@/lib/external-supabase";
+import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ import {
   BookOpen, Send, ArrowLeft, ArrowRight, CheckCircle2, 
   Clock, ChevronRight, Play, RotateCcw, Loader2, Download
 } from "lucide-react";
+import { Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
 import jsPDF from "jspdf";
@@ -143,6 +145,7 @@ export default function CurriculumStudy() {
   const [isLoadingChapters, setIsLoadingChapters] = useState(false);
   const [isLoadingTopics, setIsLoadingTopics] = useState(false);
   const [hasAutoResumed, setHasAutoResumed] = useState(false);
+  const inFlightControllerRef = useRef<AbortController | null>(null);
   
   const messagesEndRef = useRef<HTMLDivElement>(null);
   
@@ -214,23 +217,24 @@ export default function CurriculumStudy() {
       if (cachedChapters && cachedChapters.length > 0) {
         chaptersData = cachedChapters;
       } else {
-        const response = await supabase.functions.invoke("curriculum-study", {
-          headers: { Authorization: `Bearer ${accessToken}` },
-          body: {
+        const res = await invokeBackendFunction<{ data: Chapter[] }>(
+          "curriculum-study",
+          {
             action: "get_chapters",
             curriculum: progress.curriculum,
             standard: progress.standard,
             subject: progress.subject,
           },
-        });
+          { timeoutMs: 25000, retries: 1, label: "cs:get_chapters(resume)" }
+        );
 
-        if (response.error) throw response.error;
-        
-        if (!response.data.data || !Array.isArray(response.data.data)) {
+        if (!res.ok) throw new Error(res.error || "Failed");
+
+        if (!res.data?.data || !Array.isArray(res.data.data)) {
           throw new Error("Invalid chapter data");
         }
         
-        chaptersData = response.data.data;
+        chaptersData = res.data.data;
         writeCache(cacheKey, chaptersData);
       }
       
@@ -381,21 +385,17 @@ export default function CurriculumStudy() {
 
       if (!accessToken) throw new Error("No session token");
 
-      const response = await supabase.functions.invoke("curriculum-study", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: {
-          action: "get_chapters",
-          curriculum,
-          standard,
-          subject,
-        },
-      });
+      const res = await invokeBackendFunction<{ data: Chapter[] }>(
+        "curriculum-study",
+        { action: "get_chapters", curriculum, standard, subject },
+        { timeoutMs: 25000, retries: 1, label: "cs:get_chapters" }
+      );
 
-      if (response.error) throw response.error;
+      if (!res.ok) throw new Error(res.error || "Failed");
 
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        setChapters(response.data.data);
-        writeCache(cacheKey, response.data.data);
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        setChapters(res.data.data);
+        writeCache(cacheKey, res.data.data);
         setPhase("select-chapter");
       } else {
         throw new Error("Invalid chapter data");
@@ -439,7 +439,9 @@ export default function CurriculumStudy() {
       return;
     }
 
-    setIsLoadingTopics(true);
+     setIsLoadingTopics(true);
+     inFlightControllerRef.current?.abort();
+     inFlightControllerRef.current = new AbortController();
 
     try {
       await waitForRateLimit();
@@ -449,22 +451,22 @@ export default function CurriculumStudy() {
 
       if (!accessToken) throw new Error("No session token");
 
-      const response = await supabase.functions.invoke("curriculum-study", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: {
-          action: "get_topics",
-          curriculum,
-          standard,
-          subject,
-          chapter: chapter.name,
-        },
-      });
+      const res = await invokeBackendFunction<{ data: Topic[] }>(
+        "curriculum-study",
+        { action: "get_topics", curriculum, standard, subject, chapter: chapter.name },
+        {
+          signal: inFlightControllerRef.current.signal,
+          timeoutMs: 25000,
+          retries: 1,
+          label: "cs:get_topics",
+        }
+      );
 
-      if (response.error) throw response.error;
+      if (!res.ok) throw new Error(res.error || "Failed");
 
-      if (response.data?.data && Array.isArray(response.data.data)) {
-        setTopics(response.data.data);
-        writeCache(cacheKey, response.data.data);
+      if (res.data?.data && Array.isArray(res.data.data)) {
+        setTopics(res.data.data);
+        writeCache(cacheKey, res.data.data);
 
         // Check for existing progress
         const existingProgress = await getChapterProgress(curriculum, standard, subject, chapter.name);
@@ -482,7 +484,7 @@ export default function CurriculumStudy() {
         }
 
         setPhase("studying");
-        await teachCurrentTopic(response.data.data, existingProgress?.current_topic_index || 0, chapter.name);
+        await teachCurrentTopic(res.data.data, existingProgress?.current_topic_index || 0, chapter.name);
       } else {
         throw new Error("Invalid topic data");
       }
@@ -512,6 +514,8 @@ export default function CurriculumStudy() {
 
     setIsLoading(true);
     setMessages([]);
+    inFlightControllerRef.current?.abort();
+    inFlightControllerRef.current = new AbortController();
 
     try {
       await waitForRateLimit();
@@ -523,9 +527,9 @@ export default function CurriculumStudy() {
 
       const action = completedTopics.length > 0 ? "continue_learning" : "teach_topic";
 
-      const response = await supabase.functions.invoke("curriculum-study", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: {
+      const res = await invokeBackendFunction<{ reply: string }>(
+        "curriculum-study",
+        {
           action,
           curriculum,
           standard,
@@ -534,18 +538,26 @@ export default function CurriculumStudy() {
           currentTopic: currentTopic.name,
           completedTopics,
         },
-      });
+        {
+          signal: inFlightControllerRef.current.signal,
+          timeoutMs: 35000,
+          retries: 1,
+          label: `cs:${action}`,
+        }
+      );
 
-      if (response.error) throw response.error;
+      if (!res.ok) throw new Error(res.error || "Failed");
 
-      setMessages([{ role: "assistant", content: response.data.reply }]);
+      setMessages([{ role: "assistant", content: res.data?.reply ?? "" }]);
 
       // Track progress
       await trackProgress(currentTopic.name, subject, 50);
     } catch (error) {
-      console.error("Failed to teach topic:", error);
-      const msg = await getInvokeErrorMessage(error);
-      toast({ title: "Failed to load topic content", description: msg, variant: "destructive" });
+      if ((error as any)?.name !== "AbortError") {
+        console.error("Failed to teach topic:", error);
+        const msg = await getInvokeErrorMessage(error);
+        toast({ title: "Failed to load topic content", description: msg, variant: "destructive" });
+      }
     } finally {
       setIsLoading(false);
     }
@@ -560,6 +572,8 @@ export default function CurriculumStudy() {
     setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
+    inFlightControllerRef.current?.abort();
+    inFlightControllerRef.current = new AbortController();
     
     try {
       await waitForRateLimit();
@@ -569,9 +583,9 @@ export default function CurriculumStudy() {
       
       if (!accessToken) throw new Error("No session token");
       
-      const response = await supabase.functions.invoke("curriculum-study", {
-        headers: { Authorization: `Bearer ${accessToken}` },
-        body: {
+      const res = await invokeBackendFunction<{ reply: string }>(
+        "curriculum-study",
+        {
           action: "answer_doubt",
           curriculum,
           standard,
@@ -580,18 +594,32 @@ export default function CurriculumStudy() {
           currentTopic: topics[currentTopicIndex]?.name,
           messages: updatedMessages,
         },
-      });
+        {
+          signal: inFlightControllerRef.current.signal,
+          timeoutMs: 30000,
+          retries: 1,
+          label: "cs:answer_doubt",
+        }
+      );
 
-      if (response.error) throw response.error;
-      
-      const assistantMessage: Message = { role: "assistant", content: response.data.reply };
+      if (!res.ok) throw new Error(res.error || "Failed");
+
+      const assistantMessage: Message = { role: "assistant", content: res.data?.reply ?? "" };
       setMessages([...updatedMessages, assistantMessage]);
     } catch (error) {
-      console.error("Failed to get response:", error);
-      toast({ title: "Failed to get response", variant: "destructive" });
+      if ((error as any)?.name !== "AbortError") {
+        console.error("Failed to get response:", error);
+        toast({ title: "Failed to get response", variant: "destructive" });
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const stopRequest = () => {
+    inFlightControllerRef.current?.abort();
+    setIsLoading(false);
+    toast({ title: "Stopped", description: "Request cancelled." });
   };
 
   // Mark topic as complete and move to next
@@ -1155,6 +1183,11 @@ export default function CurriculumStudy() {
                 disabled={isLoading}
                 className="flex-1"
               />
+              {isLoading && (
+                <Button variant="outline" onClick={stopRequest} title="Stop">
+                  <Square className="h-4 w-4" />
+                </Button>
+              )}
               <Button onClick={sendMessage} disabled={!input.trim() || isLoading}>
                 <Send className="h-4 w-4" />
               </Button>
