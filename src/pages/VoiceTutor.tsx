@@ -12,8 +12,7 @@ import {
 import { Mic, MicOff, Volume2, VolumeX, RefreshCw, Globe } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client"; // Edge functions only
-import { getExternalAccessToken } from "@/lib/external-auth";
+import { invokeBackendFunction } from "@/lib/backend-invoke";
 
 interface Message {
   role: "user" | "assistant";
@@ -199,19 +198,15 @@ export default function VoiceTutor() {
       }));
       aiMessages.push({ role: "user", content: `${languageInstruction}${question}` });
 
-      const accessToken = await getExternalAccessToken();
+      const res = await invokeBackendFunction<{ reply: string }>(
+        "ai-tutor",
+        { messages: aiMessages, mode: "chat" },
+        { timeoutMs: 25000, retries: 1, label: "voice-tutor:chat" }
+      );
 
-      const response = await supabase.functions.invoke("ai-tutor", {
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-        body: {
-          messages: aiMessages,
-          mode: "chat",
-        },
-      });
-
-      if (response.error) throw response.error;
+      if (!res.ok) throw new Error(res.error || "Failed");
       
-      const reply = response.data.reply || "I understand your question. Let me help you with that.";
+      const reply = res.data?.reply || "I understand your question. Let me help you with that.";
       
       const newMessages = [...conversationHistoryRef.current, 
         { role: "user" as const, content: question },

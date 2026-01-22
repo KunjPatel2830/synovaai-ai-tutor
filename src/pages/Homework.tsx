@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { externalSupabase } from "@/lib/external-supabase";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ import { FileUpload } from "@/components/upload/FileUpload";
 import { FileText, Send, Lightbulb, AlertTriangle, CheckCircle, Mic, MicOff, Volume2, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { getExternalAccessToken } from "@/lib/external-auth";
+import { Square } from "lucide-react";
 
 interface UploadedFile {
   file: File;
@@ -44,6 +44,7 @@ export default function Homework() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const inFlightControllerRef = useRef<AbortController | null>(null);
 
   const voice = useVoice();
   const { trackProgress, trackHelpRequest } = useProgressTracker();
@@ -158,25 +159,32 @@ export default function Homework() {
     setInput("");
     setUploadedFiles([]);
     setIsLoading(true);
+    inFlightControllerRef.current?.abort();
+    inFlightControllerRef.current = new AbortController();
 
     try {
       // Track the help request for teachers/caregivers to see
       await trackHelpRequest(questionText, subject, null, "homework");
       
-      const accessToken = await getExternalAccessToken();
-      const response = await supabase.functions.invoke("homework-assist", {
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-        body: { 
-          question: questionText, 
+      const res = await invokeBackendFunction<{ reply: string }>(
+        "homework-assist",
+        {
+          question: questionText,
           subject,
           curriculum,
           files: fileData.length > 0 ? fileData : undefined,
         },
-      });
+        {
+          signal: inFlightControllerRef.current.signal,
+          timeoutMs: 30000,
+          retries: 1,
+          label: "homework:assist",
+        }
+      );
 
-      if (response.error) throw response.error;
+      if (!res.ok) throw new Error(res.error || "Failed");
 
-      const assistantMessage = { role: "assistant" as const, content: response.data.reply };
+      const assistantMessage = { role: "assistant" as const, content: res.data?.reply ?? "" };
       setMessages([...updatedMessages, assistantMessage]);
       
       // Save to database
@@ -185,10 +193,18 @@ export default function Homework() {
       // Track progress for this homework session
       await trackProgress(`Homework: ${subject}`, subject, 20);
     } catch (error) {
-      toast({ title: "Failed to get help", variant: "destructive" });
+      if ((error as any)?.name !== "AbortError") {
+        toast({ title: "Failed to get help", variant: "destructive" });
+      }
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const stopRequest = () => {
+    inFlightControllerRef.current?.abort();
+    setIsLoading(false);
+    toast({ title: "Stopped", description: "Request cancelled." });
   };
 
   const handleLoadSession = (loadedMessages: Message[], session: { subject: string | null; id: string }) => {
@@ -444,6 +460,18 @@ export default function Homework() {
                   target.style.height = Math.min(target.scrollHeight, 128) + 'px';
                 }}
               />
+              {isLoading && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="icon"
+                  onClick={stopRequest}
+                  className="h-10 w-10 shrink-0"
+                  title="Stop"
+                >
+                  <Square className="h-4 w-4" />
+                </Button>
+              )}
               <Button onClick={sendMessage} disabled={isLoading} size="icon" className="h-10 w-10 shrink-0">
                 <Send className="h-4 w-4" />
               </Button>
