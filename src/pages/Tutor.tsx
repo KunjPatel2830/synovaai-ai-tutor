@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { externalSupabase } from "@/lib/external-supabase";
-import { invokeBackendFunction } from "@/lib/backend-invoke";
+import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -13,11 +13,10 @@ import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useRateLimiter } from "@/hooks/useRateLimiter";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
-import { useCurriculumPreference } from "@/hooks/useCurriculumPreference";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
-import { Brain, Send, Mic, MicOff, Volume2, Plus, Pause, Play, Square } from "lucide-react";
+import { Brain, Send, Mic, MicOff, Volume2, Plus, Pause, Play } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -37,14 +36,11 @@ export default function Tutor() {
   const [topic, setTopic] = useState("");
   const [subject, setSubject] = useState("");
   const [level, setLevel] = useState("beginner");
-  
-  const { curriculum, setCurriculum } = useCurriculumPreference();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
   const [aiPaused, setAiPaused] = useState(false);
   const [pausedMessages, setPausedMessages] = useState<Message[]>([]);
-  const inFlightControllerRef = useRef<AbortController | null>(null);
 
   const voice = useVoice();
   const { waitForRateLimit } = useRateLimiter({ minDelayMs: 500 });
@@ -131,35 +127,35 @@ export default function Tutor() {
     setSessionStarted(true);
     setIsLoading(true);
     setSessionId(null);
-    inFlightControllerRef.current?.abort();
-    inFlightControllerRef.current = new AbortController();
 
-    const systemMessage = `I want to learn about "${topic}" in ${subject}. My level is ${level}. I follow the ${curriculum} curriculum.`;
+    const systemMessage = `I want to learn about "${topic}" in ${subject}. My level is ${level}.`;
     
     try {
       await waitForRateLimit();
-
-      const res = await invokeBackendFunction<{ reply: string }>(
-        "ai-tutor",
-        {
+      
+      // Get access token from external Supabase session
+      const { data: sessionData } = await externalSupabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error("No session token");
+      }
+      
+      const response = await supabase.functions.invoke("ai-tutor", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: {
           messages: [{ role: "user", content: systemMessage }],
           mode: "start",
-          subject,
-          topic,
-          curriculum,
         },
-        {
-          signal: inFlightControllerRef.current.signal,
-          timeoutMs: 25000,
-          retries: 1,
-          label: "tutor:start",
-        }
-      );
-      if (!res.ok) throw new Error(res.error || "Failed");
+      });
+
+      if (response.error) throw response.error;
       
       const newMessages: Message[] = [
         { role: "user", content: systemMessage },
-        { role: "assistant", content: res.data?.reply ?? "" },
+        { role: "assistant", content: response.data.reply },
       ];
       
       setMessages(newMessages);
@@ -168,9 +164,7 @@ export default function Tutor() {
       // Track progress when session starts
       await trackProgress(topic, subject, 10);
     } catch (error) {
-      if ((error as any)?.name !== "AbortError") {
-        toast({ title: "Failed to start session", variant: "destructive" });
-      }
+      toast({ title: "Failed to start session", variant: "destructive" });
       setSessionStarted(false);
     } finally {
       setIsLoading(false);
@@ -246,31 +240,28 @@ export default function Tutor() {
     setMessages(updatedMessages);
     setInput("");
     setIsLoading(true);
-    inFlightControllerRef.current?.abort();
-    inFlightControllerRef.current = new AbortController();
 
     try {
       await waitForRateLimit();
-
-      const res = await invokeBackendFunction<{ reply: string }>(
-        "ai-tutor",
-        {
-          messages: updatedMessages,
-          mode: "chat",
-          subject,
-          topic,
-          curriculum,
+      
+      // Get access token from external Supabase session
+      const { data: sessionData } = await externalSupabase.auth.getSession();
+      const accessToken = sessionData.session?.access_token;
+      
+      if (!accessToken) {
+        throw new Error("No session token");
+      }
+      
+      const response = await supabase.functions.invoke("ai-tutor", {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
         },
-        {
-          signal: inFlightControllerRef.current.signal,
-          timeoutMs: 25000,
-          retries: 1,
-          label: "tutor:chat",
-        }
-      );
-      if (!res.ok) throw new Error(res.error || "Failed");
+        body: { messages: updatedMessages, mode: "chat" },
+      });
 
-      const assistantMessage = { role: "assistant" as const, content: res.data?.reply ?? "" };
+      if (response.error) throw response.error;
+
+      const assistantMessage = { role: "assistant" as const, content: response.data.reply };
       const finalMessages = [...updatedMessages, assistantMessage];
       setMessages(finalMessages);
       
@@ -286,18 +277,10 @@ export default function Tutor() {
       const currentScore = Math.min(80, 10 + messages.length * 5);
       await trackProgress(topic, subject, currentScore);
     } catch (error) {
-      if ((error as any)?.name !== "AbortError") {
-        toast({ title: "Failed to get response", variant: "destructive" });
-      }
+      toast({ title: "Failed to get response", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const stopRequest = () => {
-    inFlightControllerRef.current?.abort();
-    setIsLoading(false);
-    toast({ title: "Stopped", description: "Request cancelled." });
   };
 
   if (!sessionStarted) {
@@ -339,37 +322,14 @@ export default function Tutor() {
               </div>
               
               <div className="space-y-2">
-                <Label className="text-sm">Curriculum</Label>
-                <Select value={curriculum} onValueChange={setCurriculum}>
-                  <SelectTrigger><SelectValue placeholder="Select curriculum" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CBSE">CBSE</SelectItem>
-                    <SelectItem value="NCERT">NCERT</SelectItem>
-                    <SelectItem value="ICSE">ICSE</SelectItem>
-                    <SelectItem value="Cambridge">Cambridge (IGCSE/A-Level)</SelectItem>
-                    <SelectItem value="IB">International Baccalaureate (IB)</SelectItem>
-                    <SelectItem value="State Board">State Board</SelectItem>
-                    <SelectItem value="General">General / Other</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-              
-              <div className="space-y-2">
                 <Label className="text-sm">Subject</Label>
                 <Select value={subject} onValueChange={setSubject}>
                   <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
                   <SelectContent>
                     <SelectItem value="Mathematics">Mathematics</SelectItem>
                     <SelectItem value="Science">Science</SelectItem>
-                    <SelectItem value="Physics">Physics</SelectItem>
-                    <SelectItem value="Chemistry">Chemistry</SelectItem>
-                    <SelectItem value="Biology">Biology</SelectItem>
                     <SelectItem value="Language Arts">Language Arts</SelectItem>
                     <SelectItem value="Social Studies">Social Studies</SelectItem>
-                    <SelectItem value="History">History</SelectItem>
-                    <SelectItem value="Geography">Geography</SelectItem>
-                    <SelectItem value="Economics">Economics</SelectItem>
-                    <SelectItem value="Computer Science">Computer Science</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -560,18 +520,6 @@ export default function Tutor() {
               disabled={isLoading}
               className={cn("flex-1 h-10", aiPaused && "border-warning/50")}
             />
-            {isLoading && !aiPaused && (
-              <Button
-                type="button"
-                variant="outline"
-                size="icon"
-                onClick={stopRequest}
-                className="h-10 w-10 shrink-0"
-                title="Stop"
-              >
-                <Square className="h-4 w-4" />
-              </Button>
-            )}
             <Button 
               onClick={aiPaused ? sendPausedMessage : sendMessage} 
               disabled={isLoading} 

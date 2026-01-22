@@ -25,6 +25,3 @@ verify_jwt = false
 
 [functions.generate-concept-image]
 verify_jwt = false
-
-[functions.curriculum-study]
-verify_jwt = false

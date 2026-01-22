@@ -78,7 +78,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { question, subject, context, curriculum } = body;
+    const { question, subject, context } = body;
 
     // Validate question (required)
     const questionValidation = validateString(question, "Question", MAX_QUESTION_LENGTH, true);
@@ -107,25 +107,7 @@ serve(async (req) => {
       throw new Error("OPENROUTER_API_KEY not configured");
     }
 
-    // Curriculum-specific guidance
-    const curriculumGuide: Record<string, string> = {
-      "CBSE": "Follow CBSE syllabus. Use NCERT methods and terminology. Reference board exam patterns.",
-      "NCERT": "Strictly follow NCERT textbook approaches. Use the same problem-solving methods as NCERT.",
-      "ICSE": "Follow ICSE syllabus with detailed explanations. Include application-based approaches.",
-      "Cambridge": "Follow Cambridge International standards (IGCSE/A-Level). Use British conventions.",
-      "IB": "Follow IB standards. Emphasize inquiry-based learning and critical thinking.",
-      "State Board": "Use region-appropriate methods and locally relevant examples.",
-      "General": "Use universally applicable teaching methods."
-    };
-
-    const selectedCurriculum = curriculum && curriculumGuide[curriculum] 
-      ? curriculumGuide[curriculum] 
-      : curriculumGuide["General"];
-
     const systemPrompt = `You are SYNOVA's Homework Assistant. Your role is to GUIDE students, not give direct answers.
-
-CURRICULUM ALIGNMENT:
-${selectedCurriculum}
 
 CRITICAL LANGUAGE RULE:
 - You MUST respond ONLY in English.
@@ -133,16 +115,16 @@ CRITICAL LANGUAGE RULE:
 
 RULES:
 1. NEVER give the final answer directly
-2. Break down the problem into steps using curriculum-appropriate methods
-3. Explain the METHOD and reasoning as taught in the curriculum
+2. Break down the problem into steps
+3. Explain the METHOD and reasoning
 4. Highlight common mistakes to avoid
 5. Ask the student to try after your explanation
 6. If they share their attempt, provide specific feedback
 
 RESPONSE FORMAT:
 1. 📋 **Problem Understanding** - Restate what's being asked
-2. 💡 **Key Concepts** - What curriculum principles apply here
-3. 📝 **Step-by-Step Approach** - How to solve it (curriculum method, without final answer)
+2. 💡 **Key Concepts** - What principles apply here
+3. 📝 **Step-by-Step Approach** - How to solve it (without final answer)
 4. ⚠️ **Common Mistakes** - What to watch out for
 5. ✏️ **Your Turn** - Ask them to try
 

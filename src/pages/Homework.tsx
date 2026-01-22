@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { externalSupabase } from "@/lib/external-supabase";
-import { invokeBackendFunction } from "@/lib/backend-invoke";
+import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -11,7 +11,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
-import { useCurriculumPreference } from "@/hooks/useCurriculumPreference";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -19,7 +18,6 @@ import { FileUpload } from "@/components/upload/FileUpload";
 import { FileText, Send, Lightbulb, AlertTriangle, CheckCircle, Mic, MicOff, Volume2, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
-import { Square } from "lucide-react";
 
 interface UploadedFile {
   file: File;
@@ -39,12 +37,9 @@ export default function Homework() {
   const [input, setInput] = useState("");
   const [subject, setSubject] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  
-  const { curriculum, setCurriculum } = useCurriculumPreference();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const inFlightControllerRef = useRef<AbortController | null>(null);
 
   const voice = useVoice();
   const { trackProgress, trackHelpRequest } = useProgressTracker();
@@ -159,32 +154,22 @@ export default function Homework() {
     setInput("");
     setUploadedFiles([]);
     setIsLoading(true);
-    inFlightControllerRef.current?.abort();
-    inFlightControllerRef.current = new AbortController();
 
     try {
       // Track the help request for teachers/caregivers to see
       await trackHelpRequest(questionText, subject, null, "homework");
       
-      const res = await invokeBackendFunction<{ reply: string }>(
-        "homework-assist",
-        {
-          question: questionText,
+      const response = await supabase.functions.invoke("homework-assist", {
+        body: { 
+          question: questionText, 
           subject,
-          curriculum,
           files: fileData.length > 0 ? fileData : undefined,
         },
-        {
-          signal: inFlightControllerRef.current.signal,
-          timeoutMs: 30000,
-          retries: 1,
-          label: "homework:assist",
-        }
-      );
+      });
 
-      if (!res.ok) throw new Error(res.error || "Failed");
+      if (response.error) throw response.error;
 
-      const assistantMessage = { role: "assistant" as const, content: res.data?.reply ?? "" };
+      const assistantMessage = { role: "assistant" as const, content: response.data.reply };
       setMessages([...updatedMessages, assistantMessage]);
       
       // Save to database
@@ -193,18 +178,10 @@ export default function Homework() {
       // Track progress for this homework session
       await trackProgress(`Homework: ${subject}`, subject, 20);
     } catch (error) {
-      if ((error as any)?.name !== "AbortError") {
-        toast({ title: "Failed to get help", variant: "destructive" });
-      }
+      toast({ title: "Failed to get help", variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const stopRequest = () => {
-    inFlightControllerRef.current?.abort();
-    setIsLoading(false);
-    toast({ title: "Stopped", description: "Request cancelled." });
   };
 
   const handleLoadSession = (loadedMessages: Message[], session: { subject: string | null; id: string }) => {
@@ -265,45 +242,21 @@ export default function Homework() {
           />
         </div>
 
-        {/* Subject and Curriculum Selection */}
+        {/* Subject Selection and History */}
         <div className="flex items-center justify-between gap-4 mb-3 shrink-0">
-          <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-foreground">Curriculum:</span>
-              <Select value={curriculum} onValueChange={setCurriculum}>
-                <SelectTrigger className="w-36">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CBSE">CBSE</SelectItem>
-                  <SelectItem value="NCERT">NCERT</SelectItem>
-                  <SelectItem value="ICSE">ICSE</SelectItem>
-                  <SelectItem value="Cambridge">Cambridge</SelectItem>
-                  <SelectItem value="IB">IB</SelectItem>
-                  <SelectItem value="State Board">State Board</SelectItem>
-                  <SelectItem value="General">General</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-foreground">Subject:</span>
-              <Select value={subject} onValueChange={setSubject}>
-                <SelectTrigger className="w-36">
-                  <SelectValue placeholder="Select subject" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="Mathematics">Mathematics</SelectItem>
-                  <SelectItem value="Science">Science</SelectItem>
-                  <SelectItem value="Physics">Physics</SelectItem>
-                  <SelectItem value="Chemistry">Chemistry</SelectItem>
-                  <SelectItem value="Biology">Biology</SelectItem>
-                  <SelectItem value="Language Arts">Language Arts</SelectItem>
-                  <SelectItem value="Social Studies">Social Studies</SelectItem>
-                  <SelectItem value="History">History</SelectItem>
-                  <SelectItem value="Geography">Geography</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
+          <div className="flex items-center gap-3">
+            <span className="text-sm font-medium text-foreground">Subject:</span>
+            <Select value={subject} onValueChange={setSubject}>
+              <SelectTrigger className="w-40">
+                <SelectValue placeholder="Select subject" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="Mathematics">Mathematics</SelectItem>
+                <SelectItem value="Science">Science</SelectItem>
+                <SelectItem value="Language Arts">Language Arts</SelectItem>
+                <SelectItem value="Social Studies">Social Studies</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
           <div className="flex items-center gap-2">
             <ChatHistory mode="homework" onLoadSession={handleLoadSession} />
@@ -460,18 +413,6 @@ export default function Homework() {
                   target.style.height = Math.min(target.scrollHeight, 128) + 'px';
                 }}
               />
-              {isLoading && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="icon"
-                  onClick={stopRequest}
-                  className="h-10 w-10 shrink-0"
-                  title="Stop"
-                >
-                  <Square className="h-4 w-4" />
-                </Button>
-              )}
               <Button onClick={sendMessage} disabled={isLoading} size="icon" className="h-10 w-10 shrink-0">
                 <Send className="h-4 w-4" />
               </Button>

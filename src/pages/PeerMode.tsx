@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { externalSupabase } from "@/lib/external-supabase";
-import { invokeBackendFunction } from "@/lib/backend-invoke";
+import { supabase } from "@/integrations/supabase/client";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -15,7 +15,6 @@ import { VoiceChatControls } from "@/components/peer/VoiceChatControls";
 import { Users, Plus, LogIn, Send, Loader2, PenTool, X, Copy, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PeerWhiteboard } from "@/components/peer/PeerWhiteboard";
-import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface Room {
   id: string;
@@ -92,19 +91,17 @@ export default function PeerMode() {
 
     setIsLoading(true);
     try {
-      const res = await invokeBackendFunction<{ room: Room }>(
-        "peer-create-room",
-        {
+      const { data, error } = await supabase.functions.invoke("peer-create-room", {
+        body: {
           name: roomName.trim(),
           subject: roomSubject.trim() || null,
           role: userRole === "teacher" ? "teacher" : "student",
         },
-        { timeoutMs: 20000, retries: 1, label: "peer:create" }
-      );
+      });
 
-      if (!res.ok) throw new Error(res.error || "Failed");
+      if (error) throw error;
 
-      const room = res.data?.room as Room | undefined;
+      const room = (data as any)?.room as Room | undefined;
       if (!room) {
         throw new Error("Failed to create room");
       }
@@ -134,18 +131,16 @@ export default function PeerMode() {
 
     setIsLoading(true);
     try {
-      const res = await invokeBackendFunction<{ room: Room }>(
-        "peer-join-room",
-        {
+      const { data, error } = await supabase.functions.invoke("peer-join-room", {
+        body: {
           code: joinCode.toUpperCase(),
           role: userRole === "teacher" ? "teacher" : "student",
         },
-        { timeoutMs: 20000, retries: 1, label: "peer:join" }
-      );
+      });
 
-      if (!res.ok) throw new Error(res.error || "Failed");
+      if (error) throw error;
 
-      const room = res.data?.room as Room | undefined;
+      const room = (data as any)?.room as Room | undefined;
       if (!room) {
         toast({ title: "Room not found or inactive", variant: "destructive" });
         return;

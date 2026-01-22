@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
 import { Upload, FileText, Loader2 } from "lucide-react";
-import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface PYQUploaderProps {
   userId: string;
@@ -79,9 +78,7 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
       const pdfBase64 = await convertToBase64(file);
 
       // Call edge function to process PDF
-      const accessToken = await getExternalAccessToken();
       const { error: functionError } = await supabase.functions.invoke("parse-pyq-pdf", {
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
         body: {
           uploadId: uploadRecord.id,
           pdfBase64,

@@ -23,7 +23,6 @@ const LanguagePractice = lazy(() => import("./pages/LanguagePractice"));
 const DoubtSolver = lazy(() => import("./pages/DoubtSolver"));
 const StudyPlanner = lazy(() => import("./pages/StudyPlanner"));
 const PeerMode = lazy(() => import("./pages/PeerMode"));
-const CurriculumStudy = lazy(() => import("./pages/CurriculumStudy"));
 
 const Settings = lazy(() => import("./pages/Settings"));
 const Children = lazy(() => import("./pages/Children"));
@@ -56,7 +55,6 @@ const App = () => (
                 <Route path="/doubt-solver" element={<ProtectedRoute><DoubtSolver /></ProtectedRoute>} />
                 <Route path="/study-planner" element={<ProtectedRoute><StudyPlanner /></ProtectedRoute>} />
                 <Route path="/peer-mode" element={<ProtectedRoute><PeerMode /></ProtectedRoute>} />
-                <Route path="/curriculum-study" element={<ProtectedRoute><CurriculumStudy /></ProtectedRoute>} />
                 
                 <Route path="/children" element={<ProtectedRoute allowedRoles={['caregiver']}><Children /></ProtectedRoute>} />
                 <Route path="/students" element={<ProtectedRoute allowedRoles={['teacher', 'admin']}><Students /></ProtectedRoute>} />

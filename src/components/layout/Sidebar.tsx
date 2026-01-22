@@ -71,7 +71,6 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
 
   const studentLinks = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { to: "/curriculum-study", icon: BookOpen, label: "Curriculum Study" },
     { to: "/tutor", icon: Brain, label: "AI Tutor" },
     { to: "/homework", icon: FileText, label: "Homework Help" },
     { to: "/voice-tutor", icon: Mic, label: "Voice Tutor" },

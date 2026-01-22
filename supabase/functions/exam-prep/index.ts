@@ -80,7 +80,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { action, subject, topic, difficulty, curriculum } = body;
+    const { action, subject, topic, difficulty } = body;
 
     // Validate action
     if (!action || typeof action !== "string" || !VALID_ACTIONS.includes(action)) {
@@ -122,22 +122,6 @@ serve(async (req) => {
       throw new Error("OPENROUTER_API_KEY not configured");
     }
 
-    // Curriculum-specific guidance for question generation
-    const curriculumGuide: Record<string, string> = {
-      "CBSE": "Generate questions in CBSE board exam style. Follow NCERT patterns and marking schemes.",
-      "NCERT": "Base questions directly on NCERT textbook content and exercise patterns.",
-      "ICSE": "Generate ICSE-style questions with application focus and detailed requirements.",
-      "Cambridge": "Follow IGCSE/A-Level question patterns with British terminology.",
-      "IB": "Create IB-style inquiry-based questions with critical thinking components.",
-      "State Board": "Use state board exam patterns with regional relevance.",
-      "General": "Create standard practice questions suitable for any curriculum."
-    };
-
-    const selectedCurriculum = curriculum && curriculumGuide[curriculum] 
-      ? curriculumGuide[curriculum] 
-      : curriculumGuide["General"];
-    const safeCurriculum = curriculum || "General";
-
     let systemPrompt = "";
     let userPrompt = "";
 
@@ -148,19 +132,15 @@ serve(async (req) => {
     if (action === "generate_questions") {
       systemPrompt = `You are an exam preparation assistant. Generate practice questions based on the given parameters.
 
-CURRICULUM ALIGNMENT:
-${selectedCurriculum}
-
 CRITICAL LANGUAGE RULE:
 - You MUST generate ALL content ONLY in English.
 - Always use English regardless of what language the topic is in.
 
 RULES:
-1. Generate exactly 5 questions following the ${safeCurriculum} curriculum pattern
-2. Mix question types (multiple choice and short answer) as per board exam format
+1. Generate exactly 5 questions
+2. Mix question types (multiple choice and short answer)
 3. Match the difficulty level specified
 4. Focus on the given topic and subject
-5. Include curriculum-appropriate terminology and concepts
 
 RESPONSE FORMAT (JSON):
 {
@@ -178,7 +158,7 @@ RESPONSE FORMAT (JSON):
 
 Respond ONLY with valid JSON, no markdown.`;
 
-      userPrompt = `Generate 5 ${safeDifficulty} level ${safeCurriculum} curriculum questions for ${safeSubject} on the topic: ${safeTopic}`;
+      userPrompt = `Generate 5 ${safeDifficulty} level questions for ${safeSubject} on the topic: ${safeTopic}`;
     } else if (action === "study_plan") {
       systemPrompt = `You are a study planner. Create a personalized study plan.
 
