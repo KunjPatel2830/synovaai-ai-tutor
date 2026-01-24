@@ -54,7 +54,7 @@ export default function ExamPrep() {
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
   
-  const { curriculum, setCurriculum } = useCurriculumPreference();
+  const { curriculum } = useCurriculumPreference();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -343,22 +343,6 @@ export default function ExamPrep() {
                         <ChatHistory mode="exam" onLoadSession={() => {}} />
                       </div>
                       
-                      <div className="space-y-2">
-                        <Label className="text-sm">Curriculum</Label>
-                        <Select value={curriculum} onValueChange={setCurriculum}>
-                          <SelectTrigger><SelectValue placeholder="Select curriculum" /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="CBSE">CBSE</SelectItem>
-                            <SelectItem value="NCERT">NCERT</SelectItem>
-                            <SelectItem value="ICSE">ICSE</SelectItem>
-                            <SelectItem value="Cambridge">Cambridge (IGCSE/A-Level)</SelectItem>
-                            <SelectItem value="IB">International Baccalaureate (IB)</SelectItem>
-                            <SelectItem value="State Board">State Board</SelectItem>
-                            <SelectItem value="General">General / Other</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-
                       <div className="space-y-2">
                         <Label className="text-sm">Subject</Label>
                         <Select value={subject} onValueChange={setSubject}>
