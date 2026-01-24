@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { externalSupabase } from '@/lib/external-supabase';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,6 +46,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userRole, setUserRole] = useState<AppRole | null>(null);
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
+
+  // Prevent auth flicker by keeping "latest user" in a ref (avoids effect re-subscribing loops)
+  const userRef = useRef<User | null>(null);
+  const initializedRef = useRef(false);
 
   const fetchUserRole = async (userId: string) => {
     try {
@@ -100,77 +104,89 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
-    // Set up auth state listener FIRST - using external Supabase
-    const { data: { subscription } } = externalSupabase.auth.onAuthStateChange(
-      (event, session) => {
-        // Handle session loss
-        if (event === 'SIGNED_OUT' || (!session && event === 'TOKEN_REFRESHED')) {
-          handleSessionExpiry();
-          setLoading(false);
-          return;
-        }
-        
-        // Normal session update
-        setSession(session);
-        setUser(session?.user ?? null);
-        setSessionExpired(false);
-        
-        if (session?.user) {
-          setTimeout(() => {
-            fetchUserRole(session.user.id);
-          }, 0);
-        } else {
-          setUserRole(null);
-        }
-        
-        setLoading(false);
-      }
-    );
+    let active = true;
 
-    // THEN check for existing session - using external Supabase
-    externalSupabase.auth.getSession().then(({ data: { session }, error }) => {
-      if (error) {
-        logError('Error getting session', error);
+    // Subscribe once (do NOT re-subscribe when `user` changes)
+    const { data: { subscription } } = externalSupabase.auth.onAuthStateChange((event, nextSession) => {
+      if (!active) return;
+
+      // During initialization we rely on the explicit getSession() below to avoid redirect flicker.
+      if (!initializedRef.current) return;
+
+      if (event === 'SIGNED_OUT') {
         handleSessionExpiry();
-        setLoading(false);
         return;
       }
-      
-      // Check if session is expired
-      if (session?.expires_at) {
-        const expiresAt = new Date(session.expires_at * 1000);
-        if (expiresAt < new Date()) {
-          handleSessionExpiry();
-          setLoading(false);
-          return;
-        }
+
+      setSession(nextSession);
+      const nextUser = nextSession?.user ?? null;
+      userRef.current = nextUser;
+      setUser(nextUser);
+      setSessionExpired(false);
+
+      if (nextUser) {
+        fetchUserRole(nextUser.id);
+      } else {
+        setUserRole(null);
       }
-      
-      setSession(session);
-      setUser(session?.user ?? null);
-      
-      if (session?.user) {
-        fetchUserRole(session.user.id);
-      }
-      
-      setLoading(false);
     });
 
-    // Set up a periodic check for session expiry
-    const sessionCheckInterval = setInterval(() => {
-      externalSupabase.auth.getSession().then(({ data: { session } }) => {
-        if (!session && user) {
-          // Session was lost unexpectedly
+    // Initialize session state once
+    (async () => {
+      try {
+        const { data, error } = await externalSupabase.auth.getSession();
+        if (error) {
+          logError('Error getting session', error);
+          handleSessionExpiry();
+          return;
+        }
+
+        const nextSession = data.session;
+
+        // Check if session is expired
+        if (nextSession?.expires_at) {
+          const expiresAt = new Date(nextSession.expires_at * 1000);
+          if (expiresAt < new Date()) {
+            handleSessionExpiry();
+            return;
+          }
+        }
+
+        setSession(nextSession);
+        const nextUser = nextSession?.user ?? null;
+        userRef.current = nextUser;
+        setUser(nextUser);
+
+        if (nextUser) {
+          await fetchUserRole(nextUser.id);
+        }
+      } catch (err) {
+        logError('Exception getting session', err);
+        handleSessionExpiry();
+      } finally {
+        initializedRef.current = true;
+        setLoading(false);
+      }
+    })();
+
+    // Periodic sanity check for unexpected session loss
+    const sessionCheckInterval = setInterval(async () => {
+      try {
+        const { data } = await externalSupabase.auth.getSession();
+        if (!data.session && userRef.current) {
           handleSessionExpiry();
         }
-      });
-    }, 60000); // Check every minute
+      } catch {
+        // ignore
+      }
+    }, 60000);
 
     return () => {
+      active = false;
       subscription.unsubscribe();
       clearInterval(sessionCheckInterval);
     };
-  }, [handleSessionExpiry, user]);
+  }, [handleSessionExpiry]);
 
   const signUp = async (email: string, password: string, displayName: string, role: AppRole) => {
     try {
