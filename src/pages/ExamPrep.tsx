@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { externalSupabase } from "@/lib/external-supabase";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
+import { useCurriculumPreference } from "@/hooks/useCurriculumPreference";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { PYQQuizChat } from "@/components/exam/PYQQuizChat";
@@ -24,6 +25,7 @@ import { NeedsHelpTab } from "@/components/exam/NeedsHelpTab";
 import { ClipboardList, Play, CheckCircle, XCircle, RotateCcw, Trophy, Mic, MicOff, Volume2, History, BookOpen, Upload, HelpCircle } from "lucide-react";
 import { Loader, LoaderSpinner } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
+import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface Question {
   id: number;
@@ -51,6 +53,8 @@ export default function ExamPrep() {
   const [subject, setSubject] = useState("");
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
+  
+  const { curriculum, setCurriculum } = useCurriculumPreference();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -154,14 +158,16 @@ export default function ExamPrep() {
 
     setIsLoading(true);
     try {
-      const response = await supabase.functions.invoke("exam-prep", {
-        body: { action: "generate_questions", subject, topic, difficulty },
-      });
+      const res = await invokeBackendFunction<{ questions: Question[] }>(
+        "exam-prep",
+        { action: "generate_questions", subject, topic, difficulty, curriculum },
+        { timeoutMs: 30000, retries: 1, label: "exam:generate" }
+      );
 
-      if (response.error) throw response.error;
+      if (!res.ok) throw new Error(res.error || "Failed");
 
-      if (response.data.questions) {
-        setQuestions(response.data.questions);
+      if (res.data?.questions) {
+        setQuestions(res.data.questions);
         setState("quiz");
         setCurrentQuestion(0);
         setAnswers([]);
@@ -338,6 +344,22 @@ export default function ExamPrep() {
                       </div>
                       
                       <div className="space-y-2">
+                        <Label className="text-sm">Curriculum</Label>
+                        <Select value={curriculum} onValueChange={setCurriculum}>
+                          <SelectTrigger><SelectValue placeholder="Select curriculum" /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="CBSE">CBSE</SelectItem>
+                            <SelectItem value="NCERT">NCERT</SelectItem>
+                            <SelectItem value="ICSE">ICSE</SelectItem>
+                            <SelectItem value="Cambridge">Cambridge (IGCSE/A-Level)</SelectItem>
+                            <SelectItem value="IB">International Baccalaureate (IB)</SelectItem>
+                            <SelectItem value="State Board">State Board</SelectItem>
+                            <SelectItem value="General">General / Other</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="space-y-2">
                         <Label className="text-sm">Subject</Label>
                         <Select value={subject} onValueChange={setSubject}>
                           <SelectTrigger><SelectValue placeholder="Select subject" /></SelectTrigger>
@@ -349,6 +371,10 @@ export default function ExamPrep() {
                             <SelectItem value="Biology">Biology</SelectItem>
                             <SelectItem value="Language Arts">Language Arts</SelectItem>
                             <SelectItem value="Social Studies">Social Studies</SelectItem>
+                            <SelectItem value="History">History</SelectItem>
+                            <SelectItem value="Geography">Geography</SelectItem>
+                            <SelectItem value="Economics">Economics</SelectItem>
+                            <SelectItem value="Computer Science">Computer Science</SelectItem>
                           </SelectContent>
                         </Select>
                       </div>

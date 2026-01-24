@@ -10,8 +10,9 @@ import {
 } from "@/components/ui/glass-card";
 import { HelpCircle, Send, Mic, MicOff, Volume2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import { supabase } from "@/integrations/supabase/client"; // Edge functions only
+import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { cn } from "@/lib/utils";
+import { Square } from "lucide-react";
 
 interface Message {
   role: "user" | "assistant";
@@ -73,18 +74,21 @@ export default function DoubtSolver() {
     const updatedMessages = [...messages, { role: "user" as const, content: userMessage }];
     setMessages(updatedMessages);
     setIsLoading(true);
+    const controller = new AbortController();
 
     try {
-      const response = await supabase.functions.invoke("ai-tutor", {
-        body: {
-          messages: updatedMessages.map(msg => ({ role: msg.role, content: msg.content })),
+      const res = await invokeBackendFunction<{ reply: string }>(
+        "ai-tutor",
+        {
+          messages: updatedMessages.map((msg) => ({ role: msg.role, content: msg.content })),
           mode: "doubt",
         },
-      });
+        { signal: controller.signal, timeoutMs: 20000, retries: 1, label: "doubt:chat" }
+      );
 
-      if (response.error) throw response.error;
+      if (!res.ok) throw new Error(res.error || "Failed");
       
-      const reply = response.data.reply || "I understand your question. Let me help you with that.";
+      const reply = res.data?.reply || "I understand your question. Let me help you with that.";
       setMessages(prev => [...prev, { role: "assistant", content: reply }]);
     } catch (error) {
       setMessages(prev => [

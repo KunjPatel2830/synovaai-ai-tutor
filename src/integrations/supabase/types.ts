@@ -147,6 +147,54 @@ export type Database = {
         }
         Relationships: []
       }
+      curriculum_study_progress: {
+        Row: {
+          chapter: string
+          completed_topics: string[] | null
+          created_at: string
+          current_topic_index: number
+          curriculum: string
+          id: string
+          last_studied_at: string | null
+          last_topic: string | null
+          standard: string
+          subject: string
+          total_topics: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          chapter: string
+          completed_topics?: string[] | null
+          created_at?: string
+          current_topic_index?: number
+          curriculum: string
+          id?: string
+          last_studied_at?: string | null
+          last_topic?: string | null
+          standard: string
+          subject: string
+          total_topics?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          chapter?: string
+          completed_topics?: string[] | null
+          created_at?: string
+          current_topic_index?: number
+          curriculum?: string
+          id?: string
+          last_studied_at?: string | null
+          last_topic?: string | null
+          standard?: string
+          subject?: string
+          total_topics?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       exam_preparations: {
         Row: {
           created_at: string | null
@@ -571,6 +619,7 @@ export type Database = {
         Row: {
           avatar_url: string | null
           created_at: string | null
+          curriculum: string | null
           display_name: string | null
           grade_level: string | null
           id: string
@@ -582,6 +631,7 @@ export type Database = {
         Insert: {
           avatar_url?: string | null
           created_at?: string | null
+          curriculum?: string | null
           display_name?: string | null
           grade_level?: string | null
           id?: string
@@ -593,6 +643,7 @@ export type Database = {
         Update: {
           avatar_url?: string | null
           created_at?: string | null
+          curriculum?: string | null
           display_name?: string | null
           grade_level?: string | null
           id?: string
@@ -860,6 +911,13 @@ export type Database = {
             referencedRelation: "badges"
             referencedColumns: ["id"]
           },
+          {
+            foreignKeyName: "user_badges_badge_id_fkey"
+            columns: ["badge_id"]
+            isOneToOne: false
+            referencedRelation: "badges_public"
+            referencedColumns: ["id"]
+          },
         ]
       }
       user_roles: {
@@ -885,7 +943,102 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      badges_public: {
+        Row: {
+          category: string | null
+          criteria_type: string | null
+          description: string | null
+          icon: string | null
+          id: string | null
+          name: string | null
+        }
+        Insert: {
+          category?: string | null
+          criteria_type?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string | null
+          name?: string | null
+        }
+        Update: {
+          category?: string | null
+          criteria_type?: string | null
+          description?: string | null
+          icon?: string | null
+          id?: string | null
+          name?: string | null
+        }
+        Relationships: []
+      }
+      pyq_questions_public: {
+        Row: {
+          correct_option: string | null
+          created_at: string | null
+          difficulty: string | null
+          exam_type: string | null
+          explanation: string | null
+          id: string | null
+          options: Json | null
+          question_text: string | null
+          shift: string | null
+          subject: string | null
+          topic: string | null
+          year: number | null
+        }
+        Insert: {
+          correct_option?: string | null
+          created_at?: string | null
+          difficulty?: string | null
+          exam_type?: string | null
+          explanation?: string | null
+          id?: string | null
+          options?: Json | null
+          question_text?: string | null
+          shift?: string | null
+          subject?: string | null
+          topic?: string | null
+          year?: number | null
+        }
+        Update: {
+          correct_option?: string | null
+          created_at?: string | null
+          difficulty?: string | null
+          exam_type?: string | null
+          explanation?: string | null
+          id?: string | null
+          options?: Json | null
+          question_text?: string | null
+          shift?: string | null
+          subject?: string | null
+          topic?: string | null
+          year?: number | null
+        }
+        Relationships: []
+      }
+      reviews_public: {
+        Row: {
+          content: string | null
+          created_at: string | null
+          display_name: string | null
+          id: string | null
+          rating: number | null
+        }
+        Insert: {
+          content?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string | null
+          rating?: number | null
+        }
+        Update: {
+          content?: string | null
+          created_at?: string | null
+          display_name?: string | null
+          id?: string | null
+          rating?: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       check_login_lockout: {
