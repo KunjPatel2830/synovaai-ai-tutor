@@ -74,13 +74,22 @@ export async function invokeBackendFunction<T = any>(
   opts: InvokeOptions = {}
 ): Promise<InvokeResult<T>> {
   // Lightweight global signal for UI indicators (no behavioral change)
-  if (typeof window !== "undefined") {
-    window.dispatchEvent(
-      new CustomEvent("synova:backend-pending", {
-        detail: { delta: 1, name: functionName, at: Date.now() },
-      })
-    );
-  }
+  // Wrapped in try/catch to avoid any runtime crashes in restrictive environments.
+  const dispatchPending = (delta: 1 | -1) => {
+    try {
+      if (typeof window === "undefined") return;
+      if (typeof (window as any).CustomEvent !== "function") return;
+      window.dispatchEvent(
+        new CustomEvent("synova:backend-pending", {
+          detail: { delta, name: functionName, at: Date.now() },
+        })
+      );
+    } catch {
+      // ignore
+    }
+  };
+
+  dispatchPending(1);
 
   try {
   const {
@@ -192,12 +201,6 @@ export async function invokeBackendFunction<T = any>(
     durationMs: 0,
   };
   } finally {
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("synova:backend-pending", {
-          detail: { delta: -1, name: functionName, at: Date.now() },
-        })
-      );
-    }
+    dispatchPending(-1);
   }
 }
