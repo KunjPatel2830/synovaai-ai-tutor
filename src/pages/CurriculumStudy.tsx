@@ -456,8 +456,8 @@ export default function CurriculumStudy() {
         { action: "get_topics", curriculum, standard, subject, chapter: chapter.name },
         {
           signal: inFlightControllerRef.current.signal,
-          timeoutMs: 25000,
-          retries: 1,
+           timeoutMs: 45000,
+           retries: 2,
           label: "cs:get_topics",
         }
       );

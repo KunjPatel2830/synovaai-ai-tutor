@@ -111,7 +111,11 @@ export async function invokeBackendFunction<T = any>(
   for (let attempt = 0; attempt <= retries; attempt++) {
     const started = performance.now();
     const controller = new AbortController();
-    const timeoutId = window.setTimeout(() => controller.abort(), timeoutMs);
+    let timedOut = false;
+    const timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, timeoutMs);
 
     const abortListener = () => controller.abort();
     if (signal) {
@@ -172,7 +176,12 @@ export async function invokeBackendFunction<T = any>(
 
       if (isAbortError(err)) {
         recordPerf({ name: functionName, label, status: 0, durationMs, at: Date.now() });
-        return { ok: false, status: 0, error: "Request aborted", durationMs };
+        return {
+          ok: false,
+          status: 0,
+          error: timedOut ? "Request timed out" : "Request aborted",
+          durationMs,
+        };
       }
 
       // Network error (TypeError: Failed to fetch) is retryable
