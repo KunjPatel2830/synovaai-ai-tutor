@@ -40,7 +40,7 @@ export default function Homework() {
   const [subject, setSubject] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   
-  const { curriculum, setCurriculum } = useCurriculumPreference();
+  const { curriculum } = useCurriculumPreference();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -265,26 +265,9 @@ export default function Homework() {
           />
         </div>
 
-        {/* Subject and Curriculum Selection */}
+        {/* Subject Selection */}
         <div className="flex items-center justify-between gap-4 mb-3 shrink-0">
           <div className="flex items-center gap-3 flex-wrap">
-            <div className="flex items-center gap-2">
-              <span className="text-sm font-medium text-foreground">Curriculum:</span>
-              <Select value={curriculum} onValueChange={setCurriculum}>
-                <SelectTrigger className="w-36">
-                  <SelectValue placeholder="Select" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="CBSE">CBSE</SelectItem>
-                  <SelectItem value="NCERT">NCERT</SelectItem>
-                  <SelectItem value="ICSE">ICSE</SelectItem>
-                  <SelectItem value="Cambridge">Cambridge</SelectItem>
-                  <SelectItem value="IB">IB</SelectItem>
-                  <SelectItem value="State Board">State Board</SelectItem>
-                  <SelectItem value="General">General</SelectItem>
-                </SelectContent>
-              </Select>
-            </div>
             <div className="flex items-center gap-2">
               <span className="text-sm font-medium text-foreground">Subject:</span>
               <Select value={subject} onValueChange={setSubject}>

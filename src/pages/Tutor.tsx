@@ -38,7 +38,7 @@ export default function Tutor() {
   const [subject, setSubject] = useState("");
   const [level, setLevel] = useState("beginner");
   
-  const { curriculum, setCurriculum } = useCurriculumPreference();
+  const { curriculum } = useCurriculumPreference();
   const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -336,22 +336,6 @@ export default function Tutor() {
             <GlassCardContent className="p-4 space-y-4">
               <div className="flex justify-end">
                 <ChatHistory mode="tutor" onLoadSession={handleLoadSession} />
-              </div>
-              
-              <div className="space-y-2">
-                <Label className="text-sm">Curriculum</Label>
-                <Select value={curriculum} onValueChange={setCurriculum}>
-                  <SelectTrigger><SelectValue placeholder="Select curriculum" /></SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="CBSE">CBSE</SelectItem>
-                    <SelectItem value="NCERT">NCERT</SelectItem>
-                    <SelectItem value="ICSE">ICSE</SelectItem>
-                    <SelectItem value="Cambridge">Cambridge (IGCSE/A-Level)</SelectItem>
-                    <SelectItem value="IB">International Baccalaureate (IB)</SelectItem>
-                    <SelectItem value="State Board">State Board</SelectItem>
-                    <SelectItem value="General">General / Other</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
               
               <div className="space-y-2">
