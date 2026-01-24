@@ -65,7 +65,13 @@ export function PYQQuizChat() {
   const fetchQuestions = async () => {
     setIsLoading(true);
     try {
-      let query = externalSupabase.from("pyq_questions").select("*");
+      // Use public view to avoid exposing author metadata (created_by)
+      let query = externalSupabase
+        .from("pyq_questions_public")
+        // NOTE: Keep this as a literal string so Supabase types infer correctly.
+        .select(
+          "id,question_text,options,correct_option,subject,topic,explanation,difficulty,exam_type,year,created_at"
+        );
 
       if (examType !== "all") query = query.eq("exam_type", examType);
       if (subject !== "all") query = query.eq("subject", subject);
@@ -76,7 +82,7 @@ export function PYQQuizChat() {
       const { data, error } = await query;
       if (error) throw error;
 
-      const mappedQuestions: PYQQuestion[] = (data || []).map((q) => ({
+      const mappedQuestions: PYQQuestion[] = (data || []).map((q: any) => ({
         id: q.id,
         question_text: q.question_text,
         options: q.options as unknown as { A: string; B: string; C: string; D: string },
@@ -112,7 +118,7 @@ export function PYQQuizChat() {
 
   const fetchAvailableYears = async () => {
     const { data } = await externalSupabase
-      .from("pyq_questions")
+      .from("pyq_questions_public")
       .select("year")
       .order("year", { ascending: false });
 
