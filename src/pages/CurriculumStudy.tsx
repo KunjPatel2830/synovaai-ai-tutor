@@ -175,9 +175,11 @@ export default function CurriculumStudy() {
   const { trackProgress } = useProgressTracker();
   const { recentProgress, isLoading: isProgressLoading, saveProgress, getChapterProgress, getMostRecentSubject } = useCurriculumStudyProgress();
 
-  // Auto-scroll to latest message
+  // Auto-scroll to latest message (only when messages exist)
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length > 0) {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    }
   }, [messages]);
 
   // Sync voice transcript to input
