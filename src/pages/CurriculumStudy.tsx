@@ -176,11 +176,18 @@ export default function CurriculumStudy() {
   const { recentProgress, isLoading: isProgressLoading, saveProgress, getChapterProgress, getMostRecentSubject } = useCurriculumStudyProgress();
 
   // Auto-scroll to latest message (only when messages exist)
+  // Use `block: "nearest"` to prevent browser from force-aligning the element
+  // to the top of the window during rapid layout changes (e.g. loading states).
   useEffect(() => {
-    if (messages.length > 0) {
-      messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
+    if (messages.length === 0) return;
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest",
+        inline: "nearest",
+      });
+    });
+  }, [messages.length]);
 
   // Sync voice transcript to input
   useEffect(() => {
