@@ -227,11 +227,6 @@ export default function CurriculumStudy() {
     try {
       await waitForRateLimit();
       
-      const { data: sessionData } = await externalSupabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      
-      if (!accessToken) throw new Error("No session token");
-      
       const cacheKey = buildCacheKey(["chapters", progress.curriculum, progress.standard, progress.subject]);
       const cachedChapters = readCache<Chapter[]>(cacheKey);
       
@@ -248,7 +243,7 @@ export default function CurriculumStudy() {
             standard: progress.standard,
             subject: progress.subject,
           },
-          { timeoutMs: 25000, retries: 1, label: "cs:get_chapters(resume)" }
+          { timeoutMs: 60000, retries: 3, label: "cs:get_chapters(resume)" }
         );
 
         if (!res.ok) throw new Error(res.error || "Failed");
@@ -275,84 +270,33 @@ export default function CurriculumStudy() {
           setCurrentTopicIndex(progress.current_topic_index);
           setCompletedTopics(progress.completed_topics || []);
           setPhase("studying");
-          // Inline teach logic - will trigger content load via messages effect
-          setIsLoading(true);
-          setMessages([]);
-          try {
-            const currentTopic = cachedTopics[progress.current_topic_index];
-            if (currentTopic) {
-              const teachResponse = await supabase.functions.invoke("curriculum-study", {
-                headers: { Authorization: `Bearer ${accessToken}` },
-                body: {
-                  action: "teach_topic",
-                  curriculum: progress.curriculum,
-                  standard: progress.standard,
-                  subject: progress.subject,
-                  chapter: chapter.name,
-                  currentTopic: currentTopic.name,
-                  completedTopics: progress.completed_topics || [],
-                },
-              });
-              if (teachResponse.data?.reply) {
-                setMessages([{ role: "assistant", content: teachResponse.data.reply }]);
-              }
-            }
-          } catch (teachError) {
-            console.error("Failed to load topic content:", teachError);
-          } finally {
-            setIsLoading(false);
-          }
+          await teachCurrentTopic(cachedTopics, progress.current_topic_index, chapter.name);
         } else {
           // Fetch topics
           setIsLoadingTopics(true);
-          const topicsResponse = await supabase.functions.invoke("curriculum-study", {
-            headers: { Authorization: `Bearer ${accessToken}` },
-            body: {
+          const topicsRes = await invokeBackendFunction<{ data: Topic[] }>(
+            "curriculum-study",
+            {
               action: "get_topics",
               curriculum: progress.curriculum,
               standard: progress.standard,
               subject: progress.subject,
               chapter: chapter.name,
             },
-          });
-          
-          if (topicsResponse.error) throw topicsResponse.error;
-          
-          if (topicsResponse.data?.data && Array.isArray(topicsResponse.data.data)) {
-            const topicsData = topicsResponse.data.data;
+            { timeoutMs: 75000, retries: 3, label: "cs:get_topics(resume)" }
+          );
+
+          if (!topicsRes.ok) throw new Error(topicsRes.error || "Failed");
+
+          if (topicsRes.data?.data && Array.isArray(topicsRes.data.data)) {
+            const topicsData = topicsRes.data.data;
             setTopics(topicsData);
             writeCache(topicsCacheKey, topicsData);
             setCurrentTopicIndex(progress.current_topic_index);
             setCompletedTopics(progress.completed_topics || []);
             setPhase("studying");
-            
-            // Inline teach logic
-            setIsLoading(true);
-            setMessages([]);
-            try {
-              const currentTopic = topicsData[progress.current_topic_index];
-              if (currentTopic) {
-                const teachResponse = await supabase.functions.invoke("curriculum-study", {
-                  headers: { Authorization: `Bearer ${accessToken}` },
-                  body: {
-                    action: "teach_topic",
-                    curriculum: progress.curriculum,
-                    standard: progress.standard,
-                    subject: progress.subject,
-                    chapter: chapter.name,
-                    currentTopic: currentTopic.name,
-                    completedTopics: progress.completed_topics || [],
-                  },
-                });
-                if (teachResponse.data?.reply) {
-                  setMessages([{ role: "assistant", content: teachResponse.data.reply }]);
-                }
-              }
-            } catch (teachError) {
-              console.error("Failed to load topic content:", teachError);
-            } finally {
-              setIsLoading(false);
-            }
+
+            await teachCurrentTopic(topicsData, progress.current_topic_index, chapter.name);
           } else {
             throw new Error("Invalid topic data");
           }
@@ -402,11 +346,6 @@ export default function CurriculumStudy() {
     setIsLoadingChapters(true);
     try {
       await waitForRateLimit();
-
-      const { data: sessionData } = await externalSupabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
-      if (!accessToken) throw new Error("No session token");
 
       const res = await invokeBackendFunction<{ data: Chapter[] }>(
         "curriculum-study",
@@ -468,11 +407,6 @@ export default function CurriculumStudy() {
 
     try {
       await waitForRateLimit();
-
-      const { data: sessionData } = await externalSupabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
-      if (!accessToken) throw new Error("No session token");
 
       const res = await invokeBackendFunction<{ data: Topic[] }>(
         "curriculum-study",
@@ -543,11 +477,6 @@ export default function CurriculumStudy() {
     try {
       await waitForRateLimit();
 
-      const { data: sessionData } = await externalSupabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-
-      if (!accessToken) throw new Error("No session token");
-
       const action = completedTopics.length > 0 ? "continue_learning" : "teach_topic";
 
       const res = await invokeBackendFunction<{ reply: string }>(
@@ -573,8 +502,12 @@ export default function CurriculumStudy() {
 
       setMessages([{ role: "assistant", content: res.data?.reply ?? "" }]);
 
-      // Track progress
-      await trackProgress(currentTopic.name, subject, 50);
+      // Track progress (non-blocking; don't fail the lesson if progress write fails)
+      try {
+        await trackProgress(currentTopic.name, subject, 50);
+      } catch (e) {
+        console.warn("Progress tracking failed:", e);
+      }
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
         console.error("Failed to teach topic:", error);
@@ -600,11 +533,6 @@ export default function CurriculumStudy() {
     
     try {
       await waitForRateLimit();
-      
-      const { data: sessionData } = await externalSupabase.auth.getSession();
-      const accessToken = sessionData.session?.access_token;
-      
-      if (!accessToken) throw new Error("No session token");
       
       const res = await invokeBackendFunction<{ reply: string }>(
         "curriculum-study",
