@@ -409,7 +409,7 @@ export default function CurriculumStudy() {
       const res = await invokeBackendFunction<{ data: Chapter[] }>(
         "curriculum-study",
         { action: "get_chapters", curriculum, standard, subject },
-        { timeoutMs: 25000, retries: 1, label: "cs:get_chapters" }
+        { timeoutMs: 60000, retries: 3, label: "cs:get_chapters" }
       );
 
       if (!res.ok) throw new Error(res.error || "Failed");
@@ -477,8 +477,8 @@ export default function CurriculumStudy() {
         { action: "get_topics", curriculum, standard, subject, chapter: chapter.name },
         {
           signal: inFlightControllerRef.current.signal,
-           timeoutMs: 45000,
-           retries: 2,
+          timeoutMs: 75000,
+          retries: 3,
           label: "cs:get_topics",
         }
       );
@@ -561,8 +561,8 @@ export default function CurriculumStudy() {
         },
         {
           signal: inFlightControllerRef.current.signal,
-          timeoutMs: 35000,
-          retries: 1,
+          timeoutMs: 75000,
+          retries: 3,
           label: `cs:${action}`,
         }
       );
@@ -617,8 +617,8 @@ export default function CurriculumStudy() {
         },
         {
           signal: inFlightControllerRef.current.signal,
-          timeoutMs: 30000,
-          retries: 1,
+          timeoutMs: 60000,
+          retries: 2,
           label: "cs:answer_doubt",
         }
       );
