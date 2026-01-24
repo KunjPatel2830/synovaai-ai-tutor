@@ -131,6 +131,27 @@ export default function CurriculumStudy() {
   const [standard, setStandard] = useState("12th");
   const [subject, setSubject] = useState("");
   const [selectedChapter, setSelectedChapter] = useState<Chapter | null>(null);
+
+  // Auto-restore last selection from localStorage
+  useEffect(() => {
+    try {
+      const saved = window.localStorage.getItem("cs:last-selection");
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed.standard) setStandard(parsed.standard);
+        if (parsed.subject) setSubject(parsed.subject);
+      }
+    } catch {}
+  }, []);
+
+  // Save selection whenever it changes
+  useEffect(() => {
+    if (curriculum && standard && subject) {
+      try {
+        window.localStorage.setItem("cs:last-selection", JSON.stringify({ curriculum, standard, subject }));
+      } catch {}
+    }
+  }, [curriculum, standard, subject]);
   
   // Chapter and topic states
   const [chapters, setChapters] = useState<Chapter[]>([]);
@@ -193,7 +214,7 @@ export default function CurriculumStudy() {
     }
   }, [messages, voice.autoSpeak, voice.speak, cleanForSpeech]);
 
-  // Resume from recent progress (defined early for auto-resume useEffect)
+  // Resume from recent progress
   const resumeProgress = useCallback(async (progress: typeof recentProgress[0]) => {
     setCurriculum(progress.curriculum);
     setStandard(progress.standard);
