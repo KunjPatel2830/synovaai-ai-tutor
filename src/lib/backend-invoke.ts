@@ -73,6 +73,16 @@ export async function invokeBackendFunction<T = any>(
   body: unknown,
   opts: InvokeOptions = {}
 ): Promise<InvokeResult<T>> {
+  // Lightweight global signal for UI indicators (no behavioral change)
+  if (typeof window !== "undefined") {
+    window.dispatchEvent(
+      new CustomEvent("synova:backend-pending", {
+        detail: { delta: 1, name: functionName, at: Date.now() },
+      })
+    );
+  }
+
+  try {
   const {
     signal,
     timeoutMs = 20000,
@@ -181,4 +191,13 @@ export async function invokeBackendFunction<T = any>(
     error: lastError instanceof Error ? lastError.message : "Unknown error",
     durationMs: 0,
   };
+  } finally {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("synova:backend-pending", {
+          detail: { delta: -1, name: functionName, at: Date.now() },
+        })
+      );
+    }
+  }
 }
