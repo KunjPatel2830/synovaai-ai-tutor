@@ -151,39 +151,60 @@ ${contextValidation.value ? `Additional context: ${contextValidation.value}` : "
 
 Be encouraging and patient. Learning is a journey!`;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://synova.app",
-        "X-Title": "SYNOVA Homework Assistant",
-      },
-      body: JSON.stringify({
-        model: "meta-llama/llama-3.3-70b-instruct:free",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: questionValidation.value },
-        ],
-      }),
-    });
+    // Free model fallback chain
+    const freeModels = [
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "mistralai/mistral-small-24b-instruct-2501:free",
+      "google/gemma-3-27b:free",
+      "qwen/qwen3-30b-a3b:free",
+    ];
 
-    if (!response.ok) {
-      const t = await response.text();
-      console.error("OpenRouter error:", response.status, t);
+    let reply = "";
 
+    for (const model of freeModels) {
+      console.log(`[homework-assist] Trying model: ${model}`);
+
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://synova.app",
+          "X-Title": "SYNOVA Homework Assistant",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: questionValidation.value },
+          ],
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        reply = data.choices?.[0]?.message?.content || "";
+        if (reply) {
+          console.log(`[homework-assist] Success with model: ${model}`);
+          break;
+        }
+      }
+
+      const errText = await response.text();
+      console.error(`[homework-assist] Model ${model} failed:`, response.status, errText);
+
+      if ([401, 403].includes(response.status)) break;
       if (response.status === 429) {
         return jsonResponse({ error: "Rate limit exceeded. Please try again later." }, { status: 429 });
       }
       if (response.status === 402) {
         return jsonResponse({ error: "Usage limit reached. Please add credits." }, { status: 402 });
       }
-
-      return jsonResponse({ error: "AI gateway error" }, { status: 500 });
     }
 
-    const data = await response.json();
-    const reply = data.choices?.[0]?.message?.content || "I couldn't generate a response.";
+    if (!reply) {
+      return jsonResponse({ error: "All AI models are currently unavailable. Please try again." }, { status: 502 });
+    }
 
     return jsonResponse({ reply });
   } catch (error) {

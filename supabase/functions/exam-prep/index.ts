@@ -207,39 +207,60 @@ Respond ONLY with valid JSON, no markdown.`;
       return jsonResponse({ error: "Unknown action" }, { status: 400 });
     }
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://synova.app",
-        "X-Title": "SYNOVA Exam Prep",
-      },
-      body: JSON.stringify({
-        model: "meta-llama/llama-3.3-70b-instruct:free",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-    });
+    // Free model fallback chain
+    const freeModels = [
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "mistralai/mistral-small-24b-instruct-2501:free",
+      "google/gemma-3-27b:free",
+      "qwen/qwen3-30b-a3b:free",
+    ];
 
-    if (!response.ok) {
-      const t = await response.text();
-      console.error("OpenRouter error:", response.status, t);
+    let content = "";
 
+    for (const model of freeModels) {
+      console.log(`[exam-prep] Trying model: ${model}`);
+
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://synova.app",
+          "X-Title": "SYNOVA Exam Prep",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+        }),
+      });
+
+      if (response.ok) {
+        const data = await response.json();
+        content = data.choices?.[0]?.message?.content || "";
+        if (content) {
+          console.log(`[exam-prep] Success with model: ${model}`);
+          break;
+        }
+      }
+
+      const errText = await response.text();
+      console.error(`[exam-prep] Model ${model} failed:`, response.status, errText);
+
+      if ([401, 403].includes(response.status)) break;
       if (response.status === 429) {
         return jsonResponse({ error: "Rate limit exceeded." }, { status: 429 });
       }
       if (response.status === 402) {
         return jsonResponse({ error: "Usage limit reached." }, { status: 402 });
       }
-
-      return jsonResponse({ error: "AI gateway error" }, { status: 500 });
     }
 
-    const data = await response.json();
-    const content = data.choices?.[0]?.message?.content || "{}";
+    if (!content) {
+      return jsonResponse({ error: "All AI models are currently unavailable. Please try again." }, { status: 502 });
+    }
 
     // Some models may wrap JSON; be tolerant.
     const cleaned = content.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();

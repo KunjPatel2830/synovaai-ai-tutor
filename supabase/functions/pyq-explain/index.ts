@@ -93,30 +93,54 @@ Explain using the exact format above.`;
 
     console.log(`[pyq-explain] ${isFollowUp ? "Follow-up" : "Explanation"} for ${subject} question`);
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-        "Content-Type": "application/json",
-        "HTTP-Referer": "https://synova.app",
-        "X-Title": "SYNOVA PYQ Explain",
-      },
-      body: JSON.stringify({
-        model: "meta-llama/llama-3.3-70b-instruct:free",
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-        temperature: 0.3,
-        max_tokens: isFollowUp ? 220 : 320,
-        stream: true,
-      }),
-    });
+    // Free model fallback chain
+    const freeModels = [
+      "meta-llama/llama-3.3-70b-instruct:free",
+      "mistralai/mistral-small-24b-instruct-2501:free",
+      "google/gemma-3-27b:free",
+      "qwen/qwen3-30b-a3b:free",
+    ];
 
-    if (!response.ok) {
-      const error = await response.text();
-      console.error("[pyq-explain] API error:", response.status, error);
+    for (const model of freeModels) {
+      console.log(`[pyq-explain] Trying model: ${model}`);
 
+      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+          "Content-Type": "application/json",
+          "HTTP-Referer": "https://synova.app",
+          "X-Title": "SYNOVA PYQ Explain",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt },
+          ],
+          temperature: 0.3,
+          max_tokens: isFollowUp ? 220 : 320,
+          stream: true,
+        }),
+      });
+
+      if (response.ok) {
+        console.log(`[pyq-explain] Success with model: ${model}`);
+        // Return streaming response
+        return new Response(response.body, {
+          headers: {
+            ...corsHeaders,
+            "Content-Type": "text/event-stream",
+            "Cache-Control": "no-cache",
+            Connection: "keep-alive",
+          },
+        });
+      }
+
+      const errText = await response.text();
+      console.error(`[pyq-explain] Model ${model} failed:`, response.status, errText);
+
+      if ([401, 403].includes(response.status)) break;
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
           status: 429,
@@ -129,18 +153,12 @@ Explain using the exact format above.`;
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
-
-      throw new Error(`AI API error: ${response.status}`);
     }
 
-    // Return streaming response
-    return new Response(response.body, {
-      headers: {
-        ...corsHeaders,
-        "Content-Type": "text/event-stream",
-        "Cache-Control": "no-cache",
-        Connection: "keep-alive",
-      },
+    // All models failed
+    return new Response(JSON.stringify({ error: "All AI models are currently unavailable. Please try again." }), {
+      status: 502,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (error) {
     console.error("[pyq-explain] Error:", error);
