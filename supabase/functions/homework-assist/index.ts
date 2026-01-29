@@ -160,7 +160,7 @@ Be encouraging and patient. Learning is a journey!`;
         "X-Title": "SYNOVA Homework Assistant",
       },
       body: JSON.stringify({
-        model: "xiaomi/mimo-v2-flash:free",
+        model: "meta-llama/llama-3.3-70b-instruct:free",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: questionValidation.value },
