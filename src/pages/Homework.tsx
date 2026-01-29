@@ -163,8 +163,8 @@ export default function Homework() {
     inFlightControllerRef.current = new AbortController();
 
     try {
-      // Track the help request for teachers/caregivers to see
-      await trackHelpRequest(questionText, subject, null, "homework");
+      // Track the help request for teachers/caregivers (non-blocking)
+      trackHelpRequest(questionText, subject, null, "homework").catch(() => {});
       
       const res = await invokeBackendFunction<{ reply: string }>(
         "homework-assist",
@@ -176,25 +176,37 @@ export default function Homework() {
         },
         {
           signal: inFlightControllerRef.current.signal,
-          timeoutMs: 30000,
-          retries: 1,
+          timeoutMs: 40000,
+          retries: 2,
           label: "homework:assist",
         }
       );
 
-      if (!res.ok) throw new Error(res.error || "Failed");
+      if (!res.ok) {
+        if (res.status === 401) {
+          toast({ title: "Session expired", description: "Please log in again.", variant: "destructive" });
+        } else if (res.status === 429) {
+          toast({ title: "Rate limit reached", description: "Please wait and try again.", variant: "destructive" });
+        } else if (res.status === 402) {
+          toast({ title: "Credits exhausted", description: "AI credits are low.", variant: "destructive" });
+        } else {
+          toast({ title: "Failed to get help", description: res.error || "Unknown error", variant: "destructive" });
+        }
+        return;
+      }
 
       const assistantMessage = { role: "assistant" as const, content: res.data?.reply ?? "" };
       setMessages([...updatedMessages, assistantMessage]);
       
-      // Save to database
-      await saveToSession(userMessage, assistantMessage);
+      // Save to database (non-blocking)
+      saveToSession(userMessage, assistantMessage).catch(() => {});
 
-      // Track progress for this homework session
-      await trackProgress(`Homework: ${subject}`, subject, 20);
+      // Track progress (non-blocking)
+      trackProgress(`Homework: ${subject}`, subject, 20).catch(() => {});
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
-        toast({ title: "Failed to get help", variant: "destructive" });
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        toast({ title: "Failed to get help", description: msg, variant: "destructive" });
       }
     } finally {
       setIsLoading(false);

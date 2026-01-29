@@ -505,16 +505,23 @@ export default function CurriculumStudy() {
         }
       );
 
-      if (!res.ok) throw new Error(res.error || "Failed");
+      if (!res.ok) {
+        if (res.status === 401) {
+          toast({ title: "Session expired", description: "Please log in again.", variant: "destructive" });
+        } else if (res.status === 429) {
+          toast({ title: "Rate limit reached", description: "Please wait a moment and try again.", variant: "destructive" });
+        } else if (res.status === 402) {
+          toast({ title: "Credits exhausted", description: "AI credits are low. Try again later.", variant: "destructive" });
+        } else {
+          toast({ title: "Failed to load topic content", description: res.error || "Unknown error", variant: "destructive" });
+        }
+        return;
+      }
 
       setMessages([{ role: "assistant", content: res.data?.reply ?? "" }]);
 
-      // Track progress (non-blocking; don't fail the lesson if progress write fails)
-      try {
-        await trackProgress(currentTopic.name, subject, 50);
-      } catch (e) {
-        console.warn("Progress tracking failed:", e);
-      }
+      // Track progress (non-blocking)
+      trackProgress(currentTopic.name, subject, 50).catch(() => {});
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
         console.error("Failed to teach topic:", error);
@@ -560,14 +567,26 @@ export default function CurriculumStudy() {
         }
       );
 
-      if (!res.ok) throw new Error(res.error || "Failed");
+      if (!res.ok) {
+        if (res.status === 401) {
+          toast({ title: "Session expired", description: "Please log in again.", variant: "destructive" });
+        } else if (res.status === 429) {
+          toast({ title: "Rate limit reached", description: "Please wait and try again.", variant: "destructive" });
+        } else if (res.status === 402) {
+          toast({ title: "Credits exhausted", description: "AI credits are low.", variant: "destructive" });
+        } else {
+          toast({ title: "Failed to get response", description: res.error || "Unknown error", variant: "destructive" });
+        }
+        return;
+      }
 
       const assistantMessage: Message = { role: "assistant", content: res.data?.reply ?? "" };
       setMessages([...updatedMessages, assistantMessage]);
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
         console.error("Failed to get response:", error);
-        toast({ title: "Failed to get response", variant: "destructive" });
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        toast({ title: "Failed to get response", description: msg, variant: "destructive" });
       }
     } finally {
       setIsLoading(false);
