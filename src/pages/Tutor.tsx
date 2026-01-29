@@ -150,12 +150,26 @@ export default function Tutor() {
         },
         {
           signal: inFlightControllerRef.current.signal,
-          timeoutMs: 25000,
-          retries: 1,
+          timeoutMs: 35000,
+          retries: 2,
           label: "tutor:start",
         }
       );
-      if (!res.ok) throw new Error(res.error || "Failed");
+
+      if (!res.ok) {
+        // Surface specific error codes to user
+        if (res.status === 401) {
+          toast({ title: "Session expired", description: "Please log in again.", variant: "destructive" });
+        } else if (res.status === 429) {
+          toast({ title: "Rate limit reached", description: "Please wait a moment and try again.", variant: "destructive" });
+        } else if (res.status === 402) {
+          toast({ title: "Credits exhausted", description: "AI credits are low. Try again later.", variant: "destructive" });
+        } else {
+          toast({ title: "Failed to start session", description: res.error || "Unknown error", variant: "destructive" });
+        }
+        setSessionStarted(false);
+        return;
+      }
       
       const newMessages: Message[] = [
         { role: "user", content: systemMessage },
@@ -163,13 +177,15 @@ export default function Tutor() {
       ];
       
       setMessages(newMessages);
-      await saveSession(newMessages, topic, subject);
+      // Save session in background (non-blocking)
+      saveSession(newMessages, topic, subject).catch(() => {});
       
-      // Track progress when session starts
-      await trackProgress(topic, subject, 10);
+      // Track progress in background (non-blocking)
+      trackProgress(topic, subject, 10).catch(() => {});
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
-        toast({ title: "Failed to start session", variant: "destructive" });
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        toast({ title: "Failed to start session", description: msg, variant: "destructive" });
       }
       setSessionStarted(false);
     } finally {
@@ -263,31 +279,46 @@ export default function Tutor() {
         },
         {
           signal: inFlightControllerRef.current.signal,
-          timeoutMs: 25000,
-          retries: 1,
+          timeoutMs: 35000,
+          retries: 2,
           label: "tutor:chat",
         }
       );
-      if (!res.ok) throw new Error(res.error || "Failed");
+
+      if (!res.ok) {
+        if (res.status === 401) {
+          toast({ title: "Session expired", description: "Please log in again.", variant: "destructive" });
+        } else if (res.status === 429) {
+          toast({ title: "Rate limit reached", description: "Please wait and try again.", variant: "destructive" });
+        } else if (res.status === 402) {
+          toast({ title: "Credits exhausted", description: "AI credits are low.", variant: "destructive" });
+        } else {
+          toast({ title: "Failed to get response", description: res.error || "Unknown error", variant: "destructive" });
+        }
+        return;
+      }
 
       const assistantMessage = { role: "assistant" as const, content: res.data?.reply ?? "" };
       const finalMessages = [...updatedMessages, assistantMessage];
       setMessages(finalMessages);
       
-      // Save to database
+      // Save to database (non-blocking)
       if (sessionId) {
-        await externalSupabase.from("chat_messages").insert([
-          { session_id: sessionId, role: userMessage.role, content: userMessage.content },
-          { session_id: sessionId, role: assistantMessage.role, content: assistantMessage.content },
-        ]);
+        Promise.resolve(
+          externalSupabase.from("chat_messages").insert([
+            { session_id: sessionId, role: userMessage.role, content: userMessage.content },
+            { session_id: sessionId, role: assistantMessage.role, content: assistantMessage.content },
+          ])
+        ).catch(() => {});
       }
       
-      // Track progress with each message exchange (incrementally increase score)
+      // Track progress (non-blocking)
       const currentScore = Math.min(80, 10 + messages.length * 5);
-      await trackProgress(topic, subject, currentScore);
+      trackProgress(topic, subject, currentScore).catch(() => {});
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
-        toast({ title: "Failed to get response", variant: "destructive" });
+        const msg = error instanceof Error ? error.message : "Unknown error";
+        toast({ title: "Failed to get response", description: msg, variant: "destructive" });
       }
     } finally {
       setIsLoading(false);

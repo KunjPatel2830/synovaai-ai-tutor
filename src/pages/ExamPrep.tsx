@@ -161,10 +161,21 @@ export default function ExamPrep() {
       const res = await invokeBackendFunction<{ questions: Question[] }>(
         "exam-prep",
         { action: "generate_questions", subject, topic, difficulty, curriculum },
-        { timeoutMs: 30000, retries: 1, label: "exam:generate" }
+        { timeoutMs: 45000, retries: 2, label: "exam:generate" }
       );
 
-      if (!res.ok) throw new Error(res.error || "Failed");
+      if (!res.ok) {
+        if (res.status === 401) {
+          toast({ title: "Session expired", description: "Please log in again.", variant: "destructive" });
+        } else if (res.status === 429) {
+          toast({ title: "Rate limit reached", description: "Please wait and try again.", variant: "destructive" });
+        } else if (res.status === 402) {
+          toast({ title: "Credits exhausted", description: "AI credits are low.", variant: "destructive" });
+        } else {
+          toast({ title: "Failed to generate questions", description: res.error || "Unknown error", variant: "destructive" });
+        }
+        return;
+      }
 
       if (res.data?.questions) {
         setQuestions(res.data.questions);
@@ -173,10 +184,11 @@ export default function ExamPrep() {
         setAnswers([]);
         lastSpokenRef.current = "";
       } else {
-        throw new Error("Invalid response format");
+        toast({ title: "Invalid response from AI", description: "Please try again.", variant: "destructive" });
       }
     } catch (error) {
-      toast({ title: "Failed to generate questions", variant: "destructive" });
+      const msg = error instanceof Error ? error.message : "Unknown error";
+      toast({ title: "Failed to generate questions", description: msg, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
