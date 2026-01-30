@@ -85,6 +85,7 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
   const teacherLinks = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
     { to: "/students", icon: Users, label: "My Students" },
+    { to: "/exam-prep", icon: ClipboardList, label: "Exam Prep (PYQ)" },
   ];
 
   const caregiverLinks = [
