@@ -31,10 +31,9 @@ serve(async (req) => {
       await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
 
-    if (!LOVABLE_API_KEY && !OPENROUTER_API_KEY) {
-      throw new Error("No AI provider is configured");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("AI provider is not configured");
     }
 
     // Curriculum-specific context
@@ -194,166 +193,48 @@ Answer the student's question clearly and completely. Give examples if helpful. 
     const isListAction = action === "get_chapters" || action === "get_topics";
 
     let reply = "";
-    let provider: "lovable" | "openrouter" | "none" = "none";
 
-    // 1) Try Lovable AI first, but fallback if credits are exhausted (402) or temporary errors.
-    if (LOVABLE_API_KEY) {
-      const lovableModel = isListAction ? "google/gemini-2.5-flash-lite" : "google/gemini-3-flash-preview";
+    // Use Lovable AI Gateway
+    const lovableModel = isListAction ? "google/gemini-2.5-flash-lite" : "google/gemini-3-flash-preview";
 
-      const lovableResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${LOVABLE_API_KEY}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          model: lovableModel,
-          messages: chatMessages,
-          temperature: isListAction ? 0.2 : 0.7,
-        }),
-      });
+    const lovableResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: lovableModel,
+        messages: chatMessages,
+        temperature: isListAction ? 0.2 : 0.7,
+      }),
+    });
 
-      if (lovableResp.ok) {
-        const lovableJson = await lovableResp.json();
-        reply = lovableJson.choices?.[0]?.message?.content || "";
-        provider = "lovable";
-      } else {
-        const errorText = await lovableResp.text();
-        const providerMessage = extractErrorMessage(errorText);
-        console.error("AI gateway error:", lovableResp.status, providerMessage);
+    if (lovableResp.ok) {
+      const lovableJson = await lovableResp.json();
+      reply = lovableJson.choices?.[0]?.message?.content || "";
+    } else {
+      const errorText = await lovableResp.text();
+      const providerMessage = extractErrorMessage(errorText);
+      console.error("AI gateway error:", lovableResp.status, providerMessage);
 
-        const canFallback = Boolean(OPENROUTER_API_KEY) && [402, 429, 500, 502, 503].includes(lovableResp.status);
-        if (!canFallback) {
-          if (lovableResp.status === 429) {
-            return jsonResponse({ error: "Rate limit exceeded. Please try again in a moment." }, { status: 429 });
-          }
-          if (lovableResp.status === 402) {
-            return jsonResponse(
-              { error: "Not enough AI credits for this workspace. Please add credits to continue." },
-              { status: 402 }
-            );
-          }
-          return jsonResponse({ error: "AI service temporarily unavailable. Please try again." }, { status: 502 });
-        }
+      if (lovableResp.status === 429) {
+        return jsonResponse({ error: "Rate limit exceeded. Please wait a moment and try again." }, { status: 429 });
       }
-    }
-
-    // 2) Fallback: OpenRouter free models (keeps the app working even when credits are empty)
-    if (!reply && OPENROUTER_API_KEY) {
-      const modelCandidates = isListAction
-        ? [
-            "meta-llama/llama-3.3-70b-instruct:free",
-            "google/gemma-3-27b:free",
-            "mistralai/mistral-small-24b-instruct-2501:free",
-          ]
-        : [
-            "meta-llama/llama-3.3-70b-instruct:free",
-            "mistralai/mistral-small-24b-instruct-2501:free",
-          ];
-
-      const responseFormat =
-        action === "get_chapters"
-          ? {
-              type: "json_schema",
-              json_schema: {
-                name: "chapters",
-                strict: true,
-                schema: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      number: { type: "number" },
-                      name: { type: "string" },
-                      topicsCount: { type: "number" },
-                    },
-                    required: ["number", "name", "topicsCount"],
-                    additionalProperties: false,
-                  },
-                },
-              },
-            }
-          : {
-              type: "json_schema",
-              json_schema: {
-                name: "topics",
-                strict: true,
-                schema: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      index: { type: "number" },
-                      name: { type: "string" },
-                      description: { type: "string" },
-                      estimatedMinutes: { type: "number" },
-                    },
-                    required: ["index", "name", "description", "estimatedMinutes"],
-                    additionalProperties: false,
-                  },
-                },
-              },
-            };
-
-      let lastErr = "";
-
-      for (const model of modelCandidates) {
-        const supportsStructured =
-          isListAction &&
-          (model.includes("llama") || model.includes("gemini") || model.includes("gemma") || model.includes("qwen"));
-
-        const body: Record<string, unknown> = {
-          model,
-          messages: chatMessages,
-          temperature: isListAction ? 0.0 : 0.7,
-          max_tokens: isListAction ? 1200 : 2400,
-        };
-
-        if (supportsStructured) {
-          body.response_format = responseFormat;
-        }
-
-        const r = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-            "Content-Type": "application/json",
-            "HTTP-Referer": "https://synova.app",
-            "X-Title": "SYNOVA Curriculum Study",
-          },
-          body: JSON.stringify(body),
-        });
-
-        if (r.ok) {
-          const j = await r.json();
-          reply = j.choices?.[0]?.message?.content || "";
-          provider = "openrouter";
-          break;
-        }
-
-        const errText = await r.text();
-        lastErr = extractErrorMessage(errText);
-        console.error("OpenRouter error:", { status: r.status, model, lastErr });
-
-        // auth errors: no point retrying
-        if ([401, 403].includes(r.status)) break;
-        // rate limited: wait on client and retry later
-        if (r.status === 429) break;
-      }
-
-      if (!reply) {
+      if (lovableResp.status === 402) {
         return jsonResponse(
-          { error: `AI service temporarily unavailable. ${lastErr || "Please try again."}` },
-          { status: 502 }
+          { error: "AI credits exhausted. Please add credits to your Lovable workspace (Settings → Usage)." },
+          { status: 402 }
         );
       }
+      return jsonResponse({ error: `AI service error: ${providerMessage}` }, { status: 502 });
     }
 
     if (!reply) {
-      return jsonResponse({ error: "AI service temporarily unavailable. Please try again." }, { status: 502 });
+      return jsonResponse({ error: "AI returned empty response. Please try again." }, { status: 502 });
     }
 
-    console.log("AI response received", { action, provider, replyLength: reply.length });
+    console.log("AI response received", { action, replyLength: reply.length });
 
     if (action === "get_chapters" || action === "get_topics") {
       try {

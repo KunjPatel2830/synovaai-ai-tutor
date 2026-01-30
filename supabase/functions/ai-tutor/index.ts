@@ -29,7 +29,6 @@ async function requireUser(req: Request): Promise<{ userId: string } | { error: 
     return { error: jsonResponse({ error: "Unauthorized" }, { status: 401 }) };
   }
   
-  // Create a client with the user's token for proper auth against external Supabase
   const userSupabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } }
   });
@@ -109,21 +108,22 @@ serve(async (req) => {
       return jsonResponse({ error: validation.error }, { status: 400 });
     }
 
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 
-    if (!OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY not configured");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("AI provider is not configured");
     }
 
     // Curriculum-specific guidance
-    const curriculumGuide = {
-      "CBSE": "Follow CBSE syllabus patterns. Use NCERT textbook examples and terminology. Reference CBSE board exam question styles.",
-      "NCERT": "Strictly follow NCERT textbook content and examples. Use the same notation and problem-solving approaches as NCERT books.",
-      "ICSE": "Follow ICSE syllabus which is more detailed than CBSE. Include practical applications and higher-order thinking questions.",
-      "Cambridge": "Follow Cambridge International curriculum (IGCSE/A-Level). Use British English spellings and international examples.",
-      "IB": "Follow International Baccalaureate standards. Emphasize inquiry-based learning, critical thinking, and global perspectives.",
-      "State Board": "Adapt to regional state board curriculum. Use locally relevant examples and standard state board terminology.",
-      "General": "Use universally applicable teaching methods suitable for any curriculum."
+    const curriculumGuide: Record<string, string> = {
+      "CBSE": "Follow CBSE syllabus patterns. Use NCERT textbook examples and terminology.",
+      "NCERT": "Strictly follow NCERT textbook content and examples.",
+      "ICSE": "Follow ICSE syllabus which is more detailed than CBSE.",
+      "Cambridge": "Follow Cambridge International curriculum (IGCSE/A-Level).",
+      "IB": "Follow International Baccalaureate standards.",
+      "GSEB": "Follow GSEB curriculum and exam patterns.",
+      "State Board": "Adapt to regional state board curriculum.",
+      "General": "Use universally applicable teaching methods."
     };
 
     const selectedCurriculum = curriculum && curriculumGuide[curriculum as keyof typeof curriculumGuide] 
@@ -133,123 +133,63 @@ serve(async (req) => {
     const subjectContext = subject ? `Subject: ${subject}` : "";
     const topicContext = topic ? `Current Topic: ${topic}` : "";
 
-    const systemPrompt = `You are SYNOVA, an adaptive AI tutor specializing in curriculum-aligned education. Follow these rules strictly:
+    const systemPrompt = `You are SYNOVA, an adaptive AI tutor. Follow these rules:
 
-CURRICULUM ALIGNMENT:
-${selectedCurriculum}
+CURRICULUM: ${selectedCurriculum}
 ${subjectContext}
 ${topicContext}
 
-CRITICAL LANGUAGE RULE:
-- You MUST respond ONLY in English.
-- Always use English regardless of what language the user types in.
+RULES:
+1. Give SIMPLE explanations first, then build complexity
+2. Provide ONE clear example 
+3. Ask ONE comprehension question
+4. Never give direct homework answers
+5. Be warm, patient, and encouraging
 
-1. TEACHING APPROACH:
-   - Align explanations with the specified curriculum standards
-   - Use textbook-appropriate terminology and notation
-   - Give a SIMPLE explanation first
-   - Provide ONE clear example from the curriculum
-   - Ask ONE comprehension question similar to board exams
-   - Never move forward until understanding is confirmed
+RESPONSE FORMAT:
+- Brief summary (1-2 sentences)
+- Numbered steps for explanations
+- End with a question
 
-2. CURRICULUM-SPECIFIC CONTENT:
-   - For CBSE/NCERT: Use NCERT examples, formulas, and diagrams
-   - For ICSE: Include practical applications and detailed explanations
-   - For Cambridge/IB: Use international examples and inquiry-based approach
-   - Reference official syllabus topics and learning objectives
+IMAGE GENERATION (only for visual concepts):
+- Use [IMAGE: concept description] for scientific diagrams
+- Example: [IMAGE: convex lens with light rays]`;
 
-3. DIFFICULTY CONTROL:
-   - If the student answers correctly → slightly increase difficulty
-   - If wrong → re-explain using a DIFFERENT approach or analogy
-   - Track their understanding level
+    console.log("[ai-tutor] Calling Lovable AI Gateway");
 
-4. RESPONSE FORMAT:
-   - Start with a brief summary (1-2 sentences)
-   - Use numbered steps for explanations
-   - Include curriculum-aligned examples
-   - End with a question or reflection prompt
-   - Keep language clear and encouraging
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [{ role: "system", content: systemPrompt }, ...validation.messages],
+      }),
+    });
 
-5. IMAGE GENERATION (VERY IMPORTANT):
-   - ONLY include [IMAGE: concept] when explaining VISUAL scientific/educational concepts
-   - The image MUST be directly related to the SPECIFIC topic you are explaining
-   - Examples of WHEN to use images:
-     * Explaining convex lens → [IMAGE: convex lens with light rays converging]
-     * Explaining mitochondria → [IMAGE: mitochondria internal structure diagram]
-     * Explaining water cycle → [IMAGE: water cycle showing evaporation condensation precipitation]
-     * Explaining heart anatomy → [IMAGE: human heart cross-section with labeled chambers]
-   - Examples of when NOT to use images:
-     * Math problems (use equations instead)
-     * Abstract concepts like "learning" or "intelligence"
-     * Simple factual questions
-   - The concept in [IMAGE: ] must match EXACTLY what you're teaching
-
-6. NEVER:
-   - Give direct answers to homework
-   - Use complex jargon without explaining
-   - Move too fast
-   - Generate irrelevant or random images
-   - Deviate from the curriculum standards
-
-Be warm, patient, and encouraging. Celebrate correct answers!`;
-
-    // Free model fallback chain
-    const freeModels = [
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "mistralai/mistral-small-24b-instruct-2501:free",
-      "google/gemma-3-27b:free",
-      "qwen/qwen3-30b-a3b:free",
-    ];
-
-    let reply = "";
-    let lastError = "";
-
-    for (const model of freeModels) {
-      console.log(`[ai-tutor] Trying model: ${model}`);
-
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://synova.app",
-          "X-Title": "SYNOVA AI Tutor",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [{ role: "system", content: systemPrompt }, ...validation.messages],
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        reply = data.choices?.[0]?.message?.content || "";
-        if (reply) {
-          console.log(`[ai-tutor] Success with model: ${model}`);
-          break;
-        }
-      }
-
+    if (!response.ok) {
       const errText = await response.text();
-      lastError = errText;
-      console.error(`[ai-tutor] Model ${model} failed:`, response.status, errText);
+      console.error("[ai-tutor] AI gateway error:", response.status, errText);
 
-      // Don't retry on auth errors
-      if ([401, 403].includes(response.status)) break;
-
-      // Return specific errors for rate limits
       if (response.status === 429) {
-        return jsonResponse({ error: "Rate limit exceeded. Please try again later." }, { status: 429 });
+        return jsonResponse({ error: "Rate limit exceeded. Please wait and try again." }, { status: 429 });
       }
       if (response.status === 402) {
-        return jsonResponse({ error: "Usage limit reached. Please add credits." }, { status: 402 });
+        return jsonResponse({ error: "AI credits exhausted. Please add credits in Settings → Usage." }, { status: 402 });
       }
+      return jsonResponse({ error: "AI service temporarily unavailable." }, { status: 502 });
     }
+
+    const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content || "";
 
     if (!reply) {
-      return jsonResponse({ error: "All AI models are currently unavailable. Please try again." }, { status: 502 });
+      return jsonResponse({ error: "AI returned empty response." }, { status: 502 });
     }
 
+    console.log("[ai-tutor] Success, reply length:", reply.length);
     return jsonResponse({ reply });
   } catch (error) {
     console.error("Error in ai-tutor:", error);
