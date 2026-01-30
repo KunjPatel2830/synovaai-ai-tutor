@@ -31,7 +31,7 @@ export function BadgesDisplay() {
           </div>
         </GlassCardHeader>
         <GlassCardContent>
-          <div className="grid grid-cols-4 gap-3">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
             {[1, 2, 3, 4].map(i => (
               <Skeleton key={i} className="h-24 rounded-xl" />
             ))}
@@ -44,15 +44,15 @@ export function BadgesDisplay() {
   return (
     <GlassCard>
       <GlassCardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <GlassCardTitle className="flex items-center gap-2">
-            <Trophy className="h-5 w-5 text-primary" />
+        <div className="flex items-center justify-between gap-2 flex-wrap">
+          <GlassCardTitle className="flex items-center gap-2 text-base sm:text-xl">
+            <Trophy className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
             <span>Achievements</span>
           </GlassCardTitle>
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-primary/10">
-              <Medal className="h-4 w-4 text-primary" />
-              <span className="text-sm font-semibold text-primary">{totalPoints} pts</span>
+          <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-primary/10">
+              <Medal className="h-3 w-3 sm:h-4 sm:w-4 text-primary" />
+              <span className="text-xs sm:text-sm font-semibold text-primary">{totalPoints} pts</span>
             </div>
             <Dialog open={isOpen} onOpenChange={setIsOpen}>
               <DialogTrigger asChild>
@@ -123,7 +123,7 @@ export function BadgesDisplay() {
         </div>
       </GlassCardHeader>
       <GlassCardContent className="pt-2">
-        <div className="grid grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {displayBadges.map(bp => (
             <BadgeCard
               key={bp.badge.id}
