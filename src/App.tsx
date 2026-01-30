@@ -16,6 +16,7 @@ const ForgotPassword = lazy(() => import("./pages/ForgotPassword"));
 const ResetPassword = lazy(() => import("./pages/ResetPassword"));
 const VerifyEmail = lazy(() => import("./pages/VerifyEmail"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
+const GamifiedDashboard = lazy(() => import("./pages/GamifiedDashboard"));
 const Tutor = lazy(() => import("./pages/Tutor"));
 const Homework = lazy(() => import("./pages/Homework"));
 const ExamPrep = lazy(() => import("./pages/ExamPrep"));
@@ -49,7 +50,8 @@ const App = () => (
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route path="/verify-email" element={<ProtectedRoute requireEmailVerification={false}><VerifyEmail /></ProtectedRoute>} />
-                <Route path="/dashboard" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
+                <Route path="/dashboard" element={<ProtectedRoute><GamifiedDashboard /></ProtectedRoute>} />
+                <Route path="/dashboard-old" element={<ProtectedRoute><Dashboard /></ProtectedRoute>} />
                 <Route path="/tutor" element={<ProtectedRoute><Tutor /></ProtectedRoute>} />
                 <Route path="/homework" element={<ProtectedRoute><Homework /></ProtectedRoute>} />
                 <Route path="/exam-prep" element={<ProtectedRoute><ExamPrep /></ProtectedRoute>} />
