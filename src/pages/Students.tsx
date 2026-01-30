@@ -4,9 +4,10 @@ import { externalSupabase } from "@/lib/external-supabase";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardHeader, GlassCardTitle, GlassCardContent } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
-import { Users, TrendingUp, Award, Plus, Loader2 } from "lucide-react";
+import { Users, TrendingUp, Award, Plus, Loader2, MessageCircle } from "lucide-react";
 import { InvitationCodeGenerator } from "@/components/invitation/InvitationCodeGenerator";
 import { StudentProgressReport } from "@/components/progress/StudentProgressReport";
+import { StudentMessaging } from "@/components/students/StudentMessaging";
 
 interface StudentData {
   student_id: string;
@@ -26,6 +27,7 @@ export default function Students() {
   const [loading, setLoading] = useState(true);
   const [showAddStudent, setShowAddStudent] = useState(false);
   const [selectedStudent, setSelectedStudent] = useState<StudentData | null>(null);
+  const [chatStudent, setChatStudent] = useState<StudentData | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -132,15 +134,14 @@ export default function Students() {
             {students.map((student) => (
               <GlassCard
                 key={student.student_id}
-                className="cursor-pointer hover:border-primary/50 transition-colors"
-                onClick={() => setSelectedStudent(student)}
+                className="hover:border-primary/50 transition-colors"
               >
                 <GlassCardContent className="pt-6">
                   <div className="flex items-center gap-4 mb-4">
                     <div className="h-12 w-12 rounded-full bg-primary/10 flex items-center justify-center">
                       <Users className="h-6 w-6 text-primary" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                       <h3 className="font-semibold text-foreground">
                         {student.profile?.display_name || "Student"}
                       </h3>
@@ -150,7 +151,7 @@ export default function Students() {
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="grid grid-cols-2 gap-4 mb-4">
                     <div className="flex items-center gap-2">
                       <TrendingUp className="h-4 w-4 text-primary" />
                       <div>
@@ -170,6 +171,27 @@ export default function Students() {
                       </div>
                     </div>
                   </div>
+
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => setSelectedStudent(student)}
+                    >
+                      <TrendingUp className="h-4 w-4 mr-2" />
+                      Progress
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1"
+                      onClick={() => setChatStudent(student)}
+                    >
+                      <MessageCircle className="h-4 w-4 mr-2" />
+                      Chat
+                    </Button>
+                  </div>
                 </GlassCardContent>
               </GlassCard>
             ))}
@@ -183,6 +205,15 @@ export default function Students() {
           studentName={selectedStudent.profile?.display_name || "Student"}
           open={!!selectedStudent}
           onOpenChange={(open) => !open && setSelectedStudent(null)}
+        />
+      )}
+
+      {chatStudent && (
+        <StudentMessaging
+          studentId={chatStudent.student_id}
+          studentName={chatStudent.profile?.display_name || "Student"}
+          open={!!chatStudent}
+          onOpenChange={(open) => !open && setChatStudent(null)}
         />
       )}
     </AppLayout>
