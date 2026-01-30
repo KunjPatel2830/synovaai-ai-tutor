@@ -6,11 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Use external Supabase project
 const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? "";
 const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ?? "";
 
-// Input validation constants
 const MAX_SUBJECT_LENGTH = 100;
 const MAX_TOPIC_LENGTH = 200;
 const MAX_DIFFICULTY_LENGTH = 20;
@@ -31,14 +29,12 @@ async function requireUser(req: Request): Promise<{ userId: string } | { error: 
     return { error: jsonResponse({ error: "Unauthorized" }, { status: 401 }) };
   }
 
-  // Create a client with the user's token for proper auth against external Supabase
   const userSupabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } }
   });
 
   const { data, error } = await userSupabase.auth.getUser();
   if (error || !data.user) {
-    console.error("Auth error:", error);
     return { error: jsonResponse({ error: "Unauthorized" }, { status: 401 }) };
   }
 
@@ -47,9 +43,7 @@ async function requireUser(req: Request): Promise<{ userId: string } | { error: 
 
 function validateString(value: unknown, fieldName: string, maxLength: number, required = true): { valid: true; value: string } | { valid: false; error: string } {
   if (value === undefined || value === null) {
-    if (required) {
-      return { valid: false, error: `${fieldName} is required` };
-    }
+    if (required) return { valid: false, error: `${fieldName} is required` };
     return { valid: true, value: "" };
   }
 
@@ -82,55 +76,44 @@ serve(async (req) => {
     const body = await req.json();
     const { action, subject, topic, difficulty, curriculum } = body;
 
-    // Validate action
     if (!action || typeof action !== "string" || !VALID_ACTIONS.includes(action)) {
-      console.error("Invalid action:", action);
       return jsonResponse({ error: `Invalid action. Must be one of: ${VALID_ACTIONS.join(", ")}` }, { status: 400 });
     }
 
-    // Validate subject (required)
     const subjectValidation = validateString(subject, "Subject", MAX_SUBJECT_LENGTH, true);
     if (!subjectValidation.valid) {
-      console.error("Input validation failed:", subjectValidation.error);
       return jsonResponse({ error: subjectValidation.error }, { status: 400 });
     }
 
-    // Validate topic (required)
     const topicValidation = validateString(topic, "Topic", MAX_TOPIC_LENGTH, true);
     if (!topicValidation.valid) {
-      console.error("Input validation failed:", topicValidation.error);
       return jsonResponse({ error: topicValidation.error }, { status: 400 });
     }
 
-    // Validate difficulty (optional but if provided must be valid)
     const difficultyValidation = validateString(difficulty, "Difficulty", MAX_DIFFICULTY_LENGTH, false);
     if (!difficultyValidation.valid) {
-      console.error("Input validation failed:", difficultyValidation.error);
       return jsonResponse({ error: difficultyValidation.error }, { status: 400 });
     }
 
-    // If difficulty is provided, validate it's a known value
     const validatedDifficulty = difficultyValidation.value.toLowerCase();
     if (validatedDifficulty && !VALID_DIFFICULTIES.includes(validatedDifficulty)) {
-      console.error("Invalid difficulty level:", validatedDifficulty);
       return jsonResponse({ error: `Invalid difficulty. Must be one of: ${VALID_DIFFICULTIES.join(", ")}` }, { status: 400 });
     }
 
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-
-    if (!OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("AI provider is not configured");
     }
 
-    // Curriculum-specific guidance for question generation
     const curriculumGuide: Record<string, string> = {
-      "CBSE": "Generate questions in CBSE board exam style. Follow NCERT patterns and marking schemes.",
-      "NCERT": "Base questions directly on NCERT textbook content and exercise patterns.",
-      "ICSE": "Generate ICSE-style questions with application focus and detailed requirements.",
-      "Cambridge": "Follow IGCSE/A-Level question patterns with British terminology.",
-      "IB": "Create IB-style inquiry-based questions with critical thinking components.",
-      "State Board": "Use state board exam patterns with regional relevance.",
-      "General": "Create standard practice questions suitable for any curriculum."
+      "CBSE": "Generate questions in CBSE board exam style.",
+      "NCERT": "Base questions directly on NCERT textbook content.",
+      "ICSE": "Generate ICSE-style questions with application focus.",
+      "GSEB": "Follow GSEB exam patterns.",
+      "Cambridge": "Follow IGCSE/A-Level question patterns.",
+      "IB": "Create IB-style inquiry-based questions.",
+      "State Board": "Use state board exam patterns.",
+      "General": "Create standard practice questions."
     };
 
     const selectedCurriculum = curriculum && curriculumGuide[curriculum] 
@@ -138,31 +121,19 @@ serve(async (req) => {
       : curriculumGuide["General"];
     const safeCurriculum = curriculum || "General";
 
-    let systemPrompt = "";
-    let userPrompt = "";
-
     const safeSubject = subjectValidation.value;
     const safeTopic = topicValidation.value;
     const safeDifficulty = validatedDifficulty || "medium";
 
+    let systemPrompt = "";
+    let userPrompt = "";
+
     if (action === "generate_questions") {
-      systemPrompt = `You are an exam preparation assistant. Generate practice questions based on the given parameters.
+      systemPrompt = `You are an exam preparation assistant. ${selectedCurriculum}
 
-CURRICULUM ALIGNMENT:
-${selectedCurriculum}
+Generate exactly 5 questions following board exam format. Mix multiple choice and short answer.
 
-CRITICAL LANGUAGE RULE:
-- You MUST generate ALL content ONLY in English.
-- Always use English regardless of what language the topic is in.
-
-RULES:
-1. Generate exactly 5 questions following the ${safeCurriculum} curriculum pattern
-2. Mix question types (multiple choice and short answer) as per board exam format
-3. Match the difficulty level specified
-4. Focus on the given topic and subject
-5. Include curriculum-appropriate terminology and concepts
-
-RESPONSE FORMAT (JSON):
+RESPONSE FORMAT (JSON only, no markdown):
 {
   "questions": [
     {
@@ -174,19 +145,12 @@ RESPONSE FORMAT (JSON):
       "explanation": "..."
     }
   ]
-}
-
-Respond ONLY with valid JSON, no markdown.`;
-
-      userPrompt = `Generate 5 ${safeDifficulty} level ${safeCurriculum} curriculum questions for ${safeSubject} on the topic: ${safeTopic}`;
+}`;
+      userPrompt = `Generate 5 ${safeDifficulty} level ${safeCurriculum} curriculum questions for ${safeSubject} on: ${safeTopic}`;
     } else if (action === "study_plan") {
-      systemPrompt = `You are a study planner. Create a personalized study plan.
+      systemPrompt = `You are a study planner.
 
-CRITICAL LANGUAGE RULE:
-- You MUST generate ALL content ONLY in English.
-- Always use English regardless of what language the topic is in.
-
-RESPONSE FORMAT (JSON):
+RESPONSE FORMAT (JSON only, no markdown):
 {
   "dailyPlan": [
     {
@@ -198,78 +162,56 @@ RESPONSE FORMAT (JSON):
   ],
   "tips": ["tip1", "tip2"],
   "focusAreas": ["area1", "area2"]
-}
-
-Respond ONLY with valid JSON, no markdown.`;
-
+}`;
       userPrompt = `Create a study plan for ${safeSubject} covering: ${safeTopic}. Difficulty: ${safeDifficulty}`;
     } else {
       return jsonResponse({ error: "Unknown action" }, { status: 400 });
     }
 
-    // Free model fallback chain
-    const freeModels = [
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "mistralai/mistral-small-24b-instruct-2501:free",
-      "google/gemma-3-27b:free",
-      "qwen/qwen3-30b-a3b:free",
-    ];
+    console.log("[exam-prep] Calling Lovable AI Gateway");
 
-    let content = "";
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+      }),
+    });
 
-    for (const model of freeModels) {
-      console.log(`[exam-prep] Trying model: ${model}`);
-
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://synova.app",
-          "X-Title": "SYNOVA Exam Prep",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        content = data.choices?.[0]?.message?.content || "";
-        if (content) {
-          console.log(`[exam-prep] Success with model: ${model}`);
-          break;
-        }
-      }
-
+    if (!response.ok) {
       const errText = await response.text();
-      console.error(`[exam-prep] Model ${model} failed:`, response.status, errText);
+      console.error("[exam-prep] AI gateway error:", response.status, errText);
 
-      if ([401, 403].includes(response.status)) break;
       if (response.status === 429) {
-        return jsonResponse({ error: "Rate limit exceeded." }, { status: 429 });
+        return jsonResponse({ error: "Rate limit exceeded. Please wait and try again." }, { status: 429 });
       }
       if (response.status === 402) {
-        return jsonResponse({ error: "Usage limit reached." }, { status: 402 });
+        return jsonResponse({ error: "AI credits exhausted. Please add credits in Settings → Usage." }, { status: 402 });
       }
+      return jsonResponse({ error: "AI service temporarily unavailable." }, { status: 502 });
     }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content || "";
 
     if (!content) {
-      return jsonResponse({ error: "All AI models are currently unavailable. Please try again." }, { status: 502 });
+      return jsonResponse({ error: "AI returned empty response." }, { status: 502 });
     }
 
-    // Some models may wrap JSON; be tolerant.
     const cleaned = content.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
 
     try {
       const result = JSON.parse(cleaned);
       return jsonResponse(result);
     } catch {
-      return jsonResponse({ error: "Model returned non-JSON output", raw: content }, { status: 500 });
+      return jsonResponse({ error: "Model returned invalid JSON", raw: content }, { status: 500 });
     }
   } catch (error) {
     console.error("Error in exam-prep:", error);

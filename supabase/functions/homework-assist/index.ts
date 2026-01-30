@@ -6,11 +6,9 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-// Use external Supabase project
 const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? "";
 const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ?? "";
 
-// Input validation constants
 const MAX_QUESTION_LENGTH = 4000;
 const MAX_SUBJECT_LENGTH = 100;
 const MAX_CONTEXT_LENGTH = 2000;
@@ -29,14 +27,12 @@ async function requireUser(req: Request): Promise<{ userId: string } | { error: 
     return { error: jsonResponse({ error: "Unauthorized" }, { status: 401 }) };
   }
 
-  // Create a client with the user's token for proper auth against external Supabase
   const userSupabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } }
   });
 
   const { data, error } = await userSupabase.auth.getUser();
   if (error || !data.user) {
-    console.error("Auth error:", error);
     return { error: jsonResponse({ error: "Unauthorized" }, { status: 401 }) };
   }
 
@@ -45,9 +41,7 @@ async function requireUser(req: Request): Promise<{ userId: string } | { error: 
 
 function validateString(value: unknown, fieldName: string, maxLength: number, required = true): { valid: true; value: string } | { valid: false; error: string } {
   if (value === undefined || value === null) {
-    if (required) {
-      return { valid: false, error: `${fieldName} is required` };
-    }
+    if (required) return { valid: false, error: `${fieldName} is required` };
     return { valid: true, value: "" };
   }
 
@@ -80,41 +74,34 @@ serve(async (req) => {
     const body = await req.json();
     const { question, subject, context, curriculum } = body;
 
-    // Validate question (required)
     const questionValidation = validateString(question, "Question", MAX_QUESTION_LENGTH, true);
     if (!questionValidation.valid) {
-      console.error("Input validation failed:", questionValidation.error);
       return jsonResponse({ error: questionValidation.error }, { status: 400 });
     }
 
-    // Validate subject (optional)
     const subjectValidation = validateString(subject, "Subject", MAX_SUBJECT_LENGTH, false);
     if (!subjectValidation.valid) {
-      console.error("Input validation failed:", subjectValidation.error);
       return jsonResponse({ error: subjectValidation.error }, { status: 400 });
     }
 
-    // Validate context (optional)
     const contextValidation = validateString(context, "Context", MAX_CONTEXT_LENGTH, false);
     if (!contextValidation.valid) {
-      console.error("Input validation failed:", contextValidation.error);
       return jsonResponse({ error: contextValidation.error }, { status: 400 });
     }
 
-    const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-
-    if (!OPENROUTER_API_KEY) {
-      throw new Error("OPENROUTER_API_KEY not configured");
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("AI provider is not configured");
     }
 
-    // Curriculum-specific guidance
     const curriculumGuide: Record<string, string> = {
-      "CBSE": "Follow CBSE syllabus. Use NCERT methods and terminology. Reference board exam patterns.",
-      "NCERT": "Strictly follow NCERT textbook approaches. Use the same problem-solving methods as NCERT.",
-      "ICSE": "Follow ICSE syllabus with detailed explanations. Include application-based approaches.",
-      "Cambridge": "Follow Cambridge International standards (IGCSE/A-Level). Use British conventions.",
-      "IB": "Follow IB standards. Emphasize inquiry-based learning and critical thinking.",
-      "State Board": "Use region-appropriate methods and locally relevant examples.",
+      "CBSE": "Follow CBSE syllabus. Use NCERT methods.",
+      "NCERT": "Strictly follow NCERT textbook approaches.",
+      "ICSE": "Follow ICSE syllabus with detailed explanations.",
+      "GSEB": "Follow GSEB curriculum methods.",
+      "Cambridge": "Follow Cambridge International standards.",
+      "IB": "Follow IB standards with inquiry-based learning.",
+      "State Board": "Use region-appropriate methods.",
       "General": "Use universally applicable teaching methods."
     };
 
@@ -122,90 +109,67 @@ serve(async (req) => {
       ? curriculumGuide[curriculum] 
       : curriculumGuide["General"];
 
-    const systemPrompt = `You are SYNOVA's Homework Assistant. Your role is to GUIDE students, not give direct answers.
+    const systemPrompt = `You are SYNOVA's Homework Assistant. GUIDE students, don't give direct answers.
 
-CURRICULUM ALIGNMENT:
-${selectedCurriculum}
-
-CRITICAL LANGUAGE RULE:
-- You MUST respond ONLY in English.
-- Always use English regardless of what language the user types in.
+CURRICULUM: ${selectedCurriculum}
 
 RULES:
 1. NEVER give the final answer directly
-2. Break down the problem into steps using curriculum-appropriate methods
-3. Explain the METHOD and reasoning as taught in the curriculum
-4. Highlight common mistakes to avoid
-5. Ask the student to try after your explanation
-6. If they share their attempt, provide specific feedback
+2. Break down the problem into steps
+3. Explain the METHOD and reasoning
+4. Highlight common mistakes
+5. Ask student to try after explanation
 
 RESPONSE FORMAT:
 1. 📋 **Problem Understanding** - Restate what's being asked
-2. 💡 **Key Concepts** - What curriculum principles apply here
-3. 📝 **Step-by-Step Approach** - How to solve it (curriculum method, without final answer)
+2. 💡 **Key Concepts** - What principles apply
+3. 📝 **Step-by-Step Approach** - How to solve (without final answer)
 4. ⚠️ **Common Mistakes** - What to watch out for
 5. ✏️ **Your Turn** - Ask them to try
 
-Subject context: ${subjectValidation.value || "General"}
-${contextValidation.value ? `Additional context: ${contextValidation.value}` : ""}
+Subject: ${subjectValidation.value || "General"}
+${contextValidation.value ? `Context: ${contextValidation.value}` : ""}
 
-Be encouraging and patient. Learning is a journey!`;
+Be encouraging and patient!`;
 
-    // Free model fallback chain
-    const freeModels = [
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "mistralai/mistral-small-24b-instruct-2501:free",
-      "google/gemma-3-27b:free",
-      "qwen/qwen3-30b-a3b:free",
-    ];
+    console.log("[homework-assist] Calling Lovable AI Gateway");
 
-    let reply = "";
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: questionValidation.value },
+        ],
+      }),
+    });
 
-    for (const model of freeModels) {
-      console.log(`[homework-assist] Trying model: ${model}`);
-
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://synova.app",
-          "X-Title": "SYNOVA Homework Assistant",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: questionValidation.value },
-          ],
-        }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        reply = data.choices?.[0]?.message?.content || "";
-        if (reply) {
-          console.log(`[homework-assist] Success with model: ${model}`);
-          break;
-        }
-      }
-
+    if (!response.ok) {
       const errText = await response.text();
-      console.error(`[homework-assist] Model ${model} failed:`, response.status, errText);
+      console.error("[homework-assist] AI gateway error:", response.status, errText);
 
-      if ([401, 403].includes(response.status)) break;
       if (response.status === 429) {
-        return jsonResponse({ error: "Rate limit exceeded. Please try again later." }, { status: 429 });
+        return jsonResponse({ error: "Rate limit exceeded. Please wait and try again." }, { status: 429 });
       }
       if (response.status === 402) {
-        return jsonResponse({ error: "Usage limit reached. Please add credits." }, { status: 402 });
+        return jsonResponse({ error: "AI credits exhausted. Please add credits in Settings → Usage." }, { status: 402 });
       }
+      return jsonResponse({ error: "AI service temporarily unavailable." }, { status: 502 });
     }
+
+    const data = await response.json();
+    const reply = data.choices?.[0]?.message?.content || "";
 
     if (!reply) {
-      return jsonResponse({ error: "All AI models are currently unavailable. Please try again." }, { status: 502 });
+      return jsonResponse({ error: "AI returned empty response." }, { status: 502 });
     }
 
+    console.log("[homework-assist] Success, reply length:", reply.length);
     return jsonResponse({ reply });
   } catch (error) {
     console.error("Error in homework-assist:", error);
