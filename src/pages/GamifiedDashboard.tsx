@@ -13,7 +13,7 @@ export default function GamifiedDashboard() {
 
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto space-y-6 pb-8">
+      <div className="max-w-7xl mx-auto space-y-6 pb-8 overflow-x-hidden">
         {/* Hero Banner */}
         <HeroBanner />
 
