@@ -5,8 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -35,16 +33,19 @@ Provide a clear, student-friendly explanation that would help visualize this con
 3. Important details to remember
 4. A simple analogy if applicable`;
 
-    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+     if (!LOVABLE_API_KEY) {
+       throw new Error("AI provider is not configured");
+     }
+
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
-        Authorization: `Bearer ${OPENROUTER_API_KEY}`,
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
-        "HTTP-Referer": "https://synova.app",
-        "X-Title": "SYNOVA Concept Image",
       },
       body: JSON.stringify({
-        model: "xiaomi/mimo-v2-flash:free",
+        model: "google/gemini-3-flash-preview",
         messages: [
           {
             role: "user",
@@ -66,7 +67,7 @@ Provide a clear, student-friendly explanation that would help visualize this con
       }
       if (response.status === 402) {
         return new Response(
-          JSON.stringify({ error: "Credits exhausted. Please add more credits." }),
+          JSON.stringify({ error: "AI credits exhausted. Please add credits in Settings → Usage." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
