@@ -81,7 +81,7 @@ export function BadgeCard({
         >
           <IconComponent className={cn("h-5 w-5", earned && "animate-bounce")} />
         </div>
-        <p className="text-xs font-medium text-center line-clamp-1">{name}</p>
+        <p className="text-xs font-medium text-center leading-tight" title={name}>{name}</p>
         {earned && (
           <span className="text-[10px] text-primary font-medium mt-1 animate-fade-in">+{points} pts</span>
         )}
