@@ -15,7 +15,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
-import { useCurriculumPreference } from "@/hooks/useCurriculumPreference";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { PYQQuizChat } from "@/components/exam/PYQQuizChat";
@@ -54,7 +53,7 @@ export default function ExamPrep() {
   const [topic, setTopic] = useState("");
   const [difficulty, setDifficulty] = useState("medium");
   
-  const { curriculum } = useCurriculumPreference();
+  
   const [questions, setQuestions] = useState<Question[]>([]);
   const [currentQuestion, setCurrentQuestion] = useState(0);
   const [answers, setAnswers] = useState<Answer[]>([]);
@@ -160,7 +159,7 @@ export default function ExamPrep() {
     try {
       const res = await invokeBackendFunction<{ questions: Question[] }>(
         "exam-prep",
-        { action: "generate_questions", subject, topic, difficulty, curriculum },
+        { action: "generate_questions", subject, topic, difficulty },
         { timeoutMs: 45000, retries: 2, label: "exam:generate" }
       );
 
