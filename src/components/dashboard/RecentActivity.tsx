@@ -12,7 +12,9 @@ import {
   FileText, 
   ClipboardList,
   TrendingUp,
-  Sparkles
+  Sparkles,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -45,6 +47,8 @@ export function RecentActivity() {
   const [recentSessions, setRecentSessions] = useState<RecentSession[]>([]);
   const [recentProgress, setRecentProgress] = useState<LearningProgress[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showAllSessions, setShowAllSessions] = useState(false);
+  const [showAllProgress, setShowAllProgress] = useState(false);
 
   useEffect(() => {
     if (user) {
@@ -56,25 +60,25 @@ export function RecentActivity() {
     if (!user) return;
 
     try {
-      // Fetch recent sessions
+      // Fetch more sessions for "show more" functionality
       const { data: sessions } = await externalSupabase
         .from("chat_sessions")
         .select("id, mode, subject, topic, created_at")
         .eq("user_id", user.id)
         .order("created_at", { ascending: false })
-        .limit(5);
+        .limit(10);
 
       if (sessions) {
         setRecentSessions(sessions);
       }
 
-      // Fetch recent progress
+      // Fetch more progress items
       const { data: progress } = await externalSupabase
         .from("learning_progress")
         .select("topic, score")
         .eq("user_id", user.id)
         .order("last_studied_at", { ascending: false })
-        .limit(4);
+        .limit(10);
 
       if (progress) {
         setRecentProgress(progress);
@@ -85,6 +89,9 @@ export function RecentActivity() {
       setLoading(false);
     }
   };
+
+  const displayedSessions = showAllSessions ? recentSessions : recentSessions.slice(0, 3);
+  const displayedProgress = showAllProgress ? recentProgress : recentProgress.slice(0, 3);
 
   if (loading) {
     return (
@@ -136,7 +143,7 @@ export function RecentActivity() {
                 <span className="h-1 w-1 rounded-full bg-primary" />
                 Recent Sessions
               </p>
-              {recentSessions.slice(0, 3).map((session, index) => {
+              {displayedSessions.map((session, index) => {
                 const config = modeConfig[session.mode] || modeConfig.tutor;
                 const Icon = config.icon;
 
@@ -162,6 +169,28 @@ export function RecentActivity() {
                   </div>
                 );
               })}
+              
+              {/* Show More/Less for Sessions */}
+              {recentSessions.length > 3 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-muted-foreground hover:text-primary"
+                  onClick={() => setShowAllSessions(!showAllSessions)}
+                >
+                  {showAllSessions ? (
+                    <>
+                      <ChevronUp className="h-4 w-4 mr-1" />
+                      Show Less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-4 w-4 mr-1" />
+                      Show More ({recentSessions.length - 3} more)
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           )}
 
@@ -172,7 +201,7 @@ export function RecentActivity() {
                 <span className="h-1 w-1 rounded-full bg-success" />
                 Topic Progress
               </p>
-              {recentProgress.map((item, index) => (
+              {displayedProgress.map((item, index) => (
                 <div key={index} className="space-y-2 p-3 rounded-xl bg-muted/20 border border-border/50">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-semibold text-foreground truncate max-w-[70%]">
@@ -190,6 +219,28 @@ export function RecentActivity() {
                   <Progress value={item.score || 0} className="h-2" />
                 </div>
               ))}
+              
+              {/* Show More/Less for Progress */}
+              {recentProgress.length > 3 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="w-full text-muted-foreground hover:text-primary"
+                  onClick={() => setShowAllProgress(!showAllProgress)}
+                >
+                  {showAllProgress ? (
+                    <>
+                      <ChevronUp className="h-4 w-4 mr-1" />
+                      Show Less
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-4 w-4 mr-1" />
+                      Show More ({recentProgress.length - 3} more)
+                    </>
+                  )}
+                </Button>
+              )}
             </div>
           )}
         </div>

@@ -123,7 +123,7 @@ export function BadgesDisplay() {
         </div>
       </GlassCardHeader>
       <GlassCardContent className="pt-2">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {displayBadges.map(bp => (
             <BadgeCard
               key={bp.badge.id}
