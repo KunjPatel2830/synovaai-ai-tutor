@@ -5,8 +5,6 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const OPENROUTER_API_KEY = Deno.env.get("OPENROUTER_API_KEY");
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -93,54 +91,33 @@ Explain using the exact format above.`;
 
     console.log(`[pyq-explain] ${isFollowUp ? "Follow-up" : "Explanation"} for ${subject} question`);
 
-    // Free model fallback chain
-    const freeModels = [
-      "meta-llama/llama-3.3-70b-instruct:free",
-      "mistralai/mistral-small-24b-instruct-2501:free",
-      "google/gemma-3-27b:free",
-      "qwen/qwen3-30b-a3b:free",
-    ];
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("AI provider is not configured");
+    }
 
-    for (const model of freeModels) {
-      console.log(`[pyq-explain] Trying model: ${model}`);
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        temperature: 0.3,
+        max_tokens: isFollowUp ? 220 : 320,
+        stream: true,
+      }),
+    });
 
-      const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${OPENROUTER_API_KEY}`,
-          "Content-Type": "application/json",
-          "HTTP-Referer": "https://synova.app",
-          "X-Title": "SYNOVA PYQ Explain",
-        },
-        body: JSON.stringify({
-          model,
-          messages: [
-            { role: "system", content: systemPrompt },
-            { role: "user", content: userPrompt },
-          ],
-          temperature: 0.3,
-          max_tokens: isFollowUp ? 220 : 320,
-          stream: true,
-        }),
-      });
-
-      if (response.ok) {
-        console.log(`[pyq-explain] Success with model: ${model}`);
-        // Return streaming response
-        return new Response(response.body, {
-          headers: {
-            ...corsHeaders,
-            "Content-Type": "text/event-stream",
-            "Cache-Control": "no-cache",
-            Connection: "keep-alive",
-          },
-        });
-      }
-
+    if (!response.ok) {
       const errText = await response.text();
-      console.error(`[pyq-explain] Model ${model} failed:`, response.status, errText);
+      console.error("[pyq-explain] AI gateway error:", response.status, errText);
 
-      if ([401, 403].includes(response.status)) break;
       if (response.status === 429) {
         return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
           status: 429,
@@ -148,17 +125,26 @@ Explain using the exact format above.`;
         });
       }
       if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "Payment required, please add funds." }), {
+        return new Response(JSON.stringify({ error: "AI credits exhausted. Please try again later." }), {
           status: 402,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         });
       }
+
+      return new Response(JSON.stringify({ error: "AI service temporarily unavailable." }), {
+        status: 502,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // All models failed
-    return new Response(JSON.stringify({ error: "All AI models are currently unavailable. Please try again." }), {
-      status: 502,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    // Return streaming response directly
+    return new Response(response.body, {
+      headers: {
+        ...corsHeaders,
+        "Content-Type": "text/event-stream",
+        "Cache-Control": "no-cache",
+        Connection: "keep-alive",
+      },
     });
   } catch (error) {
     console.error("[pyq-explain] Error:", error);
