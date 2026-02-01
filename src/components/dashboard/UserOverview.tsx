@@ -102,60 +102,74 @@ export function UserOverview() {
   const xpPercentage = (stats.xp / stats.maxXp) * 100;
 
   return (
-    <GlassCard className="p-6">
-      <h3 className="text-lg font-semibold text-foreground mb-4 font-display">My Progress</h3>
+    <GlassCard variant="elevated" className="p-6 relative overflow-hidden">
+      {/* Background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
       
-      <div className="flex flex-col items-center text-center">
-        {/* Avatar with level badge */}
-        <div className="relative mb-4">
-          <Avatar className="h-20 w-20 border-4 border-primary shadow-lg">
+      <h3 className="text-lg font-semibold text-foreground mb-5 font-display flex items-center gap-2 relative">
+        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+          <Trophy className="h-4 w-4 text-primary-foreground" />
+        </div>
+        My Progress
+      </h3>
+      
+      <div className="flex flex-col items-center text-center relative">
+        {/* Avatar with animated ring */}
+        <div className="relative mb-5">
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary via-accent to-primary animate-gradient blur-sm scale-110" />
+          <Avatar className="h-24 w-24 border-4 border-background shadow-2xl relative">
             <AvatarImage src={profile?.avatar_url || undefined} />
-            <AvatarFallback className="bg-gradient-to-br from-primary to-accent text-primary-foreground text-xl font-bold">
+            <AvatarFallback className="bg-gradient-to-br from-primary via-accent to-primary text-primary-foreground text-2xl font-bold">
               {displayName.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
-          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-3 py-1 rounded-full bg-primary text-primary-foreground text-xs font-bold shadow-md">
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-primary to-accent text-primary-foreground text-sm font-bold shadow-lg border-2 border-background">
             Lv. {stats.level}
           </div>
         </div>
 
         {/* User name */}
-        <h4 className="text-lg font-bold text-foreground">{displayName}</h4>
+        <h4 className="text-xl font-bold text-foreground mt-2">{displayName}</h4>
         
-        {/* Streak badge */}
+        {/* Streak badge with flame animation */}
         {stats.streak > 0 && (
-          <div className="flex items-center gap-1.5 mt-1">
-            <Flame className="h-4 w-4 text-warning" />
-            <span className="text-sm text-muted-foreground">{stats.streak} day streak</span>
+          <div className="flex items-center gap-2 mt-2 px-4 py-1.5 rounded-full bg-warning/15 border border-warning/30">
+            <Flame className="h-5 w-5 text-warning animate-pulse" />
+            <span className="text-sm font-semibold text-warning">{stats.streak} day streak 🔥</span>
           </div>
         )}
 
-        {/* XP Progress */}
-        <div className="w-full mt-4 space-y-2">
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>Experience</span>
-            <span>{stats.points} pts</span>
+        {/* XP Progress with enhanced styling */}
+        <div className="w-full mt-5 space-y-2 p-4 rounded-2xl bg-muted/30 border border-border/50">
+          <div className="flex justify-between text-sm">
+            <span className="font-medium text-foreground">Experience Points</span>
+            <span className="font-bold text-primary">{stats.points} pts</span>
           </div>
-          <Progress value={xpPercentage} className="h-2" />
-          <div className="text-xs text-muted-foreground text-right">
-            {stats.xp} / {stats.maxXp} XP to next level
+          <Progress value={xpPercentage} className="h-3" />
+          <div className="text-xs text-muted-foreground text-center">
+            <span className="font-medium">{stats.xp}</span> / {stats.maxXp} XP to Level {stats.level + 1}
           </div>
         </div>
 
-        {/* Rank Badge */}
+        {/* Rank Badge with enhanced styling */}
         <div className={cn(
-          "mt-4 px-4 py-2 rounded-xl flex items-center gap-2 w-full justify-center",
-          rankInfo.bgColor
+          "mt-4 px-5 py-3 rounded-2xl flex items-center gap-3 w-full justify-center border shadow-sm transition-all",
+          rankInfo.bgColor,
+          "border-border/50"
         )}>
-          <RankIcon className={cn("h-5 w-5", rankInfo.color)} />
-          <span className={cn("font-semibold text-sm", rankInfo.color)}>{stats.rank}</span>
+          <RankIcon className={cn("h-6 w-6", rankInfo.color)} />
+          <div className="text-left">
+            <p className="text-xs text-muted-foreground">Current Rank</p>
+            <span className={cn("font-bold", rankInfo.color)}>{stats.rank}</span>
+          </div>
         </div>
 
         <Button 
-          className="w-full mt-4" 
+          className="w-full mt-5 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]" 
+          size="lg"
           onClick={() => navigate("/curriculum-study")}
         >
-          <Zap className="h-4 w-4 mr-2" />
+          <Zap className="h-5 w-5 mr-2" />
           Continue Learning
         </Button>
       </div>
