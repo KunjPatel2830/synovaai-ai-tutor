@@ -17,11 +17,16 @@ export default function GamifiedDashboard() {
         {/* Hero Banner */}
         <HeroBanner />
 
+        {/* Learning Modes - Full Width on Mobile, shown first */}
+        <div className="lg:hidden animate-fade-in" style={{ animationDelay: '100ms' }}>
+          <LearningModesSection />
+        </div>
+
         {/* Main Grid Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left Column - User Stats */}
           <div className="lg:col-span-3 space-y-6">
-            <div className="animate-fade-in" style={{ animationDelay: '100ms' }}>
+            <div className="animate-fade-in" style={{ animationDelay: '150ms' }}>
               <UserOverview />
             </div>
             <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
@@ -31,7 +36,8 @@ export default function GamifiedDashboard() {
 
           {/* Middle Column - Main Content */}
           <div className="lg:col-span-6 space-y-6">
-            <div className="animate-fade-in" style={{ animationDelay: '150ms' }}>
+            {/* Learning Modes - Only show on desktop in grid */}
+            <div className="hidden lg:block animate-fade-in" style={{ animationDelay: '150ms' }}>
               <LearningModesSection />
             </div>
             <div className="animate-fade-in" style={{ animationDelay: '250ms' }}>
