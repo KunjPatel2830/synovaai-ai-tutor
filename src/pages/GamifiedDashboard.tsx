@@ -13,28 +13,40 @@ export default function GamifiedDashboard() {
 
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto space-y-6 pb-8 overflow-x-hidden">
+      <div className="max-w-7xl mx-auto space-y-8 pb-10 overflow-x-hidden animate-fade-in">
         {/* Hero Banner */}
         <HeroBanner />
 
         {/* Main Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
           {/* Left Column - User Stats */}
           <div className="lg:col-span-3 space-y-6">
-            <UserOverview />
-            <DailyQuestSection />
+            <div className="animate-fade-in" style={{ animationDelay: '100ms' }}>
+              <UserOverview />
+            </div>
+            <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+              <DailyQuestSection />
+            </div>
           </div>
 
           {/* Middle Column - Main Content */}
           <div className="lg:col-span-6 space-y-6">
-            <LearningModesSection />
-            <RecentActivity />
+            <div className="animate-fade-in" style={{ animationDelay: '150ms' }}>
+              <LearningModesSection />
+            </div>
+            <div className="animate-fade-in" style={{ animationDelay: '250ms' }}>
+              <RecentActivity />
+            </div>
           </div>
 
           {/* Right Column - Leaderboard & Badges */}
           <div className="lg:col-span-3 space-y-6">
-            <LeaderboardSection />
-            <BadgesDisplay />
+            <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
+              <LeaderboardSection />
+            </div>
+            <div className="animate-fade-in" style={{ animationDelay: '300ms' }}>
+              <BadgesDisplay />
+            </div>
           </div>
         </div>
       </div>

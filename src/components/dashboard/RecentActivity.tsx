@@ -98,21 +98,29 @@ export function RecentActivity() {
   }
 
   return (
-    <GlassCard className="p-6">
-      <div className="flex items-center justify-between mb-4">
-        <h3 className="text-lg font-semibold text-foreground font-display flex items-center gap-2">
-          <TrendingUp className="h-5 w-5 text-primary" />
-          Recent Activity
-        </h3>
+    <GlassCard variant="elevated" className="p-6 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute bottom-0 right-0 w-32 h-32 bg-gradient-to-tl from-accent/10 to-transparent rounded-full blur-2xl" />
+      
+      <div className="flex items-center gap-3 mb-5 relative">
+        <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-accent to-accent/80 flex items-center justify-center shadow-lg">
+          <TrendingUp className="h-5 w-5 text-accent-foreground" />
+        </div>
+        <div>
+          <h3 className="text-lg font-bold text-foreground font-display">Recent Activity</h3>
+          <p className="text-xs text-muted-foreground">Your learning journey</p>
+        </div>
       </div>
 
       {recentSessions.length === 0 && recentProgress.length === 0 ? (
-        <div className="text-center py-8">
-          <Clock className="h-12 w-12 text-muted-foreground mx-auto mb-3 opacity-50" />
-          <p className="text-muted-foreground text-sm">No activity yet</p>
-          <p className="text-xs text-muted-foreground mt-1">Start learning to see your progress here!</p>
+        <div className="text-center py-10 relative">
+          <div className="h-16 w-16 rounded-2xl bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center mx-auto mb-4 shadow-lg">
+            <Clock className="h-8 w-8 text-muted-foreground" />
+          </div>
+          <p className="text-foreground font-semibold mb-1">No activity yet</p>
+          <p className="text-sm text-muted-foreground mb-5">Start learning to see your progress here!</p>
           <Button 
-            className="mt-4"
+            className="bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-lg"
             onClick={() => navigate("/curriculum-study")}
           >
             <Sparkles className="h-4 w-4 mr-2" />
@@ -120,25 +128,31 @@ export function RecentActivity() {
           </Button>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-5 relative">
           {/* Recent Sessions */}
           {recentSessions.length > 0 && (
-            <div className="space-y-2">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Recent Sessions</p>
-              {recentSessions.slice(0, 3).map((session) => {
+            <div className="space-y-3">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <span className="h-1 w-1 rounded-full bg-primary" />
+                Recent Sessions
+              </p>
+              {recentSessions.slice(0, 3).map((session, index) => {
                 const config = modeConfig[session.mode] || modeConfig.tutor;
                 const Icon = config.icon;
 
                 return (
                   <div 
                     key={session.id}
-                    className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors"
+                    className="flex items-center gap-4 p-3 rounded-xl hover:bg-muted/40 transition-all group"
                   >
-                    <div className={cn("h-8 w-8 rounded-lg bg-muted flex items-center justify-center", config.color)}>
-                      <Icon className="h-4 w-4" />
+                    <div className={cn(
+                      "h-11 w-11 rounded-xl bg-gradient-to-br from-muted to-muted/50 flex items-center justify-center shadow-sm transition-transform group-hover:scale-105", 
+                      config.color
+                    )}>
+                      <Icon className="h-5 w-5" />
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-foreground truncate">
+                      <p className="text-sm font-semibold text-foreground truncate">
                         {session.topic || session.subject || config.label}
                       </p>
                       <p className="text-xs text-muted-foreground">
@@ -153,19 +167,27 @@ export function RecentActivity() {
 
           {/* Progress */}
           {recentProgress.length > 0 && (
-            <div className="space-y-2 pt-2 border-t border-border">
-              <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Topic Progress</p>
+            <div className="space-y-3 pt-4 border-t border-border/50">
+              <p className="text-xs font-bold text-muted-foreground uppercase tracking-wider flex items-center gap-2">
+                <span className="h-1 w-1 rounded-full bg-success" />
+                Topic Progress
+              </p>
               {recentProgress.map((item, index) => (
-                <div key={index} className="space-y-1">
+                <div key={index} className="space-y-2 p-3 rounded-xl bg-muted/20 border border-border/50">
                   <div className="flex items-center justify-between">
-                    <span className="text-xs font-medium text-foreground truncate max-w-[70%]">
+                    <span className="text-sm font-semibold text-foreground truncate max-w-[70%]">
                       {item.topic}
                     </span>
-                    <span className="text-xs font-semibold text-primary">
+                    <span className={cn(
+                      "text-sm font-bold px-2 py-0.5 rounded-md",
+                      item.score >= 80 ? "bg-success/20 text-success" :
+                      item.score >= 50 ? "bg-warning/20 text-warning" :
+                      "bg-muted text-muted-foreground"
+                    )}>
                       {item.score}%
                     </span>
                   </div>
-                  <Progress value={item.score || 0} className="h-1.5" />
+                  <Progress value={item.score || 0} className="h-2" />
                 </div>
               ))}
             </div>
