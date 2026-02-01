@@ -11,7 +11,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
-import { useCurriculumPreference } from "@/hooks/useCurriculumPreference";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -40,7 +39,7 @@ export default function Homework() {
   const [subject, setSubject] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   
-  const { curriculum } = useCurriculumPreference();
+  
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -171,7 +170,6 @@ export default function Homework() {
         {
           question: questionText,
           subject,
-          curriculum,
           files: fileData.length > 0 ? fileData : undefined,
         },
         {

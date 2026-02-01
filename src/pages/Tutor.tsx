@@ -13,7 +13,6 @@ import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useRateLimiter } from "@/hooks/useRateLimiter";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
-import { useCurriculumPreference } from "@/hooks/useCurriculumPreference";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -38,7 +37,7 @@ export default function Tutor() {
   const [subject, setSubject] = useState("");
   const [level, setLevel] = useState("beginner");
   
-  const { curriculum } = useCurriculumPreference();
+  
   const [sessionId, setSessionId] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const [profileLoaded, setProfileLoaded] = useState(false);
@@ -134,7 +133,7 @@ export default function Tutor() {
     inFlightControllerRef.current?.abort();
     inFlightControllerRef.current = new AbortController();
 
-    const systemMessage = `I want to learn about "${topic}" in ${subject}. My level is ${level}. I follow the ${curriculum} curriculum.`;
+    const systemMessage = `I want to learn about "${topic}" in ${subject}. My level is ${level}.`;
     
     try {
       await waitForRateLimit();
@@ -146,7 +145,6 @@ export default function Tutor() {
           mode: "start",
           subject,
           topic,
-          curriculum,
         },
         {
           signal: inFlightControllerRef.current.signal,
@@ -275,7 +273,6 @@ export default function Tutor() {
           mode: "chat",
           subject,
           topic,
-          curriculum,
         },
         {
           signal: inFlightControllerRef.current.signal,
