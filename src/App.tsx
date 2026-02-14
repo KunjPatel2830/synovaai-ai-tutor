@@ -32,6 +32,7 @@ const Settings = lazy(() => import("./pages/Settings"));
 const Children = lazy(() => import("./pages/Children"));
 const Students = lazy(() => import("./pages/Students"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const Reviews = lazy(() => import("./pages/Reviews"));
 
 // Role-based dashboard selector component
 const RoleBasedDashboard = lazy(() => import("./components/dashboard/RoleBasedDashboard"));
@@ -50,6 +51,7 @@ const App = () => (
             <Suspense fallback={<div className="min-h-screen flex items-center justify-center"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
               <Routes>
                 <Route path="/" element={<Landing />} />
+                <Route path="/reviews" element={<Reviews />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
