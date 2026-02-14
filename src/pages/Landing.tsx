@@ -9,8 +9,9 @@ import synovaLogo from "@/assets/synova-logo.png";
 import {
   Brain, BookOpen, GraduationCap, CheckCircle2, ArrowRight,
   Moon, Sun, Sparkles, ClipboardCheck, RefreshCw, Lightbulb,
-  MessageSquare, Star, ChevronLeft, ChevronRight, User,
-  Twitter, Github, Linkedin, Mail,
+  MessageSquare, Star, ChevronLeft, ChevronRight, User, Users,
+  Twitter, Github, Linkedin, Mail, FileText, Mic, Globe,
+  HelpCircle, Calendar,
 } from "lucide-react";
 
 const HeroSphere = lazy(() =>
@@ -40,11 +41,16 @@ const testimonials = [
 ];
 
 const features = [
-  { icon: Brain, title: "AI Tutor Mode", description: "Step-by-step explanations that adapt to your learning pace and style." },
-  { icon: BookOpen, title: "Homework Assist", description: "Guided problem solving — learn the process, not just the answer." },
-  { icon: GraduationCap, title: "PYQ Solver", description: "Exam-focused breakdowns of previous year questions with concept mapping." },
-  { icon: RefreshCw, title: "Revision Mode", description: "Quick, structured summaries to reinforce what you've learned." },
-  { icon: ClipboardCheck, title: "Practice Mode", description: "Interactive questions with instant feedback to test your understanding." },
+  { icon: Brain, title: "AI Tutor", description: "Step-by-step explanations that adapt to your learning pace and style." },
+  { icon: BookOpen, title: "Curriculum Study", description: "Follow your syllabus chapter by chapter with structured AI guidance." },
+  { icon: FileText, title: "Homework Assist", description: "Guided problem solving — learn the process, not just the answer." },
+  { icon: Mic, title: "Voice Tutor", description: "Speak your doubts and hear explanations — fully voice-driven learning." },
+  { icon: Globe, title: "Language Practice", description: "Learn and interact in your preferred language with natural speech." },
+  { icon: GraduationCap, title: "Exam Prep", description: "PYQ breakdowns, timed mock tests, and adaptive study plans." },
+  { icon: HelpCircle, title: "Doubt Solver", description: "Quick Q&A for instant concept clarity when you're stuck." },
+  { icon: Calendar, title: "Study Planner", description: "Schedule your study sessions with smart reminders and goals." },
+  { icon: Users, title: "Peer Mode", description: "Collaborate with classmates in real-time study rooms." },
+  { icon: ClipboardCheck, title: "Practice Mode", description: "Interactive questions with instant feedback to test understanding." },
 ];
 
 const steps = [
@@ -179,19 +185,19 @@ const Landing = () => {
               How Synova Helps You <span className="text-primary">Learn</span>
             </h2>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Five specialized modes designed to build real understanding.
+              Ten specialized learning modes designed to build real understanding.
             </p>
           </AnimatedSection>
 
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
             {features.map((feature, idx) => (
-              <AnimatedCard key={feature.title} delay={idx * 0.08}>
-                <div className="group p-6 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-lg transition-all duration-300 h-full">
-                  <div className="w-12 h-12 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-4 group-hover:scale-110 transition-transform">
-                    <feature.icon className="w-6 h-6" />
+              <AnimatedCard key={feature.title} delay={idx * 0.05}>
+                <div className="group p-5 rounded-2xl border border-border bg-card hover:border-primary/40 hover:shadow-lg transition-all duration-300 h-full text-center">
+                  <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center text-primary mb-3 mx-auto group-hover:scale-110 transition-transform">
+                    <feature.icon className="w-5 h-5" />
                   </div>
-                  <h3 className="font-semibold text-lg mb-2 font-display">{feature.title}</h3>
-                  <p className="text-muted-foreground text-sm leading-relaxed">{feature.description}</p>
+                  <h3 className="font-semibold text-sm mb-1 font-display">{feature.title}</h3>
+                  <p className="text-muted-foreground text-xs leading-relaxed">{feature.description}</p>
                 </div>
               </AnimatedCard>
             ))}
