@@ -8,23 +8,34 @@ function AnimatedSphere() {
 
   useFrame(({ clock, pointer }) => {
     if (meshRef.current) {
-      meshRef.current.rotation.x = clock.getElapsedTime() * 0.15 + pointer.y * 0.3;
-      meshRef.current.rotation.y = clock.getElapsedTime() * 0.2 + pointer.x * 0.3;
+      meshRef.current.rotation.x = clock.getElapsedTime() * 0.15 + pointer.y * 0.4;
+      meshRef.current.rotation.y = clock.getElapsedTime() * 0.2 + pointer.x * 0.4;
     }
   });
 
   return (
-    <Float speed={2} rotationIntensity={0.4} floatIntensity={1.5}>
-      <mesh ref={meshRef} scale={2.2}>
+    <Float speed={1.5} rotationIntensity={0.3} floatIntensity={1.2}>
+      <mesh ref={meshRef} scale={2.4}>
         <icosahedronGeometry args={[1, 4]} />
         <MeshDistortMaterial
-          color="#7c3aed"
-          roughness={0.2}
-          metalness={0.8}
-          distort={0.35}
-          speed={2}
+          color="#c8956c"
+          roughness={0.15}
+          metalness={0.9}
+          distort={0.3}
+          speed={1.8}
           transparent
-          opacity={0.85}
+          opacity={0.9}
+        />
+      </mesh>
+      {/* Inner glow core */}
+      <mesh scale={1.2}>
+        <sphereGeometry args={[1, 32, 32]} />
+        <meshStandardMaterial
+          color="#f5d5a0"
+          emissive="#f5d5a0"
+          emissiveIntensity={0.6}
+          transparent
+          opacity={0.3}
         />
       </mesh>
     </Float>
@@ -34,24 +45,25 @@ function AnimatedSphere() {
 function OrbitingNodes() {
   const groupRef = useRef<THREE.Group>(null);
   const nodes = useMemo(() => {
-    return Array.from({ length: 12 }, (_, i) => {
-      const angle = (i / 12) * Math.PI * 2;
-      const radius = 3 + Math.random() * 0.5;
+    const colors = ["#d4a574", "#7ecfb0", "#c4a0e8", "#f5d5a0", "#60a5fa", "#34d399"];
+    return Array.from({ length: 14 }, (_, i) => {
+      const angle = (i / 14) * Math.PI * 2;
+      const radius = 3.2 + Math.random() * 0.6;
       return {
         position: [
           Math.cos(angle) * radius,
-          (Math.random() - 0.5) * 2,
+          (Math.random() - 0.5) * 2.5,
           Math.sin(angle) * radius,
         ] as [number, number, number],
-        scale: 0.06 + Math.random() * 0.08,
-        speed: 0.3 + Math.random() * 0.5,
+        scale: 0.05 + Math.random() * 0.1,
+        color: colors[i % colors.length],
       };
     });
   }, []);
 
   useFrame(({ clock }) => {
     if (groupRef.current) {
-      groupRef.current.rotation.y = clock.getElapsedTime() * 0.1;
+      groupRef.current.rotation.y = clock.getElapsedTime() * 0.08;
     }
   });
 
@@ -61,9 +73,9 @@ function OrbitingNodes() {
         <mesh key={i} position={node.position} scale={node.scale}>
           <sphereGeometry args={[1, 16, 16]} />
           <meshStandardMaterial
-            color={i % 3 === 0 ? "#a78bfa" : i % 3 === 1 ? "#34d399" : "#60a5fa"}
-            emissive={i % 3 === 0 ? "#a78bfa" : i % 3 === 1 ? "#34d399" : "#60a5fa"}
-            emissiveIntensity={0.5}
+            color={node.color}
+            emissive={node.color}
+            emissiveIntensity={0.8}
           />
         </mesh>
       ))}
@@ -71,44 +83,29 @@ function OrbitingNodes() {
   );
 }
 
-function ConnectionLines() {
-  const linesRef = useRef<THREE.Group>(null);
+function OrbitalRings() {
+  const ringRef = useRef<THREE.Group>(null);
 
   useFrame(({ clock }) => {
-    if (linesRef.current) {
-      linesRef.current.rotation.y = clock.getElapsedTime() * 0.05;
-      linesRef.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.2) * 0.1;
+    if (ringRef.current) {
+      ringRef.current.rotation.x = Math.sin(clock.getElapsedTime() * 0.3) * 0.2 + 0.5;
+      ringRef.current.rotation.y = clock.getElapsedTime() * 0.05;
     }
   });
 
-  const lines = useMemo(() => {
-    return Array.from({ length: 6 }, (_, i) => {
-      const angle1 = (i / 6) * Math.PI * 2;
-      const angle2 = ((i + 2) / 6) * Math.PI * 2;
-      const r = 3;
-      const points = [
-        new THREE.Vector3(Math.cos(angle1) * r, (Math.random() - 0.5) * 2, Math.sin(angle1) * r),
-        new THREE.Vector3(0, 0, 0),
-        new THREE.Vector3(Math.cos(angle2) * r, (Math.random() - 0.5) * 2, Math.sin(angle2) * r),
-      ];
-      return new THREE.CatmullRomCurve3(points).getPoints(20);
-    });
-  }, []);
-
   return (
-    <group ref={linesRef}>
-      {lines.map((points, i) => (
-        <line key={i}>
-          <bufferGeometry>
-            <bufferAttribute
-              attach="attributes-position"
-              array={new Float32Array(points.flatMap((p) => [p.x, p.y, p.z]))}
-              count={points.length}
-              itemSize={3}
-            />
-          </bufferGeometry>
-          <lineBasicMaterial color="#a78bfa" transparent opacity={0.15} />
-        </line>
+    <group ref={ringRef}>
+      {[3.0, 3.6, 4.2].map((radius, i) => (
+        <mesh key={i} rotation={[Math.PI / 2 + i * 0.3, i * 0.5, 0]}>
+          <torusGeometry args={[radius, 0.008, 16, 100]} />
+          <meshStandardMaterial
+            color="#d4a574"
+            emissive="#d4a574"
+            emissiveIntensity={0.3}
+            transparent
+            opacity={0.2 - i * 0.04}
+          />
+        </mesh>
       ))}
     </group>
   );
@@ -118,17 +115,18 @@ export function HeroSphere() {
   return (
     <div className="w-full h-[300px] sm:h-[400px] lg:h-[500px]">
       <Canvas
-        camera={{ position: [0, 0, 7], fov: 45 }}
+        camera={{ position: [0, 0, 8], fov: 42 }}
         gl={{ antialias: true, alpha: true }}
         style={{ background: "transparent" }}
       >
-        <ambientLight intensity={0.4} />
-        <directionalLight position={[5, 5, 5]} intensity={1} />
-        <pointLight position={[-5, -5, -5]} intensity={0.5} color="#a78bfa" />
-        <pointLight position={[5, -3, 2]} intensity={0.3} color="#34d399" />
+        <ambientLight intensity={0.5} />
+        <directionalLight position={[5, 5, 5]} intensity={1.2} color="#f5d5a0" />
+        <pointLight position={[-4, -3, -4]} intensity={0.4} color="#c4a0e8" />
+        <pointLight position={[4, -2, 3]} intensity={0.4} color="#7ecfb0" />
+        <pointLight position={[0, 4, 0]} intensity={0.3} color="#f5d5a0" />
         <AnimatedSphere />
         <OrbitingNodes />
-        <ConnectionLines />
+        <OrbitalRings />
       </Canvas>
     </div>
   );
