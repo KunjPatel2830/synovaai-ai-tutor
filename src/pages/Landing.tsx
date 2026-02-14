@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Button } from "@/components/ui/button";
@@ -14,9 +14,6 @@ import {
   HelpCircle, Calendar,
 } from "lucide-react";
 
-const HeroSphere = lazy(() =>
-  import("@/components/landing/HeroSphere").then((m) => ({ default: m.HeroSphere }))
-);
 
 // Sample testimonials
 const testimonials = [
@@ -128,11 +125,10 @@ const Landing = () => {
       {/* ==================== HERO ==================== */}
       <section className="relative py-16 sm:py-24 px-4 sm:px-6 lg:px-8">
         <FloatingElements />
-        <div className="max-w-7xl mx-auto grid lg:grid-cols-2 gap-12 items-center">
-          {/* Left */}
+        <div className="max-w-4xl mx-auto text-center">
           <motion.div
-            initial={{ opacity: 0, x: -40 }}
-            animate={{ opacity: 1, x: 0 }}
+            initial={{ opacity: 0, y: 30 }}
+            animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.7, ease: "easeOut" }}
           >
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 text-primary text-sm font-medium mb-6">
@@ -143,11 +139,11 @@ const Landing = () => {
               Understanding,{" "}
               <span className="text-primary">Not Just Answers.</span>
             </h1>
-            <p className="text-lg text-muted-foreground max-w-lg mb-8">
+            <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-8">
               SYNOVA is an AI-powered learning ecosystem designed for students of all abilities — 
               structured teaching, not instant answers.
             </p>
-            <div className="flex flex-col sm:flex-row items-start gap-4">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
               <Button size="lg" onClick={handleTryNow} className="px-8 py-6 text-lg group">
                 Try Synova Now
                 <ArrowRight className="w-5 h-5 ml-2 group-hover:translate-x-1 transition-transform" />
@@ -156,23 +152,6 @@ const Landing = () => {
                 Explore Features
               </Button>
             </div>
-          </motion.div>
-
-          {/* Right — 3D Sphere */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.8, delay: 0.2 }}
-          >
-            <Suspense
-              fallback={
-                <div className="w-full h-[400px] flex items-center justify-center">
-                  <div className="w-24 h-24 rounded-full bg-primary/10 animate-pulse" />
-                </div>
-              }
-            >
-              <HeroSphere />
-            </Suspense>
           </motion.div>
         </div>
       </section>
