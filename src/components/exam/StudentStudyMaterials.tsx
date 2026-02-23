@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { externalSupabase } from "@/lib/external-supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
 import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
@@ -51,8 +52,8 @@ export function StudentStudyMaterials() {
 
     const teacherIds = links.map((l) => l.teacher_id);
 
-    // Get completed study PDFs from linked teachers
-    const { data, error } = await externalSupabase
+    // Get completed study PDFs from linked teachers (study tables are in Lovable Cloud DB)
+    const { data, error } = await supabase
       .from("study_pdfs")
       .select("id, subject, chapter, file_name, questions_count, teacher_id")
       .in("teacher_id", teacherIds)
@@ -66,7 +67,7 @@ export function StudentStudyMaterials() {
   const loadTopics = async (pdfId: string) => {
     setLoadingTopics((prev) => ({ ...prev, [pdfId]: true }));
 
-    const { data: topicsData } = await externalSupabase
+    const { data: topicsData } = await supabase
       .from("study_topics")
       .select("*")
       .eq("pdf_id", pdfId)
@@ -79,7 +80,7 @@ export function StudentStudyMaterials() {
 
     const topicsWithQuestions = await Promise.all(
       topicsData.map(async (topic: any) => {
-        const { data: questions } = await externalSupabase
+        const { data: questions } = await supabase
           .from("study_questions")
           .select("id, question_text, solution_text")
           .eq("topic_id", topic.id);

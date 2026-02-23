@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { externalSupabase } from "@/lib/external-supabase";
-import { supabase } from "@/integrations/supabase/client";
+import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +8,6 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
 import { Upload, FileText, Loader2 } from "lucide-react";
-import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface PYQUploaderProps {
   userId: string;
@@ -78,21 +77,18 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
       // Convert PDF to base64
       const pdfBase64 = await convertToBase64(file);
 
-      // Call edge function to process PDF
-      const accessToken = await getExternalAccessToken();
-      const { error: functionError } = await supabase.functions.invoke("parse-pyq-pdf", {
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-        body: {
-          uploadId: uploadRecord.id,
-          pdfBase64,
-          examType,
-          year,
-          shift: shift || null,
-          userId,
-        },
-      });
+      // Call edge function to process PDF with extended timeout for large PDFs
+      const result = await invokeBackendFunction("parse-pyq-pdf", {
+        uploadId: uploadRecord.id,
+        pdfBase64,
+        examType,
+        year,
+        shift: shift || null,
+        userId,
+      }, { timeoutMs: 120000, retries: 1, label: "pyq-upload" });
 
-      if (functionError) {
+      if (!result.ok) {
+        const functionError = new Error(result.error || "Processing failed");
         // Update status to failed
         await externalSupabase
           .from("pyq_uploads")

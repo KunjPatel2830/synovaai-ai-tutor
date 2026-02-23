@@ -1,13 +1,12 @@
 import { useState } from "react";
-import { externalSupabase } from "@/lib/external-supabase";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
 import { Upload, FileText, Loader2, BookOpen } from "lucide-react";
-import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface StudyMaterialUploaderProps {
   userId: string;
@@ -54,8 +53,8 @@ export function StudyMaterialUploader({ userId, onUploadComplete }: StudyMateria
     setIsUploading(true);
 
     try {
-      // Create upload record
-      const { data: pdfRecord, error: insertError } = await externalSupabase
+      // Create upload record in Lovable Cloud DB
+      const { data: pdfRecord, error: insertError } = await supabase
         .from("study_pdfs")
         .insert({
           teacher_id: userId,
@@ -72,25 +71,21 @@ export function StudyMaterialUploader({ userId, onUploadComplete }: StudyMateria
       // Convert PDF to base64
       const pdfBase64 = await convertToBase64(file);
 
-      // Call edge function to process PDF
-      const accessToken = await getExternalAccessToken();
-      const { error: functionError } = await supabase.functions.invoke("process-study-pdf", {
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-        body: {
-          pdfId: pdfRecord.id,
-          pdfBase64,
-          subject: subject.trim(),
-          chapter: chapter.trim(),
-          teacherId: userId,
-        },
-      });
+      // Call edge function to process PDF with extended timeout
+      const result = await invokeBackendFunction("process-study-pdf", {
+        pdfId: pdfRecord.id,
+        pdfBase64,
+        subject: subject.trim(),
+        chapter: chapter.trim(),
+        teacherId: userId,
+      }, { timeoutMs: 120000, retries: 1, label: "study-pdf-upload" });
 
-      if (functionError) {
-        await externalSupabase
+      if (!result.ok) {
+        await supabase
           .from("study_pdfs")
-          .update({ processing_status: "failed", error_message: functionError.message })
+          .update({ processing_status: "failed", error_message: result.error || "Processing failed" })
           .eq("id", pdfRecord.id);
-        throw functionError;
+        throw new Error(result.error || "Processing failed");
       }
 
       toast({ title: "PDF uploaded & processed!", description: "Questions extracted successfully." });
