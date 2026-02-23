@@ -100,9 +100,11 @@ export function StudyMaterialUploader({ userId, onUploadComplete }: StudyMateria
       onUploadComplete?.();
     } catch (error) {
       console.error("Upload error:", error);
+      const msg = error instanceof Error ? error.message 
+        : (error as any)?.message || (error as any)?.error_description || JSON.stringify(error) || "Unknown error";
       toast({
         title: "Upload failed",
-        description: error instanceof Error ? error.message : "Unknown error",
+        description: msg,
         variant: "destructive",
       });
     } finally {
