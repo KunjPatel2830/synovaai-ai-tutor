@@ -396,23 +396,27 @@ const Landing = () => {
       {/* ==================== FOOTER ==================== */}
       <footer className="py-12 px-4 sm:px-6 lg:px-8 border-t border-border/50">
         <div className="max-w-6xl mx-auto">
-          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-10">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-10 mb-10">
             {/* Brand */}
-            <div>
-              <div className="flex items-center gap-2 mb-4">
+            <div className="sm:col-span-2 lg:col-span-1">
+              <div className="flex items-center gap-2 mb-3">
                 <img src={synovaLogo} alt="SYNOVA" className="h-8 w-8 object-contain" />
                 <span className="text-lg font-bold font-display">SYNOVA</span>
               </div>
-              <p className="text-sm text-muted-foreground">Understanding, not just answers.</p>
+              <p className="text-sm text-muted-foreground leading-relaxed">
+                Understanding, not just answers. AI-powered learning for every student.
+              </p>
             </div>
-            {/* Links */}
+
+            {/* Product Links */}
             <div>
-              <h4 className="font-semibold text-sm mb-3">Product</h4>
-              <ul className="space-y-2">
+              <h4 className="font-semibold text-sm mb-4 text-foreground">Product</h4>
+              <ul className="space-y-2.5">
                 {[
                   { label: "Features", action: () => scrollToSection("features") },
                   { label: "How It Works", action: () => scrollToSection("how-it-works") },
-                  { label: "Reviews", action: () => navigate("/reviews") },
+                  { label: "Why Synova", action: () => scrollToSection("why-synova") },
+                  { label: "Reviews", action: () => scrollToSection("testimonials") },
                 ].map((link) => (
                   <li key={link.label}>
                     <button onClick={link.action} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -422,10 +426,12 @@ const Landing = () => {
                 ))}
               </ul>
             </div>
+
+            {/* Company Links */}
             <div>
-              <h4 className="font-semibold text-sm mb-3">Company</h4>
-              <ul className="space-y-2">
-                {["About", "Privacy Policy", "Contact"].map((label) => (
+              <h4 className="font-semibold text-sm mb-4 text-foreground">Company</h4>
+              <ul className="space-y-2.5">
+                {["About", "Privacy Policy", "Terms of Service", "Contact"].map((label) => (
                   <li key={label}>
                     <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
                       {label}
@@ -434,22 +440,34 @@ const Landing = () => {
                 ))}
               </ul>
             </div>
+
             {/* Social */}
             <div>
-              <h4 className="font-semibold text-sm mb-3">Connect</h4>
+              <h4 className="font-semibold text-sm mb-4 text-foreground">Connect</h4>
               <div className="flex gap-3">
-                {[Twitter, Github, Linkedin, Mail].map((Icon, i) => (
-                  <button key={i} className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors">
+                {[
+                  { Icon: Twitter, label: "Twitter" },
+                  { Icon: Github, label: "GitHub" },
+                  { Icon: Linkedin, label: "LinkedIn" },
+                  { Icon: Mail, label: "Email" },
+                ].map(({ Icon, label }) => (
+                  <button key={label} aria-label={label} className="w-9 h-9 rounded-lg bg-muted flex items-center justify-center text-muted-foreground hover:text-foreground hover:bg-primary/10 transition-colors">
                     <Icon className="w-4 h-4" />
                   </button>
                 ))}
               </div>
+              <p className="text-xs text-muted-foreground mt-4">hello@synova.ai</p>
             </div>
           </div>
-          <div className="pt-8 border-t border-border/50 text-center">
+
+          <div className="pt-8 border-t border-border/50 flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-muted-foreground text-sm">
               © {new Date().getFullYear()} SYNOVA. All rights reserved.
             </p>
+            <div className="flex gap-4">
+              <button className="text-xs text-muted-foreground hover:text-foreground transition-colors">Privacy</button>
+              <button className="text-xs text-muted-foreground hover:text-foreground transition-colors">Terms</button>
+            </div>
           </div>
         </div>
       </footer>
