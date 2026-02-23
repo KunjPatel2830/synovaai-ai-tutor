@@ -2,41 +2,37 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Button } from "@/components/ui/button";
+import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAuth } from "@/contexts/AuthContext";
+import { externalSupabase } from "@/lib/external-supabase";
+import { useToast } from "@/hooks/use-toast";
 import { AnimatedSection, AnimatedCard } from "@/components/landing/AnimatedSection";
 import { FloatingElements } from "@/components/landing/FloatingElements";
 import synovaLogo from "@/assets/synova-logo.png";
 import {
   Brain, BookOpen, GraduationCap, CheckCircle2, ArrowRight,
   Moon, Sun, Sparkles, ClipboardCheck, RefreshCw, Lightbulb,
-  MessageSquare, Star, ChevronLeft, ChevronRight, User, Users,
+  MessageSquare, Star, User, Users, LogIn, PenLine,
   Twitter, Github, Linkedin, Mail, FileText, Mic, Globe,
   HelpCircle, Calendar,
 } from "lucide-react";
 
 
-// Sample testimonials
-const testimonials = [
-  {
-    name: "Aarav Sharma",
-    role: "Student, Class 10",
-    content: "SYNOVA doesn't just give me answers — it actually makes me understand concepts step by step. My math scores improved by 30% in two months.",
-    rating: 5,
-  },
-  {
-    name: "Priya Mehta",
-    role: "Parent",
-    content: "As a parent, I love being able to track my daughter's progress without hovering. SYNOVA gives her independence while keeping me informed.",
-    rating: 5,
-  },
-  {
-    name: "Rajesh Kumar",
-    role: "Science Teacher",
-    content: "I use SYNOVA to identify which students need help and where. The teacher dashboard saves me hours of individual assessment work.",
-    rating: 4,
-  },
+// Fallback testimonials (shown while DB reviews load)
+const fallbackTestimonials = [
+  { display_name: "Aarav Sharma", content: "SYNOVA doesn't just give me answers — it actually makes me understand concepts step by step. My math scores improved by 30% in two months.", rating: 5 },
+  { display_name: "Priya Mehta", content: "As a parent, I love being able to track my daughter's progress without hovering. SYNOVA gives her independence while keeping me informed.", rating: 5 },
+  { display_name: "Rajesh Kumar", content: "I use SYNOVA to identify which students need help and where. The teacher dashboard saves me hours of individual assessment work.", rating: 4 },
 ];
 
+interface ReviewData {
+  id?: string;
+  display_name: string;
+  content: string;
+  rating: number;
+  created_at?: string;
+}
 const features = [
   { icon: Brain, title: "AI Tutor", description: "Step-by-step explanations that adapt to your learning pace and style." },
   { icon: BookOpen, title: "Curriculum Study", description: "Follow your syllabus chapter by chapter with structured AI guidance." },
@@ -59,17 +55,47 @@ const steps = [
 const Landing = () => {
   const navigate = useNavigate();
   const { theme, toggleTheme } = useTheme();
-  const [currentTestimonial, setCurrentTestimonial] = useState(0);
+  const { user } = useAuth();
+  const { toast } = useToast();
   const { scrollYProgress } = useScroll();
   const bgY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
 
-  // Auto-rotate testimonials
+  const [reviews, setReviews] = useState<ReviewData[]>(fallbackTestimonials);
+  const [newReview, setNewReview] = useState("");
+  const [newRating, setNewRating] = useState(5);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showReviewForm, setShowReviewForm] = useState(false);
+
   useEffect(() => {
-    const interval = setInterval(() => {
-      setCurrentTestimonial((prev) => (prev + 1) % testimonials.length);
-    }, 5000);
-    return () => clearInterval(interval);
+    const fetchReviews = async () => {
+      const { data } = await externalSupabase
+        .from("reviews")
+        .select("*")
+        .order("created_at", { ascending: false });
+      if (data && data.length > 0) setReviews(data);
+    };
+    fetchReviews();
   }, []);
+
+  const handleSubmitReview = async () => {
+    if (!user) { navigate("/auth"); return; }
+    if (!newReview.trim()) { toast({ title: "Please write a review", variant: "destructive" }); return; }
+    setIsSubmitting(true);
+    const { data: profile } = await externalSupabase
+      .from("profiles").select("display_name").eq("user_id", user.id).single();
+    const displayName = profile?.display_name || user.email?.split("@")[0] || "Anonymous";
+    const { error } = await externalSupabase.from("reviews").insert({
+      user_id: user.id, display_name: displayName, content: newReview.trim(), rating: newRating,
+    });
+    if (error) { toast({ title: "Failed to submit review", variant: "destructive" }); }
+    else {
+      toast({ title: "Review submitted! Thank you." });
+      setNewReview(""); setNewRating(5); setShowReviewForm(false);
+      const { data } = await externalSupabase.from("reviews").select("*").order("created_at", { ascending: false });
+      if (data && data.length > 0) setReviews(data);
+    }
+    setIsSubmitting(false);
+  };
 
   const handleTryNow = () => navigate("/auth");
   const scrollToSection = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: "smooth" });
@@ -264,89 +290,79 @@ const Landing = () => {
 
       {/* ==================== TESTIMONIALS ==================== */}
       <section id="testimonials" className="py-20 px-4 sm:px-6 lg:px-8">
-        <div className="max-w-4xl mx-auto">
-          <AnimatedSection className="text-center mb-14">
+        <div className="max-w-6xl mx-auto">
+          <AnimatedSection className="text-center mb-10">
             <h2 className="text-3xl sm:text-4xl font-bold font-display mb-4">
               What Our Users <span className="text-primary">Say</span>
             </h2>
-            <p className="text-muted-foreground max-w-xl mx-auto">
+            <p className="text-muted-foreground max-w-xl mx-auto mb-6">
               Hear from students, parents, and teachers who use SYNOVA.
             </p>
+            {/* Write Review button */}
+            {!showReviewForm && (
+              <Button onClick={() => user ? setShowReviewForm(true) : navigate("/auth")} className="gap-2">
+                <PenLine className="w-4 h-4" />
+                {user ? "Write a Review" : "Sign in to Review"}
+              </Button>
+            )}
           </AnimatedSection>
 
-          <AnimatedSection delay={0.1}>
-            <div className="relative">
-              {/* Carousel card */}
-              <motion.div
-                key={currentTestimonial}
-                initial={{ opacity: 0, x: 30 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -30 }}
-                transition={{ duration: 0.4 }}
-                className="max-w-lg mx-auto"
-              >
-                <div className="p-8 rounded-2xl border border-border bg-card">
-                  <div className="flex items-center gap-1 mb-4">
-                    {[...Array(5)].map((_, i) => (
-                      <Star
-                        key={i}
-                        className={`w-5 h-5 ${i < testimonials[currentTestimonial].rating ? "text-warning fill-warning" : "text-muted-foreground/30"}`}
-                      />
+          {/* Inline Review Form */}
+          {showReviewForm && (
+            <AnimatedSection className="max-w-md mx-auto mb-10">
+              <div className="p-6 rounded-2xl border border-border bg-card space-y-4">
+                <h3 className="font-semibold text-foreground text-center">Share Your Experience</h3>
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block text-muted-foreground">Rating</label>
+                  <div className="flex gap-1 justify-center">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <button key={star} onClick={() => setNewRating(star)} className="p-0.5 hover:scale-110 transition-transform">
+                        <Star className={`w-6 h-6 ${star <= newRating ? "text-warning fill-warning" : "text-muted-foreground/30"}`} />
+                      </button>
                     ))}
                   </div>
-                  <p className="text-foreground leading-relaxed mb-6">
-                    "{testimonials[currentTestimonial].content}"
-                  </p>
-                  <div className="flex items-center gap-3 pt-4 border-t border-border">
-                    <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
-                      <User className="w-5 h-5 text-primary" />
+                </div>
+                <div>
+                  <label className="text-xs font-medium mb-1.5 block text-muted-foreground">Your Review</label>
+                  <Textarea value={newReview} onChange={(e) => setNewReview(e.target.value)} placeholder="Share your experience with SYNOVA..." rows={3} maxLength={500} className="text-sm" />
+                  <p className="text-xs text-muted-foreground mt-1 text-right">{newReview.length}/500</p>
+                </div>
+                <div className="flex gap-2 justify-center">
+                  <Button onClick={handleSubmitReview} disabled={isSubmitting} size="sm">
+                    {isSubmitting ? "Submitting..." : "Submit Review"}
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => setShowReviewForm(false)}>Cancel</Button>
+                </div>
+              </div>
+            </AnimatedSection>
+          )}
+
+          {/* Reviews Grid */}
+          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {reviews.map((review, idx) => (
+              <AnimatedCard key={review.id || idx} delay={idx * 0.05}>
+                <div className="p-6 rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-300 h-full flex flex-col">
+                  <div className="flex items-center gap-1 mb-3">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className={`w-4 h-4 ${i < review.rating ? "text-warning fill-warning" : "text-muted-foreground/30"}`} />
+                    ))}
+                  </div>
+                  <p className="text-foreground text-sm leading-relaxed mb-4 flex-1">"{review.content}"</p>
+                  <div className="flex items-center gap-3 pt-3 border-t border-border">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                      <User className="w-4 h-4 text-primary" />
                     </div>
                     <div>
-                      <p className="font-medium text-foreground text-sm">{testimonials[currentTestimonial].name}</p>
-                      <p className="text-xs text-muted-foreground">{testimonials[currentTestimonial].role}</p>
+                      <p className="font-medium text-foreground text-sm">{review.display_name}</p>
+                      {review.created_at && (
+                        <p className="text-xs text-muted-foreground">{new Date(review.created_at).toLocaleDateString()}</p>
+                      )}
                     </div>
                   </div>
                 </div>
-              </motion.div>
-
-              {/* Controls */}
-              <div className="flex items-center justify-center gap-4 mt-6">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full"
-                  onClick={() => setCurrentTestimonial((prev) => (prev - 1 + testimonials.length) % testimonials.length)}
-                >
-                  <ChevronLeft className="w-5 h-5" />
-                </Button>
-                <div className="flex gap-2">
-                  {testimonials.map((_, idx) => (
-                    <button
-                      key={idx}
-                      onClick={() => setCurrentTestimonial(idx)}
-                      className={`h-2 rounded-full transition-all ${idx === currentTestimonial ? "w-6 bg-primary" : "w-2 bg-muted-foreground/30"}`}
-                    />
-                  ))}
-                </div>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="rounded-full"
-                  onClick={() => setCurrentTestimonial((prev) => (prev + 1) % testimonials.length)}
-                >
-                  <ChevronRight className="w-5 h-5" />
-                </Button>
-              </div>
-
-              {/* Link to full reviews */}
-              <div className="text-center mt-6">
-                <Button variant="outline" size="sm" onClick={() => navigate("/reviews")}>
-                  See All Reviews
-                  <ArrowRight className="w-4 h-4 ml-1" />
-                </Button>
-              </div>
-            </div>
-          </AnimatedSection>
+              </AnimatedCard>
+            ))}
+          </div>
         </div>
       </section>
 
