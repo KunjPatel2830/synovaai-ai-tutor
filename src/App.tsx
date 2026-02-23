@@ -33,6 +33,10 @@ const Children = lazy(() => import("./pages/Children"));
 const Students = lazy(() => import("./pages/Students"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 const Reviews = lazy(() => import("./pages/Reviews"));
+const About = lazy(() => import("./pages/About"));
+const Privacy = lazy(() => import("./pages/Privacy"));
+const Terms = lazy(() => import("./pages/Terms"));
+const Contact = lazy(() => import("./pages/Contact"));
 
 // Role-based dashboard selector component
 const RoleBasedDashboard = lazy(() => import("./components/dashboard/RoleBasedDashboard"));
@@ -52,6 +56,10 @@ const App = () => (
               <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/reviews" element={<Reviews />} />
+                <Route path="/about" element={<About />} />
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
+                <Route path="/contact" element={<Contact />} />
                 <Route path="/auth" element={<Auth />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
