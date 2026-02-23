@@ -831,6 +831,116 @@ export type Database = {
         }
         Relationships: []
       }
+      study_pdfs: {
+        Row: {
+          chapter: string
+          completed_at: string | null
+          created_at: string
+          error_message: string | null
+          file_name: string
+          id: string
+          processing_status: string
+          questions_count: number | null
+          subject: string
+          teacher_id: string
+        }
+        Insert: {
+          chapter: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name: string
+          id?: string
+          processing_status?: string
+          questions_count?: number | null
+          subject: string
+          teacher_id: string
+        }
+        Update: {
+          chapter?: string
+          completed_at?: string | null
+          created_at?: string
+          error_message?: string | null
+          file_name?: string
+          id?: string
+          processing_status?: string
+          questions_count?: number | null
+          subject?: string
+          teacher_id?: string
+        }
+        Relationships: []
+      }
+      study_questions: {
+        Row: {
+          created_at: string
+          id: string
+          pdf_id: string
+          question_text: string
+          solution_text: string | null
+          topic_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          pdf_id: string
+          question_text: string
+          solution_text?: string | null
+          topic_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          pdf_id?: string
+          question_text?: string
+          solution_text?: string | null
+          topic_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_questions_pdf_id_fkey"
+            columns: ["pdf_id"]
+            isOneToOne: false
+            referencedRelation: "study_pdfs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "study_questions_topic_id_fkey"
+            columns: ["topic_id"]
+            isOneToOne: false
+            referencedRelation: "study_topics"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      study_topics: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          pdf_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          pdf_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          pdf_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "study_topics_pdf_id_fkey"
+            columns: ["pdf_id"]
+            isOneToOne: false
+            referencedRelation: "study_pdfs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subjects: {
         Row: {
           created_at: string | null
