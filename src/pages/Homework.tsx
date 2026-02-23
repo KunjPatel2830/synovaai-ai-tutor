@@ -49,7 +49,10 @@ export default function Homework() {
   const { trackProgress, trackHelpRequest } = useProgressTracker();
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    if (messages.length === 0) return;
+    requestAnimationFrame(() => {
+      messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+    });
   }, [messages]);
 
   // Sync voice transcript to input
