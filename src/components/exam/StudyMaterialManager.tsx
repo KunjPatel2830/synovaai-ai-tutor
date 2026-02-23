@@ -1,13 +1,12 @@
 import { useState, useEffect, useRef } from "react";
-import { externalSupabase } from "@/lib/external-supabase";
 import { supabase } from "@/integrations/supabase/client";
+import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { FileText, Loader2, ChevronDown, Trash2, CheckCircle, XCircle, Clock, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
-import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface StudyPdf {
   id: string;
@@ -42,7 +41,7 @@ export function StudyMaterialManager({ userId, refreshKey }: StudyMaterialManage
   const retryInputRef = useRef<HTMLInputElement>(null);
 
   const fetchPdfs = async () => {
-    const { data, error } = await externalSupabase
+    const { data, error } = await supabase
       .from("study_pdfs")
       .select("*")
       .eq("teacher_id", userId)
@@ -58,7 +57,7 @@ export function StudyMaterialManager({ userId, refreshKey }: StudyMaterialManage
 
   const loadTopics = async (pdfId: string) => {
     setLoadingTopics((prev) => ({ ...prev, [pdfId]: true }));
-    const { data: topicsData } = await externalSupabase
+    const { data: topicsData } = await supabase
       .from("study_topics")
       .select("*")
       .eq("pdf_id", pdfId)
@@ -71,7 +70,7 @@ export function StudyMaterialManager({ userId, refreshKey }: StudyMaterialManage
 
     const topicsWithQuestions = await Promise.all(
       topicsData.map(async (topic: any) => {
-        const { data: questions } = await externalSupabase
+        const { data: questions } = await supabase
           .from("study_questions")
           .select("id, question_text, solution_text")
           .eq("topic_id", topic.id);
@@ -93,7 +92,7 @@ export function StudyMaterialManager({ userId, refreshKey }: StudyMaterialManage
   };
 
   const handleDelete = async (pdfId: string) => {
-    const { error } = await externalSupabase.from("study_pdfs").delete().eq("id", pdfId);
+    const { error } = await supabase.from("study_pdfs").delete().eq("id", pdfId);
     if (error) {
       toast({ title: "Failed to delete", description: error.message, variant: "destructive" });
       return;
@@ -114,7 +113,7 @@ export function StudyMaterialManager({ userId, refreshKey }: StudyMaterialManage
 
     setRetryingPdf(pdf.id);
     try {
-      await externalSupabase
+      await supabase
         .from("study_pdfs")
         .update({ processing_status: "pending", error_message: null })
         .eq("id", pdf.id);
@@ -128,19 +127,15 @@ export function StudyMaterialManager({ userId, refreshKey }: StudyMaterialManage
         reader.onerror = reject;
       });
 
-      const accessToken = await getExternalAccessToken();
-      const { error } = await supabase.functions.invoke("process-study-pdf", {
-        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
-        body: {
-          pdfId: pdf.id,
-          pdfBase64,
-          subject: pdf.subject,
-          chapter: pdf.chapter,
-          teacherId: userId,
-        },
-      });
+      const result = await invokeBackendFunction("process-study-pdf", {
+        pdfId: pdf.id,
+        pdfBase64,
+        subject: pdf.subject,
+        chapter: pdf.chapter,
+        teacherId: userId,
+      }, { timeoutMs: 120000, retries: 1, label: "study-pdf-retry" });
 
-      if (error) throw error;
+      if (!result.ok) throw new Error(result.error || "Processing failed");
       toast({ title: "PDF re-processed successfully!" });
       setPdfs((prev) => prev.map((p) => p.id === pdf.id ? { ...p, processing_status: "completed" } : p));
     } catch (error) {
