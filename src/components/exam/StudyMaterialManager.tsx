@@ -1,11 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { externalSupabase } from "@/lib/external-supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
-import { FileText, Loader2, ChevronDown, Trash2, CheckCircle, XCircle, Clock } from "lucide-react";
+import { FileText, Loader2, ChevronDown, Trash2, CheckCircle, XCircle, Clock, RotateCcw } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { cn } from "@/lib/utils";
+import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface StudyPdf {
   id: string;
@@ -36,6 +38,8 @@ export function StudyMaterialManager({ userId, refreshKey }: StudyMaterialManage
   const [expandedPdf, setExpandedPdf] = useState<string | null>(null);
   const [topics, setTopics] = useState<Record<string, StudyTopic[]>>({});
   const [loadingTopics, setLoadingTopics] = useState<Record<string, boolean>>({});
+  const [retryingPdf, setRetryingPdf] = useState<string | null>(null);
+  const retryInputRef = useRef<HTMLInputElement>(null);
 
   const fetchPdfs = async () => {
     const { data, error } = await externalSupabase
@@ -96,6 +100,55 @@ export function StudyMaterialManager({ userId, refreshKey }: StudyMaterialManage
     }
     toast({ title: "Study material deleted" });
     setPdfs((prev) => prev.filter((p) => p.id !== pdfId));
+  };
+
+  const handleRetry = async (pdf: StudyPdf, file: File) => {
+    if (file.type !== "application/pdf") {
+      toast({ title: "Please select a PDF file", variant: "destructive" });
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast({ title: "File size must be less than 20MB", variant: "destructive" });
+      return;
+    }
+
+    setRetryingPdf(pdf.id);
+    try {
+      await externalSupabase
+        .from("study_pdfs")
+        .update({ processing_status: "pending", error_message: null })
+        .eq("id", pdf.id);
+
+      setPdfs((prev) => prev.map((p) => p.id === pdf.id ? { ...p, processing_status: "pending", error_message: null } : p));
+
+      const pdfBase64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+      });
+
+      const accessToken = await getExternalAccessToken();
+      const { error } = await supabase.functions.invoke("process-study-pdf", {
+        headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined,
+        body: {
+          pdfId: pdf.id,
+          pdfBase64,
+          subject: pdf.subject,
+          chapter: pdf.chapter,
+          teacherId: userId,
+        },
+      });
+
+      if (error) throw error;
+      toast({ title: "PDF re-processed successfully!" });
+      setPdfs((prev) => prev.map((p) => p.id === pdf.id ? { ...p, processing_status: "completed" } : p));
+    } catch (error) {
+      toast({ title: "Retry failed", description: error instanceof Error ? error.message : "Unknown error", variant: "destructive" });
+      setPdfs((prev) => prev.map((p) => p.id === pdf.id ? { ...p, processing_status: "failed" } : p));
+    } finally {
+      setRetryingPdf(null);
+    }
   };
 
   const statusIcon = (status: string) => {
@@ -160,6 +213,38 @@ export function StudyMaterialManager({ userId, refreshKey }: StudyMaterialManage
                     </div>
                   </div>
                   <div className="flex items-center gap-2 shrink-0">
+                    {(pdf.processing_status === "failed" || pdf.processing_status === "pending") && (
+                      <>
+                        <input
+                          type="file"
+                          accept=".pdf"
+                          className="hidden"
+                          ref={retryingPdf === pdf.id ? retryInputRef : undefined}
+                          onChange={(e) => {
+                            const f = e.target.files?.[0];
+                            if (f) handleRetry(pdf, f);
+                            e.target.value = "";
+                          }}
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-primary"
+                          disabled={retryingPdf === pdf.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setRetryingPdf(pdf.id);
+                            setTimeout(() => retryInputRef.current?.click(), 0);
+                          }}
+                        >
+                          {retryingPdf === pdf.id ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </>
+                    )}
                     <Button
                       variant="ghost"
                       size="icon"
