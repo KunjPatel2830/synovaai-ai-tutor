@@ -337,11 +337,22 @@ const Landing = () => {
             </AnimatedSection>
           )}
 
-          {/* Reviews Grid */}
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {reviews.map((review, idx) => (
-              <AnimatedCard key={review.id || idx} delay={idx * 0.05}>
-                <div className="p-6 rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-300 h-full flex flex-col">
+          {/* Marquee Reviews */}
+          <div className="relative overflow-hidden">
+            {/* Fade edges */}
+            <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-background to-transparent z-10 pointer-events-none" />
+            <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-background to-transparent z-10 pointer-events-none" />
+            
+            <motion.div
+              className="flex gap-5 w-max"
+              animate={{ x: ["0%", "-50%"] }}
+              transition={{ duration: reviews.length * 6, ease: "linear", repeat: Infinity }}
+            >
+              {[...reviews, ...reviews].map((review, idx) => (
+                <div
+                  key={`${review.id || idx}-${idx}`}
+                  className="w-[320px] shrink-0 p-6 rounded-2xl border border-border bg-card hover:border-primary/30 transition-all duration-300 flex flex-col"
+                >
                   <div className="flex items-center gap-1 mb-3">
                     {[...Array(5)].map((_, i) => (
                       <Star key={i} className={`w-4 h-4 ${i < review.rating ? "text-warning fill-warning" : "text-muted-foreground/30"}`} />
@@ -349,7 +360,7 @@ const Landing = () => {
                   </div>
                   <p className="text-foreground text-sm leading-relaxed mb-4 flex-1">"{review.content}"</p>
                   <div className="flex items-center gap-3 pt-3 border-t border-border">
-                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center">
+                    <div className="w-9 h-9 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                       <User className="w-4 h-4 text-primary" />
                     </div>
                     <div>
@@ -360,8 +371,8 @@ const Landing = () => {
                     </div>
                   </div>
                 </div>
-              </AnimatedCard>
-            ))}
+              ))}
+            </motion.div>
           </div>
         </div>
       </section>
