@@ -21,7 +21,10 @@ import { PYQQuizChat } from "@/components/exam/PYQQuizChat";
 import { PYQUploader } from "@/components/exam/PYQUploader";
 import { PYQUploadHistory } from "@/components/exam/PYQUploadHistory";
 import { NeedsHelpTab } from "@/components/exam/NeedsHelpTab";
-import { ClipboardList, Play, CheckCircle, XCircle, RotateCcw, Trophy, Mic, MicOff, Volume2, History, BookOpen, Upload, HelpCircle } from "lucide-react";
+import { StudyMaterialUploader } from "@/components/exam/StudyMaterialUploader";
+import { StudyMaterialManager } from "@/components/exam/StudyMaterialManager";
+import { StudentStudyMaterials } from "@/components/exam/StudentStudyMaterials";
+import { ClipboardList, Play, CheckCircle, XCircle, RotateCcw, Trophy, Mic, MicOff, Volume2, History, BookOpen, Upload, HelpCircle, FileText } from "lucide-react";
 import { Loader, LoaderSpinner } from "@/components/ui/loader";
 import { cn } from "@/lib/utils";
 import { getExternalAccessToken } from "@/lib/external-auth";
@@ -41,7 +44,7 @@ interface Answer {
 }
 
 type ExamState = "setup" | "quiz" | "results";
-type ExamMode = "ai" | "pyq" | "upload" | "help";
+type ExamMode = "ai" | "pyq" | "upload" | "help" | "study";
 
 export default function ExamPrep() {
   const { user, userRole } = useAuth();
@@ -61,6 +64,7 @@ export default function ExamPrep() {
   const [isLoading, setIsLoading] = useState(false);
   const [results, setResults] = useState<any>(null);
   const [linkedStudentIds, setLinkedStudentIds] = useState<string[]>([]);
+  const [studyRefreshKey, setStudyRefreshKey] = useState(0);
 
   // Fetch linked students for teachers
   useEffect(() => {
@@ -304,12 +308,16 @@ export default function ExamPrep() {
           {/* Tabs for different modes - Different UI for Teachers vs Students */}
           <Tabs value={mode} onValueChange={(v) => setMode(v as ExamMode)} className="flex-1 flex flex-col min-h-0">
             {isTeacher ? (
-              /* Teacher View: Upload PYQ and Needs Help tabs */
+              /* Teacher View: Upload PYQ, Study Materials, and Needs Help tabs */
               <>
-                <TabsList className="grid w-full grid-cols-2 shrink-0">
+                <TabsList className="grid w-full grid-cols-3 shrink-0">
                   <TabsTrigger value="upload" className="flex items-center gap-2">
                     <Upload className="h-4 w-4" />
                     Upload PYQ
+                  </TabsTrigger>
+                  <TabsTrigger value="study" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Study Materials
                   </TabsTrigger>
                   <TabsTrigger value="help" className="flex items-center gap-2">
                     <HelpCircle className="h-4 w-4" />
@@ -327,15 +335,25 @@ export default function ExamPrep() {
                   )}
                 </TabsContent>
 
+                {/* Study Materials Tab */}
+                <TabsContent value="study" className="flex-1 mt-4 overflow-auto space-y-4">
+                  {user && (
+                    <>
+                      <StudyMaterialUploader userId={user.id} onUploadComplete={() => setStudyRefreshKey((k) => k + 1)} />
+                      <StudyMaterialManager userId={user.id} refreshKey={studyRefreshKey} />
+                    </>
+                  )}
+                </TabsContent>
+
                 {/* Needs Help Tab */}
                 <TabsContent value="help" className="flex-1 mt-4 overflow-auto">
                   <NeedsHelpTab linkedStudentIds={linkedStudentIds} />
                 </TabsContent>
               </>
             ) : (
-              /* Student View: AI Quiz and PYQ Practice tabs */
+              /* Student View: AI Quiz, PYQ Practice, and Study Materials tabs */
               <>
-                <TabsList className="grid w-full grid-cols-2 shrink-0">
+                <TabsList className="grid w-full grid-cols-3 shrink-0">
                   <TabsTrigger value="ai" className="flex items-center gap-2">
                     <Play className="h-4 w-4" />
                     AI Quiz
@@ -343,6 +361,10 @@ export default function ExamPrep() {
                   <TabsTrigger value="pyq" className="flex items-center gap-2">
                     <BookOpen className="h-4 w-4" />
                     JEE/NEET PYQ
+                  </TabsTrigger>
+                  <TabsTrigger value="study" className="flex items-center gap-2">
+                    <FileText className="h-4 w-4" />
+                    Study Materials
                   </TabsTrigger>
                 </TabsList>
 
@@ -418,6 +440,11 @@ export default function ExamPrep() {
                 {/* PYQ Practice Tab */}
                 <TabsContent value="pyq" className="flex-1 mt-4 flex flex-col min-h-0">
                   <PYQQuizChat />
+                </TabsContent>
+
+                {/* Study Materials Tab */}
+                <TabsContent value="study" className="flex-1 mt-4 overflow-auto">
+                  <StudentStudyMaterials />
                 </TabsContent>
               </>
             )}
