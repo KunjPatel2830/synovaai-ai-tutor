@@ -78,7 +78,7 @@ export function StudyMaterialUploader({ userId, onUploadComplete }: StudyMateria
         subject: subject.trim(),
         chapter: chapter.trim(),
         teacherId: userId,
-      }, { timeoutMs: 120000, retries: 1, label: "study-pdf-upload" });
+      }, { timeoutMs: 300000, retries: 0, label: "study-pdf-upload" });
 
       if (!result.ok) {
         await supabase
