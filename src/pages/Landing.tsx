@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { motion, useScroll, useTransform } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -431,11 +431,16 @@ const Landing = () => {
             <div>
               <h4 className="font-semibold text-sm mb-4 text-foreground">Company</h4>
               <ul className="space-y-2.5">
-                {["About", "Privacy Policy", "Terms of Service", "Contact"].map((label) => (
-                  <li key={label}>
-                    <button className="text-sm text-muted-foreground hover:text-foreground transition-colors">
-                      {label}
-                    </button>
+                {[
+                  { label: "About", to: "/about" },
+                  { label: "Privacy Policy", to: "/privacy" },
+                  { label: "Terms of Service", to: "/terms" },
+                  { label: "Contact", to: "/contact" },
+                ].map((link) => (
+                  <li key={link.label}>
+                    <Link to={link.to} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+                      {link.label}
+                    </Link>
                   </li>
                 ))}
               </ul>
@@ -469,8 +474,8 @@ const Landing = () => {
               © {new Date().getFullYear()} SYNOVA. All rights reserved.
             </p>
             <div className="flex gap-4">
-              <button className="text-xs text-muted-foreground hover:text-foreground transition-colors">Privacy</button>
-              <button className="text-xs text-muted-foreground hover:text-foreground transition-colors">Terms</button>
+              <Link to="/privacy" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Privacy</Link>
+              <Link to="/terms" className="text-xs text-muted-foreground hover:text-foreground transition-colors">Terms</Link>
             </div>
           </div>
         </div>
