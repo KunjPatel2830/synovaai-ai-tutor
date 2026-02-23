@@ -7,6 +7,9 @@ import { LeaderboardSection } from "@/components/dashboard/LeaderboardSection";
 import { DailyQuestSection } from "@/components/dashboard/DailyQuestSection";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
 import { BadgesDisplay } from "@/components/badges/BadgesDisplay";
+import { JoinWithCode } from "@/components/invitation/JoinWithCode";
+import { GlassCard, GlassCardHeader, GlassCardTitle, GlassCardContent } from "@/components/ui/glass-card";
+import { UserPlus } from "lucide-react";
 
 export default function GamifiedDashboard() {
   const { user } = useAuth();
@@ -52,6 +55,19 @@ export default function GamifiedDashboard() {
             </div>
             <div className="animate-fade-in" style={{ animationDelay: '300ms' }}>
               <BadgesDisplay />
+            </div>
+            <div className="animate-fade-in" style={{ animationDelay: '350ms' }}>
+              <GlassCard>
+                <GlassCardHeader>
+                  <GlassCardTitle className="flex items-center gap-2">
+                    <UserPlus className="h-5 w-5 text-primary" />
+                    Connect with Teacher
+                  </GlassCardTitle>
+                </GlassCardHeader>
+                <GlassCardContent>
+                  {user && <JoinWithCode />}
+                </GlassCardContent>
+              </GlassCard>
             </div>
           </div>
         </div>
