@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -20,24 +20,45 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    pdfId = body.pdfId;
-    const { pdfBase64, subject, chapter, teacherId } = body;
+    const { pdfBase64, subject, chapter, teacherId, fileName } = body;
 
-    if (!pdfId || !pdfBase64 || !subject || !chapter || !teacherId) {
-      throw new Error("Missing required fields: pdfId, pdfBase64, subject, chapter, teacherId");
+    // Support both new (no pdfId) and legacy (with pdfId) calls
+    pdfId = body.pdfId || null;
+
+    if (!pdfBase64 || !subject || !chapter || !teacherId) {
+      throw new Error("Missing required fields: pdfBase64, subject, chapter, teacherId");
     }
 
-    console.log(`[process-study-pdf] Starting for PDF ${pdfId}, subject: ${subject}, chapter: ${chapter}`);
+    // If no pdfId provided, create the record internally
+    if (!pdfId) {
+      console.log(`[process-study-pdf] Creating study_pdfs record internally`);
+      const { data: record, error: insertErr } = await supabase
+        .from("study_pdfs")
+        .insert({
+          teacher_id: teacherId,
+          subject,
+          chapter,
+          file_name: fileName || "upload.pdf",
+          processing_status: "processing",
+        })
+        .select("id")
+        .single();
 
-    // Update status to processing
-    await supabase
-      .from("study_pdfs")
-      .update({ processing_status: "processing", error_message: null })
-      .eq("id", pdfId);
+      if (insertErr) {
+        console.error("[process-study-pdf] Failed to create PDF record:", insertErr.message);
+        throw new Error(`Failed to create PDF record: ${insertErr.message}`);
+      }
+      pdfId = record.id;
+    } else {
+      await supabase
+        .from("study_pdfs")
+        .update({ processing_status: "processing", error_message: null })
+        .eq("id", pdfId);
+    }
 
-    // Clean base64
+    console.log(`[process-study-pdf] Processing PDF ${pdfId}, subject: ${subject}, chapter: ${chapter}`);
+
     const cleanBase64 = pdfBase64.replace(/^data:application\/pdf;base64,/, "");
-    console.log(`[process-study-pdf] PDF base64 length: ${cleanBase64.length} chars`);
 
     // Call AI to extract questions, topics, and solutions
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -63,9 +84,7 @@ You MUST respond using the provided tool/function.`,
             content: [
               {
                 type: "image_url",
-                image_url: {
-                  url: `data:application/pdf;base64,${cleanBase64}`,
-                },
+                image_url: { url: `data:application/pdf;base64,${cleanBase64}` },
               },
               {
                 type: "text",
@@ -88,14 +107,14 @@ You MUST respond using the provided tool/function.`,
                     items: {
                       type: "object",
                       properties: {
-                        topic_name: { type: "string", description: "Name of the topic" },
+                        topic_name: { type: "string" },
                         questions: {
                           type: "array",
                           items: {
                             type: "object",
                             properties: {
-                              question_text: { type: "string", description: "The full question text" },
-                              solution_text: { type: "string", description: "Step-by-step solution" },
+                              question_text: { type: "string" },
+                              solution_text: { type: "string" },
                             },
                             required: ["question_text", "solution_text"],
                           },
@@ -132,7 +151,6 @@ You MUST respond using the provided tool/function.`,
 
     let totalQuestions = 0;
 
-    // Save topics and questions to database
     for (const topicData of extracted.topics) {
       const { data: topic, error: topicError } = await supabase
         .from("study_topics")
@@ -145,7 +163,6 @@ You MUST respond using the provided tool/function.`,
         continue;
       }
 
-      // Batch insert questions
       const questionsToInsert = topicData.questions.map((q: any) => ({
         topic_id: topic.id,
         pdf_id: pdfId,
@@ -165,7 +182,6 @@ You MUST respond using the provided tool/function.`,
       }
     }
 
-    // Update status to completed
     await supabase
       .from("study_pdfs")
       .update({
@@ -180,6 +196,7 @@ You MUST respond using the provided tool/function.`,
     return new Response(
       JSON.stringify({
         success: true,
+        pdfId,
         topicsCount: extracted.topics.length,
         questionsCount: totalQuestions,
       }),

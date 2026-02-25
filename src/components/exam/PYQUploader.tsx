@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { externalSupabase } from "@/lib/external-supabase";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -58,63 +57,34 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
     setIsUploading(true);
 
     try {
-      // Create upload record
-      const { data: uploadRecord, error: insertError } = await externalSupabase
-        .from("pyq_uploads")
-        .insert({
-          uploaded_by: userId,
-          exam_type: examType,
-          year: parseInt(year),
-          shift: shift || null,
-          file_name: file.name,
-          status: "pending",
-        })
-        .select("id")
-        .single();
-
-      if (insertError) throw insertError;
-
-      // Convert PDF to base64
       const pdfBase64 = await convertToBase64(file);
 
-      // Call edge function to process PDF with extended timeout for large PDFs
+      // Send everything to edge function — it creates the DB record internally
       const result = await invokeBackendFunction("parse-pyq-pdf", {
-        uploadId: uploadRecord.id,
         pdfBase64,
         examType,
         year,
         shift: shift || null,
         userId,
+        fileName: file.name,
       }, { timeoutMs: 300000, retries: 0, label: "pyq-upload" });
 
       if (!result.ok) {
-        const functionError = new Error(result.error || "Processing failed");
-        // Update status to failed
-        await externalSupabase
-          .from("pyq_uploads")
-          .update({ status: "failed", error_message: functionError.message })
-          .eq("id", uploadRecord.id);
-        throw functionError;
+        throw new Error(result.error || "Processing failed");
       }
 
-      toast({ title: "PDF uploaded and processing started", description: "Check upload history for status" });
+      toast({ title: "PDF uploaded and processed!", description: `Extracted ${result.data?.questionsCount || 0} questions` });
       
-      // Reset form
       setExamType("");
       setYear("");
       setShift("");
       setFile(null);
-      
       onUploadComplete?.();
     } catch (error) {
       console.error("Upload error:", error);
       const msg = error instanceof Error ? error.message 
-        : (error as any)?.message || (error as any)?.error_description || JSON.stringify(error) || "Unknown error";
-      toast({
-        title: "Upload failed",
-        description: msg,
-        variant: "destructive",
-      });
+        : (error as any)?.message || JSON.stringify(error) || "Unknown error";
+      toast({ title: "Upload failed", description: msg, variant: "destructive" });
     } finally {
       setIsUploading(false);
     }
@@ -133,9 +103,7 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
           <div className="space-y-2">
             <Label>Exam Type *</Label>
             <Select value={examType} onValueChange={setExamType}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select exam" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select exam" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="JEE Main">JEE Main</SelectItem>
                 <SelectItem value="JEE Advanced">JEE Advanced</SelectItem>
@@ -143,27 +111,19 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
               </SelectContent>
             </Select>
           </div>
-
           <div className="space-y-2">
             <Label>Year *</Label>
             <Select value={year} onValueChange={setYear}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select year" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select year" /></SelectTrigger>
               <SelectContent>
-                {years.map((y) => (
-                  <SelectItem key={y} value={y}>{y}</SelectItem>
-                ))}
+                {years.map((y) => <SelectItem key={y} value={y}>{y}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
-
           <div className="space-y-2">
             <Label>Shift (optional)</Label>
             <Select value={shift} onValueChange={setShift}>
-              <SelectTrigger>
-                <SelectValue placeholder="Select shift" />
-              </SelectTrigger>
+              <SelectTrigger><SelectValue placeholder="Select shift" /></SelectTrigger>
               <SelectContent>
                 <SelectItem value="Morning">Morning</SelectItem>
                 <SelectItem value="Afternoon">Afternoon</SelectItem>
@@ -176,12 +136,7 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
         <div className="space-y-2">
           <Label>PDF File *</Label>
           <div className="flex items-center gap-3">
-            <Input
-              type="file"
-              accept=".pdf"
-              onChange={handleFileChange}
-              className="flex-1"
-            />
+            <Input type="file" accept=".pdf" onChange={handleFileChange} className="flex-1" />
             {file && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <FileText className="h-4 w-4" />
@@ -192,21 +147,11 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
           <p className="text-xs text-muted-foreground">Max file size: 20MB</p>
         </div>
 
-        <Button 
-          onClick={handleUpload} 
-          disabled={isUploading || !examType || !year || !file}
-          className="w-full"
-        >
+        <Button onClick={handleUpload} disabled={isUploading || !examType || !year || !file} className="w-full">
           {isUploading ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Processing...
-            </>
+            <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing...</>
           ) : (
-            <>
-              <Upload className="h-4 w-4 mr-2" />
-              Upload & Extract Questions
-            </>
+            <><Upload className="h-4 w-4 mr-2" />Upload & Extract Questions</>
           )}
         </Button>
       </GlassCardContent>

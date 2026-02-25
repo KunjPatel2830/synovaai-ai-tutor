@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -53,42 +52,22 @@ export function StudyMaterialUploader({ userId, onUploadComplete }: StudyMateria
     setIsUploading(true);
 
     try {
-      // Create upload record in Lovable Cloud DB
-      const { data: pdfRecord, error: insertError } = await supabase
-        .from("study_pdfs")
-        .insert({
-          teacher_id: userId,
-          subject: subject.trim(),
-          chapter: chapter.trim(),
-          file_name: file.name,
-          processing_status: "pending",
-        })
-        .select("id")
-        .single();
-
-      if (insertError) throw insertError;
-
-      // Convert PDF to base64
       const pdfBase64 = await convertToBase64(file);
 
-      // Call edge function to process PDF with extended timeout
+      // Send everything to edge function — it creates the DB record internally
       const result = await invokeBackendFunction("process-study-pdf", {
-        pdfId: pdfRecord.id,
         pdfBase64,
         subject: subject.trim(),
         chapter: chapter.trim(),
         teacherId: userId,
+        fileName: file.name,
       }, { timeoutMs: 300000, retries: 0, label: "study-pdf-upload" });
 
       if (!result.ok) {
-        await supabase
-          .from("study_pdfs")
-          .update({ processing_status: "failed", error_message: result.error || "Processing failed" })
-          .eq("id", pdfRecord.id);
         throw new Error(result.error || "Processing failed");
       }
 
-      toast({ title: "PDF uploaded & processed!", description: "Questions extracted successfully." });
+      toast({ title: "PDF uploaded & processed!", description: `Extracted ${result.data?.questionsCount || 0} questions.` });
       setSubject("");
       setChapter("");
       setFile(null);
@@ -96,12 +75,8 @@ export function StudyMaterialUploader({ userId, onUploadComplete }: StudyMateria
     } catch (error) {
       console.error("Upload error:", error);
       const msg = error instanceof Error ? error.message 
-        : (error as any)?.message || (error as any)?.error_description || JSON.stringify(error) || "Unknown error";
-      toast({
-        title: "Upload failed",
-        description: msg,
-        variant: "destructive",
-      });
+        : (error as any)?.message || JSON.stringify(error) || "Unknown error";
+      toast({ title: "Upload failed", description: msg, variant: "destructive" });
     } finally {
       setIsUploading(false);
     }
@@ -119,19 +94,11 @@ export function StudyMaterialUploader({ userId, onUploadComplete }: StudyMateria
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
             <Label>Subject *</Label>
-            <Input
-              value={subject}
-              onChange={(e) => setSubject(e.target.value)}
-              placeholder="e.g. Mathematics, Physics"
-            />
+            <Input value={subject} onChange={(e) => setSubject(e.target.value)} placeholder="e.g. Mathematics, Physics" />
           </div>
           <div className="space-y-2">
             <Label>Chapter *</Label>
-            <Input
-              value={chapter}
-              onChange={(e) => setChapter(e.target.value)}
-              placeholder="e.g. Algebra, Thermodynamics"
-            />
+            <Input value={chapter} onChange={(e) => setChapter(e.target.value)} placeholder="e.g. Algebra, Thermodynamics" />
           </div>
         </div>
 
@@ -149,21 +116,11 @@ export function StudyMaterialUploader({ userId, onUploadComplete }: StudyMateria
           <p className="text-xs text-muted-foreground">Max file size: 20MB. AI will extract questions & generate solutions.</p>
         </div>
 
-        <Button
-          onClick={handleUpload}
-          disabled={isUploading || !subject.trim() || !chapter.trim() || !file}
-          className="w-full"
-        >
+        <Button onClick={handleUpload} disabled={isUploading || !subject.trim() || !chapter.trim() || !file} className="w-full">
           {isUploading ? (
-            <>
-              <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-              Processing with AI...
-            </>
+            <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Processing with AI...</>
           ) : (
-            <>
-              <Upload className="h-4 w-4 mr-2" />
-              Upload & Extract Questions
-            </>
+            <><Upload className="h-4 w-4 mr-2" />Upload & Extract Questions</>
           )}
         </Button>
       </GlassCardContent>
