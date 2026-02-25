@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -33,7 +33,6 @@ async function extractWithGemini(
     try {
       console.log(`[parse-pyq-pdf] Extraction attempt ${attempt + 1}/${maxRetries + 1}`);
 
-      // Use Gemini 2.5 Flash for faster PDF extraction (Pro times out on large PDFs)
       const extractionResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -90,14 +89,8 @@ Extract ALL questions. Do NOT skip any. Be thorough.`,
       if (!extractionResponse.ok) {
         const errorText = await extractionResponse.text();
         console.error(`[parse-pyq-pdf] Gemini extraction failed:`, extractionResponse.status, errorText);
-        
-        if (extractionResponse.status === 429) {
-          throw new Error("Rate limited - please try again later");
-        }
-        if (extractionResponse.status === 402) {
-          throw new Error("API credits exhausted - please add funds");
-        }
-        
+        if (extractionResponse.status === 429) throw new Error("Rate limited - please try again later");
+        if (extractionResponse.status === 402) throw new Error("API credits exhausted - please add funds");
         throw new Error(`Extraction failed: ${extractionResponse.status}`);
       }
 
@@ -109,8 +102,6 @@ Extract ALL questions. Do NOT skip any. Be thorough.`,
       if (!extractedText || extractedText.length < 100) {
         throw new Error("Extracted text too short - PDF may be unreadable or empty");
       }
-
-      // Check if we got actual questions
       if (!extractedText.includes("Q") && !extractedText.includes("Question")) {
         throw new Error("No questions found in extraction output");
       }
@@ -119,7 +110,6 @@ Extract ALL questions. Do NOT skip any. Be thorough.`,
     } catch (error) {
       lastError = error instanceof Error ? error : new Error(String(error));
       console.error(`[parse-pyq-pdf] Attempt ${attempt + 1} failed:`, lastError.message);
-
       if (attempt < maxRetries) {
         await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
       }
@@ -183,12 +173,7 @@ IMPORTANT: Parse EVERY question. Do not skip any.`,
                       question_text: { type: "string" },
                       options: {
                         type: "object",
-                        properties: {
-                          A: { type: "string" },
-                          B: { type: "string" },
-                          C: { type: "string" },
-                          D: { type: "string" },
-                        },
+                        properties: { A: { type: "string" }, B: { type: "string" }, C: { type: "string" }, D: { type: "string" } },
                         required: ["A", "B", "C", "D"],
                       },
                       correct_option: { type: "string", enum: ["A", "B", "C", "D"] },
@@ -220,7 +205,6 @@ IMPORTANT: Parse EVERY question. Do not skip any.`,
   const toolCall = structuringData.choices?.[0]?.message?.tool_calls?.[0];
 
   if (!toolCall || toolCall.function.name !== "save_questions") {
-    console.error("[parse-pyq-pdf] No tool call in response:", JSON.stringify(structuringData));
     throw new Error("Tool call not returned - structuring failed");
   }
 
@@ -230,7 +214,6 @@ IMPORTANT: Parse EVERY question. Do not skip any.`,
     parsedQuestions = args.questions;
     console.log(`[parse-pyq-pdf] Parsed ${parsedQuestions?.length || 0} questions from tool call`);
   } catch (e) {
-    console.error("[parse-pyq-pdf] Failed to parse tool arguments:", e);
     throw new Error("Failed to parse structured questions JSON");
   }
 
@@ -238,7 +221,6 @@ IMPORTANT: Parse EVERY question. Do not skip any.`,
     throw new Error("No questions parsed from the extracted text");
   }
 
-  // Validate and clean questions
   const validQuestions = parsedQuestions.filter((q) => {
     if (!q.question_text || q.question_text.length < 5) return false;
     if (!q.options || !q.options.A || !q.options.B) return false;
@@ -266,32 +248,53 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    uploadId = body.uploadId;
-    const { pdfBase64, examType, year, shift, userId } = body;
+    const { pdfBase64, examType, year, shift, userId, fileName } = body;
 
-    if (!uploadId || !pdfBase64 || !examType || !year || !userId) {
-      throw new Error("Missing required fields: uploadId, pdfBase64, examType, year, userId");
+    // Support both new (no uploadId) and legacy (with uploadId) calls
+    uploadId = body.uploadId || null;
+
+    if (!pdfBase64 || !examType || !year || !userId) {
+      throw new Error("Missing required fields: pdfBase64, examType, year, userId");
     }
 
-    console.log(`[parse-pyq-pdf] Starting extraction for upload ${uploadId}`);
+    // If no uploadId provided, create the record internally
+    if (!uploadId) {
+      console.log(`[parse-pyq-pdf] Creating pyq_uploads record internally`);
+      const { data: record, error: insertErr } = await supabase
+        .from("pyq_uploads")
+        .insert({
+          uploaded_by: userId,
+          exam_type: examType,
+          year: parseInt(year),
+          shift: shift || null,
+          file_name: fileName || "upload.pdf",
+          status: "processing",
+        })
+        .select("id")
+        .single();
+
+      if (insertErr) {
+        console.error("[parse-pyq-pdf] Failed to create upload record:", insertErr.message);
+        throw new Error(`Failed to create upload record: ${insertErr.message}`);
+      }
+      uploadId = record.id;
+    } else {
+      // Legacy path: update existing record
+      await supabase
+        .from("pyq_uploads")
+        .update({ status: "processing", error_message: null })
+        .eq("id", uploadId);
+    }
+
+    console.log(`[parse-pyq-pdf] Processing upload ${uploadId}`);
     console.log(`[parse-pyq-pdf] Exam: ${examType}, Year: ${year}, Shift: ${shift || "N/A"}`);
-    console.log(`[parse-pyq-pdf] PDF base64 length: ${pdfBase64.length} chars`);
 
-    // Update status to processing
-    await supabase
-      .from("pyq_uploads")
-      .update({ status: "processing", error_message: null })
-      .eq("id", uploadId);
-
-    // Clean base64 - remove data URL prefix if present
     const cleanBase64 = pdfBase64.replace(/^data:application\/pdf;base64,/, "");
-    console.log(`[parse-pyq-pdf] Clean base64 length: ${cleanBase64.length} chars`);
 
     // Step 1: Extract text from PDF
     const extractedText = await extractWithGemini(cleanBase64, examType, year, shift);
-    console.log(`[parse-pyq-pdf] Extraction complete, got ${extractedText.length} chars`);
 
-    // Step 2: Structure the questions using tool calling
+    // Step 2: Structure the questions
     const parsedQuestions = await structureQuestions(extractedText, examType, year, shift);
     console.log(`[parse-pyq-pdf] Successfully parsed ${parsedQuestions.length} questions`);
 
@@ -310,19 +313,16 @@ serve(async (req) => {
       created_by: userId,
     }));
 
-    // Insert in batches
     const batchSize = 10;
     let insertedCount = 0;
 
     for (let i = 0; i < questionsToInsert.length; i += batchSize) {
       const batch = questionsToInsert.slice(i, i + batchSize);
       const { error: insertError } = await supabase.from("pyq_questions").insert(batch);
-
       if (insertError) {
         console.error(`[parse-pyq-pdf] Batch insert error at ${i}:`, insertError.message);
       } else {
         insertedCount += batch.length;
-        console.log(`[parse-pyq-pdf] Inserted batch ${Math.floor(i / batchSize) + 1}, total: ${insertedCount}`);
       }
     }
 
@@ -344,6 +344,7 @@ serve(async (req) => {
     return new Response(
       JSON.stringify({
         success: true,
+        uploadId,
         questionsCount: insertedCount,
         totalParsed: parsedQuestions.length,
         message: `Successfully extracted ${insertedCount} questions`,
@@ -357,18 +358,12 @@ serve(async (req) => {
     if (uploadId) {
       await supabase
         .from("pyq_uploads")
-        .update({
-          status: "failed",
-          error_message: errorMessage,
-        })
+        .update({ status: "failed", error_message: errorMessage })
         .eq("id", uploadId);
     }
 
     return new Response(
-      JSON.stringify({
-        success: false,
-        error: errorMessage,
-      }),
+      JSON.stringify({ success: false, error: errorMessage }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
