@@ -1,6 +1,7 @@
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { HeroBanner } from "@/components/dashboard/HeroBanner";
+import { StatsCards } from "@/components/dashboard/StatsCards";
 import { UserOverview } from "@/components/dashboard/UserOverview";
 import { LearningModesSection } from "@/components/dashboard/LearningModesSection";
 import { LeaderboardSection } from "@/components/dashboard/LeaderboardSection";
@@ -16,58 +17,44 @@ export default function GamifiedDashboard() {
 
   return (
     <AppLayout>
-      <div className="max-w-7xl mx-auto space-y-8 pb-10 overflow-x-hidden animate-fade-in">
-        {/* Hero Banner */}
+      <div className="max-w-7xl mx-auto space-y-6 pb-10 overflow-x-hidden">
+        {/* Welcome Banner */}
         <HeroBanner />
 
+        {/* Stats Row */}
+        <StatsCards />
+
         {/* Learning Modes - Full Width on Mobile, shown first */}
-        <div className="lg:hidden animate-fade-in" style={{ animationDelay: '100ms' }}>
+        <div className="lg:hidden">
           <LearningModesSection />
         </div>
 
         {/* Main Grid Layout */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-          {/* Left Column - User Stats */}
-          <div className="lg:col-span-3 space-y-6">
-            <div className="animate-fade-in" style={{ animationDelay: '150ms' }}>
-              <UserOverview />
-            </div>
-            <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
-              <DailyQuestSection />
-            </div>
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
+          {/* Left Column */}
+          <div className="lg:col-span-3 space-y-5">
+            <UserOverview />
+            <DailyQuestSection />
           </div>
 
-          {/* Middle Column - Main Content */}
-          <div className="lg:col-span-6 space-y-6">
-            {/* Learning Modes - Only show on desktop in grid */}
-            <div className="hidden lg:block animate-fade-in" style={{ animationDelay: '150ms' }}>
+          {/* Middle Column */}
+          <div className="lg:col-span-6 space-y-5">
+            <div className="hidden lg:block">
               <LearningModesSection />
             </div>
-            <div className="animate-fade-in" style={{ animationDelay: '250ms' }}>
-              <RecentActivity />
-            </div>
+            <RecentActivity />
           </div>
 
-          {/* Right Column - Leaderboard & Badges */}
-          <div className="lg:col-span-3 space-y-6">
-            <div className="animate-fade-in" style={{ animationDelay: '200ms' }}>
-              <LeaderboardSection />
-            </div>
-            <div className="animate-fade-in" style={{ animationDelay: '300ms' }}>
-              <BadgesDisplay />
-            </div>
-            <div className="animate-fade-in" style={{ animationDelay: '350ms' }}>
-              <GlassCard>
-                <GlassCardHeader>
-                  <GlassCardTitle className="flex items-center gap-2">
-                    <UserPlus className="h-5 w-5 text-primary" />
-                    Connect with Teacher
-                  </GlassCardTitle>
-                </GlassCardHeader>
-                <GlassCardContent>
-                  {user && <JoinWithCode />}
-                </GlassCardContent>
-              </GlassCard>
+          {/* Right Column */}
+          <div className="lg:col-span-3 space-y-5">
+            <LeaderboardSection />
+            <BadgesDisplay />
+            <div className="rounded-xl border border-border bg-card p-5">
+              <div className="flex items-center gap-2 mb-3">
+                <UserPlus className="h-4 w-4 text-primary" />
+                <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Connect</h3>
+              </div>
+              {user && <JoinWithCode />}
             </div>
           </div>
         </div>
