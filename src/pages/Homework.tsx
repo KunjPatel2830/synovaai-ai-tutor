@@ -340,7 +340,7 @@ export default function Homework() {
         <div className="flex-1 flex flex-col min-h-0 bg-card/50 rounded-2xl border border-border overflow-hidden">
           {/* Messages area */}
           <ScrollArea className="flex-1">
-            <div className="p-4 space-y-3">
+            <div className="p-2.5 sm:p-4 space-y-3">
               {messages.length === 0 ? (
                 <div className="h-full flex items-center justify-center text-center">
                   <div>
@@ -352,7 +352,7 @@ export default function Homework() {
                 <>
                   {messages.map((msg, i) => (
                     <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                      <div className={`max-w-[85%] p-3 rounded-2xl ${
+                      <div className={`max-w-[92%] sm:max-w-[85%] p-3 rounded-2xl ${
                         msg.role === "user" 
                           ? "bg-primary text-primary-foreground" 
                           : "bg-card border border-border"

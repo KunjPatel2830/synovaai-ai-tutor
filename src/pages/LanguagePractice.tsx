@@ -179,7 +179,7 @@ export default function LanguagePractice() {
 
         {/* Chat Area */}
         <GlassCard className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 p-4">
+          <ScrollArea className="flex-1 p-2.5 sm:p-4">
             <div className="space-y-4">
               {messages.map((message, index) => (
                 <div
@@ -187,7 +187,7 @@ export default function LanguagePractice() {
                   className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[85%] p-4 rounded-2xl ${
+                    className={`max-w-[92%] sm:max-w-[85%] p-3 sm:p-4 rounded-2xl ${
                       message.role === "user"
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted/50 border border-border"

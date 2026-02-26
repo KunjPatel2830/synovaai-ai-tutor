@@ -199,7 +199,7 @@ export const MarkdownContent = forwardRef<HTMLDivElement, MarkdownContentProps>(
     };
 
     return (
-      <div ref={ref} className={cn("prose prose-sm dark:prose-invert max-w-none text-foreground", className)}>
+      <div ref={ref} className={cn("prose prose-sm dark:prose-invert max-w-none text-foreground break-words [word-break:break-word] overflow-hidden", className)}>
         {renderContent()}
       </div>
     );

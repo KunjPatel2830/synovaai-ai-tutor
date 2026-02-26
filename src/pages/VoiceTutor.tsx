@@ -395,14 +395,14 @@ export default function VoiceTutor() {
         {/* Chat Area - maximized */}
         <GlassCard className="flex-1 flex flex-col overflow-hidden min-h-0">
           <ScrollArea className="flex-1">
-            <div className="p-4 space-y-4">
+            <div className="p-2.5 sm:p-4 space-y-4">
               {messages.map((message, index) => (
                 <div
                   key={index}
                   className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[85%] p-4 rounded-2xl ${
+                    className={`max-w-[92%] sm:max-w-[85%] p-3 sm:p-4 rounded-2xl ${
                       message.role === "user"
                         ? "bg-primary text-primary-foreground"
                         : "bg-muted/50 border border-border"

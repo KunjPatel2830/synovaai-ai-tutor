@@ -434,8 +434,8 @@ export default function Tutor() {
     <AppLayout>
       <div className="flex flex-col h-[calc(100vh-5rem)]">
         {/* Header with controls */}
-        <div className="flex items-center justify-between gap-3 mb-3 shrink-0">
-          <div className="flex items-center gap-2">
+        <div className="flex items-center justify-between gap-2 mb-3 shrink-0 flex-wrap">
+          <div className="flex items-center gap-1.5 flex-wrap">
             <VoiceControls
               isListening={voice.isListening}
               isSpeaking={voice.isSpeaking}
@@ -458,25 +458,16 @@ export default function Tutor() {
               variant={aiPaused ? "default" : "outline"}
               size="sm"
               onClick={toggleAiPause}
-              className={cn("gap-2", aiPaused && "bg-warning text-warning-foreground hover:bg-warning/90")}
+              className={cn("gap-1.5 text-xs sm:text-sm", aiPaused && "bg-warning text-warning-foreground hover:bg-warning/90")}
             >
-              {aiPaused ? (
-                <>
-                  <Play className="h-4 w-4" />
-                  Resume AI
-                </>
-              ) : (
-                <>
-                  <Pause className="h-4 w-4" />
-                  Pause AI
-                </>
-              )}
+              {aiPaused ? <Play className="h-3.5 w-3.5" /> : <Pause className="h-3.5 w-3.5" />}
+              <span className="hidden sm:inline">{aiPaused ? "Resume AI" : "Pause AI"}</span>
             </Button>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-1.5">
             <ChatHistory mode="tutor" onLoadSession={handleLoadSession} />
-            <Button variant="outline" size="sm" onClick={startNewSession} className="gap-2">
-              <Plus className="h-4 w-4" />
+            <Button variant="outline" size="sm" onClick={startNewSession} className="gap-1.5 text-xs sm:text-sm">
+              <Plus className="h-3.5 w-3.5" />
               New
             </Button>
           </div>
@@ -484,18 +475,18 @@ export default function Tutor() {
 
         {/* Paused Mode Banner */}
         {aiPaused && (
-          <div className="mb-3 p-3 rounded-xl bg-warning/10 border border-warning/30 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Badge variant="outline" className="bg-warning/20 border-warning text-warning-foreground">
+          <div className="mb-3 p-2.5 sm:p-3 rounded-xl bg-warning/10 border border-warning/30 flex flex-wrap items-center justify-between gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Badge variant="outline" className="bg-warning/20 border-warning text-warning-foreground shrink-0">
                 <Pause className="h-3 w-3 mr-1" />
                 Thinking Mode
               </Badge>
-              <span className="text-sm text-muted-foreground">
-                AI is paused. Type your thoughts, discuss with peers, or think out loud.
+              <span className="text-xs sm:text-sm text-muted-foreground">
+                AI paused. Think or discuss freely.
               </span>
             </div>
             {pausedMessages.length > 0 && (
-              <Badge variant="secondary">{pausedMessages.length} messages queued</Badge>
+              <Badge variant="secondary" className="shrink-0">{pausedMessages.length} queued</Badge>
             )}
           </div>
         )}
@@ -504,13 +495,13 @@ export default function Tutor() {
         <div className="flex-1 flex flex-col min-h-0 bg-card/50 rounded-2xl border border-border overflow-hidden">
           {/* Messages area */}
           <ScrollArea className="flex-1">
-            <div className="p-4 space-y-3">
+            <div className="p-2.5 sm:p-4 space-y-3">
               {messages.map((msg, i) => {
                 const isPausedMessage = pausedMessages.some(pm => pm.content === msg.content && pm.role === msg.role);
                 return (
                   <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div className={cn(
-                      "max-w-[80%] p-3 rounded-2xl",
+                      "max-w-[92%] sm:max-w-[80%] p-3 rounded-2xl",
                       msg.role === "user" 
                         ? isPausedMessage 
                           ? "bg-warning/80 text-warning-foreground" 
