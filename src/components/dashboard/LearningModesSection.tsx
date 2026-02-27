@@ -30,8 +30,8 @@ const learningModes: LearningMode[] = [
     description: "NCERT-aligned lessons",
     icon: BookOpen,
     path: "/curriculum-study",
-    color: "bg-rose-50 dark:bg-rose-950/30 border-rose-200 dark:border-rose-800",
-    iconColor: "text-rose-600 dark:text-rose-400",
+    color: "bg-accent/60 dark:bg-accent/30 border-accent dark:border-accent/50",
+    iconColor: "text-accent-foreground",
   },
   {
     id: "tutor",
@@ -39,8 +39,8 @@ const learningModes: LearningMode[] = [
     description: "Personalized teaching",
     icon: Brain,
     path: "/tutor",
-    color: "bg-violet-50 dark:bg-violet-950/30 border-violet-200 dark:border-violet-800",
-    iconColor: "text-violet-600 dark:text-violet-400",
+    color: "bg-primary/10 dark:bg-primary/10 border-primary/30 dark:border-primary/20",
+    iconColor: "text-primary",
   },
   {
     id: "homework",
@@ -48,8 +48,8 @@ const learningModes: LearningMode[] = [
     description: "Step-by-step solutions",
     icon: FileText,
     path: "/homework",
-    color: "bg-sky-50 dark:bg-sky-950/30 border-sky-200 dark:border-sky-800",
-    iconColor: "text-sky-600 dark:text-sky-400",
+    color: "bg-secondary dark:bg-secondary border-border dark:border-border",
+    iconColor: "text-secondary-foreground",
   },
   {
     id: "exam",
@@ -57,8 +57,8 @@ const learningModes: LearningMode[] = [
     description: "Practice & quizzes",
     icon: ClipboardList,
     path: "/exam-prep",
-    color: "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800",
-    iconColor: "text-emerald-600 dark:text-emerald-400",
+    color: "bg-success/10 dark:bg-success/10 border-success/30 dark:border-success/20",
+    iconColor: "text-success",
   },
   {
     id: "voice",
@@ -66,8 +66,8 @@ const learningModes: LearningMode[] = [
     description: "Speak to learn",
     icon: Mic,
     path: "/voice-tutor",
-    color: "bg-amber-50 dark:bg-amber-950/30 border-amber-200 dark:border-amber-800",
-    iconColor: "text-amber-600 dark:text-amber-400",
+    color: "bg-warning/10 dark:bg-warning/10 border-warning/30 dark:border-warning/20",
+    iconColor: "text-warning",
   },
   {
     id: "language",
@@ -75,8 +75,8 @@ const learningModes: LearningMode[] = [
     description: "Master new languages",
     icon: Globe,
     path: "/language-practice",
-    color: "bg-teal-50 dark:bg-teal-950/30 border-teal-200 dark:border-teal-800",
-    iconColor: "text-teal-600 dark:text-teal-400",
+    color: "bg-accent/40 dark:bg-accent/20 border-accent/60 dark:border-accent/30",
+    iconColor: "text-accent-foreground",
   },
   {
     id: "doubt",
@@ -84,8 +84,8 @@ const learningModes: LearningMode[] = [
     description: "Quick answers",
     icon: HelpCircle,
     path: "/doubt-solver",
-    color: "bg-orange-50 dark:bg-orange-950/30 border-orange-200 dark:border-orange-800",
-    iconColor: "text-orange-600 dark:text-orange-400",
+    color: "bg-destructive/20 dark:bg-destructive/15 border-destructive/30 dark:border-destructive/20",
+    iconColor: "text-destructive-foreground",
   },
   {
     id: "planner",
@@ -93,8 +93,8 @@ const learningModes: LearningMode[] = [
     description: "Plan your schedule",
     icon: Calendar,
     path: "/study-planner",
-    color: "bg-indigo-50 dark:bg-indigo-950/30 border-indigo-200 dark:border-indigo-800",
-    iconColor: "text-indigo-600 dark:text-indigo-400",
+    color: "bg-muted dark:bg-muted border-border dark:border-border",
+    iconColor: "text-muted-foreground",
   },
   {
     id: "peer",
@@ -102,8 +102,8 @@ const learningModes: LearningMode[] = [
     description: "Study with friends",
     icon: Users,
     path: "/peer-mode",
-    color: "bg-pink-50 dark:bg-pink-950/30 border-pink-200 dark:border-pink-800",
-    iconColor: "text-pink-600 dark:text-pink-400",
+    color: "bg-primary/8 dark:bg-primary/8 border-primary/20 dark:border-primary/15",
+    iconColor: "text-primary",
   },
 ];
 
