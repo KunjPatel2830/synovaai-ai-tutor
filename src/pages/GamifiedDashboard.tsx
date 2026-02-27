@@ -7,9 +7,12 @@ import { LearningModesSection } from "@/components/dashboard/LearningModesSectio
 import { LeaderboardSection } from "@/components/dashboard/LeaderboardSection";
 import { DailyQuestSection } from "@/components/dashboard/DailyQuestSection";
 import { RecentActivity } from "@/components/dashboard/RecentActivity";
+import { WeeklyActivityWidget } from "@/components/dashboard/WeeklyActivityWidget";
+import { StudyStreakCalendar } from "@/components/dashboard/StudyStreakCalendar";
+import { QuickNotesWidget } from "@/components/dashboard/QuickNotesWidget";
+import { SubjectProgressWidget } from "@/components/dashboard/SubjectProgressWidget";
 import { BadgesDisplay } from "@/components/badges/BadgesDisplay";
 import { JoinWithCode } from "@/components/invitation/JoinWithCode";
-import { GlassCard, GlassCardHeader, GlassCardTitle, GlassCardContent } from "@/components/ui/glass-card";
 import { UserPlus } from "lucide-react";
 
 export default function GamifiedDashboard() {
@@ -35,6 +38,8 @@ export default function GamifiedDashboard() {
           <div className="lg:col-span-3 space-y-5">
             <UserOverview />
             <DailyQuestSection />
+            <StudyStreakCalendar />
+            <QuickNotesWidget />
           </div>
 
           {/* Middle Column */}
@@ -42,11 +47,13 @@ export default function GamifiedDashboard() {
             <div className="hidden lg:block">
               <LearningModesSection />
             </div>
+            <WeeklyActivityWidget />
             <RecentActivity />
           </div>
 
           {/* Right Column */}
           <div className="lg:col-span-3 space-y-5">
+            <SubjectProgressWidget />
             <LeaderboardSection />
             <BadgesDisplay />
             <div className="rounded-xl border border-border bg-card p-5">
