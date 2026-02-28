@@ -520,8 +520,8 @@ export default function CurriculumStudy() {
 
       setMessages([{ role: "assistant", content: res.data?.reply ?? "" }]);
 
-      // Track progress (non-blocking)
-      trackProgress(currentTopic.name, subject, 50).catch(() => {});
+      // Track progress incrementally (non-blocking)
+      trackProgress(currentTopic.name, subject, 10).catch(() => {});
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
         console.error("Failed to teach topic:", error);
@@ -621,9 +621,8 @@ export default function CurriculumStudy() {
       currentTopic.name
     );
     
-    // Track learning progress
-    const progressScore = Math.round((newCompletedTopics.length / topics.length) * 100);
-    await trackProgress(currentTopic.name, subject, progressScore);
+    // Track learning progress incrementally - completing a topic = 20 XP increment
+    await trackProgress(currentTopic.name, subject, 20);
     
     if (nextIndex < topics.length) {
       setCurrentTopicIndex(nextIndex);

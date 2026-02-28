@@ -17,6 +17,8 @@ interface UserStats {
   streak: number;
 }
 
+const XP_PER_LEVEL = 200;
+
 const rankConfig: Record<string, { color: string; bgColor: string; icon: React.ElementType }> = {
   Beginner: { color: "text-muted-foreground", bgColor: "bg-muted", icon: Star },
   Learner: { color: "text-emerald-600 dark:text-emerald-400", bgColor: "bg-emerald-50 dark:bg-emerald-950/30", icon: Star },
@@ -30,7 +32,7 @@ export function UserOverview() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<{ display_name: string | null; avatar_url: string | null } | null>(null);
   const [stats, setStats] = useState<UserStats>({
-    level: 1, xp: 0, maxXp: 1000, rank: "Beginner", points: 0, streak: 0,
+    level: 1, xp: 0, maxXp: XP_PER_LEVEL, rank: "Beginner", points: 0, streak: 0,
   });
 
   useEffect(() => {
@@ -40,39 +42,70 @@ export function UserOverview() {
   const fetchUserData = async () => {
     if (!user) return;
 
-    const { data: profileData } = await externalSupabase
-      .from("profiles")
-      .select("display_name, avatar_url")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    const [profileRes, streakRes, sessionsRes, progressRes, badgeRes] = await Promise.all([
+      externalSupabase
+        .from("profiles")
+        .select("display_name, avatar_url")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      externalSupabase
+        .from("learning_streaks")
+        .select("current_streak")
+        .eq("user_id", user.id)
+        .maybeSingle(),
+      externalSupabase
+        .from("chat_sessions")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id),
+      externalSupabase
+        .from("learning_progress")
+        .select("score, attempts, mastered")
+        .eq("user_id", user.id),
+      externalSupabase
+        .from("user_badges")
+        .select("badge_id, badges:badges_public(points)")
+        .eq("user_id", user.id),
+    ]);
 
-    if (profileData) setProfile(profileData);
+    if (profileRes.data) setProfile(profileRes.data);
 
-    const { data: streakData } = await externalSupabase
-      .from("learning_streaks")
-      .select("current_streak")
-      .eq("user_id", user.id)
-      .maybeSingle();
+    // Calculate XP from multiple sources
+    const sessionCount = sessionsRes.count || 0;
+    const topicData = progressRes.data || [];
+    const badgeData = badgeRes.data || [];
+    const streak = streakRes.data?.current_streak || 0;
 
-    const { data: badgeData } = await externalSupabase
-      .from("user_badges")
-      .select("badge_id, badges:badges_public(points)")
-      .eq("user_id", user.id);
+    // XP sources:
+    // - Sessions: 10 XP each
+    // - Topic attempts: 5 XP per attempt
+    // - Mastered topics: 50 XP bonus each
+    // - Badge points: as earned
+    // - Streak bonus: streak * 5
+    const sessionXp = sessionCount * 10;
+    const attemptXp = topicData.reduce((s, t) => s + (t.attempts || 0) * 5, 0);
+    const masteredXp = topicData.filter(t => t.mastered).length * 50;
+    const badgeXp = badgeData.reduce((sum, b) => sum + ((b.badges as any)?.points || 0), 0);
+    const streakXp = streak * 5;
 
-    const totalPoints = badgeData?.reduce((sum, b) => {
-      const points = (b.badges as any)?.points || 0;
-      return sum + points;
-    }, 0) || 0;
+    const totalXp = sessionXp + attemptXp + masteredXp + badgeXp + streakXp;
 
-    const level = Math.floor(totalPoints / 100) + 1;
-    const xp = (totalPoints % 100) * 10;
+    const level = Math.floor(totalXp / XP_PER_LEVEL) + 1;
+    const xpInCurrentLevel = totalXp % XP_PER_LEVEL;
+
     let rank = "Beginner";
     if (level >= 20) rank = "Master";
     else if (level >= 15) rank = "Expert";
     else if (level >= 10) rank = "Scholar";
     else if (level >= 5) rank = "Learner";
 
-    setStats({ level, xp, maxXp: 1000, rank, points: totalPoints, streak: streakData?.current_streak || 0 });
+    setStats({
+      level,
+      xp: xpInCurrentLevel,
+      maxXp: XP_PER_LEVEL,
+      rank,
+      points: totalXp,
+      streak,
+    });
   };
 
   const displayName = profile?.display_name || user?.email?.split("@")[0] || "Learner";
@@ -112,15 +145,15 @@ export function UserOverview() {
 
       <div className="space-y-1.5">
         <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">XP Progress</span>
+          <span className="text-muted-foreground">XP to next level</span>
           <span className="font-medium text-foreground">{stats.xp}/{stats.maxXp}</span>
         </div>
         <Progress value={xpPercentage} className="h-2" />
       </div>
 
       <div className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-muted/50 border border-border">
-        <span className="text-xs text-muted-foreground">Total Points</span>
-        <span className="font-bold text-foreground">{stats.points} pts</span>
+        <span className="text-xs text-muted-foreground">Total XP</span>
+        <span className="font-bold text-foreground">{stats.points} XP</span>
       </div>
 
       <Button
