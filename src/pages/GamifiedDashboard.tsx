@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { externalSupabase } from "@/lib/external-supabase";
-import { Brain, BookOpen, FileText, ClipboardList, ArrowRight, Flame, Search, MessageSquare, Zap } from "lucide-react";
+import { Brain, BookOpen, FileText, ClipboardList, ArrowRight, Flame, Search, MessageSquare, Zap, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
 import { motion } from "framer-motion";
@@ -16,6 +16,8 @@ import { SubjectProgressWidget } from "@/components/dashboard/SubjectProgressWid
 import { LeaderboardSection } from "@/components/dashboard/LeaderboardSection";
 import { BadgesDisplay } from "@/components/badges/BadgesDisplay";
 import { QuickNotesWidget } from "@/components/dashboard/QuickNotesWidget";
+import { JoinWithCode } from "@/components/invitation/JoinWithCode";
+import { UserOverview } from "@/components/dashboard/UserOverview";
 
 const mainModes = [
   {
@@ -132,25 +134,37 @@ export default function GamifiedDashboard() {
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5 }}
-          className="pt-4 space-y-6"
+          className="pt-4 space-y-5"
         >
-          <div className="flex items-center justify-between">
+          {/* Top Row: Welcome + Streak + Usage */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
             <div>
               <p className="text-sm text-muted-foreground">Welcome back</p>
               <h1 className="text-2xl md:text-3xl font-bold text-foreground font-display">
                 {displayName}
               </h1>
             </div>
-            <div className="flex items-center gap-3">
-              {streak > 0 && (
-                <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-border">
-                  <Flame className="h-4 w-4 text-orange-500" />
-                  <span className="text-sm font-semibold text-foreground">{streak}</span>
-                </div>
-              )}
+            <div className="flex items-center gap-3 flex-wrap">
+              {/* Streak */}
+              <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-border">
+                <Flame className="h-4 w-4 text-orange-500" />
+                <span className="text-sm font-semibold text-foreground">{streak} day{streak !== 1 ? "s" : ""}</span>
+              </div>
+              {/* Questions solved */}
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-muted border border-border">
                 <MessageSquare className="h-4 w-4 text-primary" />
-                <span className="text-sm font-semibold text-foreground">{questionsSolved}</span>
+                <span className="text-sm font-semibold text-foreground">{questionsSolved} solved</span>
+              </div>
+              {/* Daily usage */}
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted border border-border">
+                <Zap className="h-4 w-4 text-primary" />
+                <div className="w-20 h-1.5 rounded-full bg-background overflow-hidden">
+                  <div
+                    className="h-full rounded-full bg-primary transition-all duration-500"
+                    style={{ width: `${Math.min((todayUsage / 50) * 100, 100)}%` }}
+                  />
+                </div>
+                <span className="text-xs font-semibold text-foreground">{todayUsage}/50</span>
               </div>
             </div>
           </div>
@@ -217,17 +231,10 @@ export default function GamifiedDashboard() {
           })}
         </div>
 
-        {/* Recent Doubts + Daily Goals Row */}
+        {/* Recent Doubts + Daily Goals */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-          {/* Recent Doubts */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35, duration: 0.5 }}
-          >
-            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">
-              Recent Doubts
-            </h3>
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.5 }}>
+            <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Recent Doubts</h3>
             {recentSessions.length > 0 ? (
               <div className="space-y-2">
                 {recentSessions.map((session) => (
@@ -259,25 +266,14 @@ export default function GamifiedDashboard() {
             )}
           </motion.div>
 
-          {/* Daily Goals */}
-          <motion.div
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.4, duration: 0.5 }}
-          >
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }}>
             <DailyQuestSection />
           </motion.div>
         </div>
 
         {/* Insights Grid */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.45, duration: 0.5 }}
-        >
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">
-            Insights & Progress
-          </h3>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.45, duration: 0.5 }}>
+          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-4">Insights & Progress</h3>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             <WeeklyActivityWidget />
             <StudyStreakCalendar />
@@ -285,39 +281,28 @@ export default function GamifiedDashboard() {
           </div>
         </motion.div>
 
-        {/* Achievements + Leaderboard + Notes */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.5, duration: 0.5 }}
-        >
+        {/* Achievements + Leaderboard + Connect */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.5, duration: 0.5 }}>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             <BadgesDisplay />
             <LeaderboardSection />
-            <QuickNotesWidget />
+            <div className="space-y-5">
+              {/* Teacher Connect */}
+              <div className="rounded-2xl border border-border bg-card p-5">
+                <div className="flex items-center gap-2 mb-3">
+                  <UserPlus className="h-4 w-4 text-primary" />
+                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Connect with Teacher</h3>
+                </div>
+                {user && <JoinWithCode />}
+              </div>
+              <QuickNotesWidget />
+            </div>
           </div>
         </motion.div>
 
-        {/* Usage Bar */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={{ delay: 0.55, duration: 0.5 }}
-          className="flex items-center justify-between px-5 py-3 rounded-2xl border border-border bg-card"
-        >
-          <div className="flex items-center gap-2">
-            <Zap className="h-4 w-4 text-primary" />
-            <span className="text-sm text-muted-foreground">Today's usage</span>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="w-32 h-2 rounded-full bg-muted overflow-hidden">
-              <div
-                className="h-full rounded-full bg-primary transition-all duration-500"
-                style={{ width: `${Math.min((todayUsage / 50) * 100, 100)}%` }}
-              />
-            </div>
-            <span className="text-sm font-semibold text-foreground">{todayUsage} / 50</span>
-          </div>
+        {/* XP & Profile Overview */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55, duration: 0.5 }}>
+          <UserOverview />
         </motion.div>
       </div>
     </AppLayout>
