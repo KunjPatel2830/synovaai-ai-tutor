@@ -71,12 +71,12 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
 
   const studentLinks = [
     { to: "/dashboard", icon: LayoutDashboard, label: "Dashboard" },
-    { to: "/curriculum-study", icon: BookOpen, label: "Curriculum Study" },
     { to: "/tutor", icon: Brain, label: "AI Tutor" },
+    { to: "/curriculum-study", icon: BookOpen, label: "Curriculum Study" },
     { to: "/homework", icon: FileText, label: "Homework Help" },
+    { to: "/exam-prep", icon: ClipboardList, label: "Exam Prep" },
     { to: "/voice-tutor", icon: Mic, label: "Voice Tutor" },
     { to: "/language-practice", icon: Globe, label: "Language Practice" },
-    { to: "/exam-prep", icon: ClipboardList, label: "Exam Prep" },
     { to: "/doubt-solver", icon: HelpCircle, label: "Doubt Solver" },
     { to: "/study-planner", icon: Calendar, label: "Study Planner" },
     { to: "/peer-mode", icon: Users, label: "Peer Mode" },
