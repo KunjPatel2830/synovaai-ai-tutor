@@ -28,54 +28,54 @@ export function useAuthRateLimiter(): UseAuthRateLimiterReturn {
   const progressiveDelayThreshold = 3; // Start adding delay after this many failures
 
   const waitForRateLimit = useCallback(async (): Promise<void> => {
-    const now = Date.now();
-    const timeSinceLastRequest = now - lastRequestTime.current;
-    
-    // Calculate required delay based on failed attempts
-    let requiredDelay = minDelayMs;
-    if (failedAttemptCount.current >= progressiveDelayThreshold) {
-      requiredDelay += (failedAttemptCount.current - progressiveDelayThreshold + 1) * progressiveDelayMs;
+    try {
+      const now = Date.now();
+      const timeSinceLastRequest = now - lastRequestTime.current;
+      
+      // Calculate required delay based on failed attempts
+      let requiredDelay = minDelayMs;
+      if (failedAttemptCount.current >= progressiveDelayThreshold) {
+        requiredDelay += (failedAttemptCount.current - progressiveDelayThreshold + 1) * progressiveDelayMs;
+      }
+      
+      const waitTime = Math.max(0, requiredDelay - timeSinceLastRequest);
+      
+      if (waitTime > 0) {
+        await new Promise((resolve) => setTimeout(resolve, waitTime));
+      }
+      
+      lastRequestTime.current = Date.now();
+    } catch {
+      // Never block auth flow
     }
-    
-    const waitTime = Math.max(0, requiredDelay - timeSinceLastRequest);
-    
-    if (waitTime > 0) {
-      await new Promise((resolve) => setTimeout(resolve, waitTime));
-    }
-    
-    lastRequestTime.current = Date.now();
   }, []);
 
   const checkLockout = useCallback(async (email: string): Promise<LockoutStatus> => {
     setIsChecking(true);
     
+    const defaultStatus: LockoutStatus = {
+      isLocked: false,
+      lockedUntil: null,
+      failedAttempts: 0,
+      remainingSeconds: 0
+    };
+    
     try {
-      const { data, error } = await supabase.rpc('check_login_lockout', {
+      // Add 3s timeout so RPC can't hang the login flow
+      const rpcPromise = supabase.rpc('check_login_lockout', {
         check_email: email
       });
-
-      if (error) {
-        console.error('Error checking lockout status:', error);
-        // On error, allow the attempt but log it
-        return {
-          isLocked: false,
-          lockedUntil: null,
-          failedAttempts: 0,
-          remainingSeconds: 0
-        };
-      }
-
-      const result = data?.[0];
+      const timeoutPromise = new Promise<never>((_, reject) => 
+        setTimeout(() => reject(new Error('timeout')), 3000)
+      );
       
-      if (!result) {
-        return {
-          isLocked: false,
-          lockedUntil: null,
-          failedAttempts: 0,
-          remainingSeconds: 0
-        };
+      const { data, error } = await Promise.race([rpcPromise, timeoutPromise]);
+
+      if (error || !data?.[0]) {
+        return defaultStatus;
       }
 
+      const result = data[0];
       const lockedUntil = result.locked_until ? new Date(result.locked_until) : null;
       const remainingSeconds = lockedUntil 
         ? Math.max(0, Math.ceil((lockedUntil.getTime() - Date.now()) / 1000))
@@ -90,6 +90,9 @@ export function useAuthRateLimiter(): UseAuthRateLimiterReturn {
 
       setLockoutStatus(status);
       return status;
+    } catch {
+      // On any error/timeout, allow the attempt
+      return defaultStatus;
     } finally {
       setIsChecking(false);
     }
@@ -97,20 +100,24 @@ export function useAuthRateLimiter(): UseAuthRateLimiterReturn {
 
   const recordAttempt = useCallback(async (email: string, success: boolean): Promise<void> => {
     try {
-      await supabase.rpc('record_login_attempt', {
+      // Fire and forget with timeout - don't block auth flow
+      const rpcPromise = supabase.rpc('record_login_attempt', {
         attempt_email: email,
         attempt_success: success,
-        attempt_ip: null // We don't have access to IP from client-side
+        attempt_ip: null
       });
+      await Promise.race([
+        rpcPromise,
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+      ]);
 
-      // Update client-side counter
       if (success) {
         failedAttemptCount.current = 0;
       } else {
         failedAttemptCount.current += 1;
       }
-    } catch (error) {
-      console.error('Error recording login attempt:', error);
+    } catch {
+      // Never block auth flow
     }
   }, []);
 
