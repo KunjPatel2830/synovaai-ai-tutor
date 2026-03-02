@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback } from 'react';
-import { externalSupabase } from '@/lib/external-supabase';
+import { supabase } from '@/integrations/supabase/client';
 
 interface LockoutStatus {
   isLocked: boolean;
@@ -50,7 +50,7 @@ export function useAuthRateLimiter(): UseAuthRateLimiterReturn {
     setIsChecking(true);
     
     try {
-      const { data, error } = await externalSupabase.rpc('check_login_lockout', {
+      const { data, error } = await supabase.rpc('check_login_lockout', {
         check_email: email
       });
 
@@ -97,7 +97,7 @@ export function useAuthRateLimiter(): UseAuthRateLimiterReturn {
 
   const recordAttempt = useCallback(async (email: string, success: boolean): Promise<void> => {
     try {
-      await externalSupabase.rpc('record_login_attempt', {
+      await supabase.rpc('record_login_attempt', {
         attempt_email: email,
         attempt_success: success,
         attempt_ip: null // We don't have access to IP from client-side
