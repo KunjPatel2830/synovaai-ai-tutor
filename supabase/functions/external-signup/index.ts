@@ -3,14 +3,14 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 type SignupRole = "student" | "teacher" | "caregiver";
 
-const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? "";
-const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ?? "";
-const EXTERNAL_SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 
 function respond(body: unknown) {
   return new Response(JSON.stringify(body), {
@@ -25,24 +25,18 @@ serve(async (req) => {
   }
 
   try {
-    if (!EXTERNAL_SUPABASE_URL || !EXTERNAL_SUPABASE_ANON_KEY || !EXTERNAL_SUPABASE_SERVICE_ROLE_KEY) {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY || !SUPABASE_SERVICE_ROLE_KEY) {
       return respond({ error: "Server misconfigured" });
     }
 
     const payload = (await req.json().catch(() => null)) as
-      | {
-          email?: string;
-          password?: string;
-          displayName?: string;
-          role?: string;
-        }
+      | { email?: string; password?: string; displayName?: string; role?: string }
       | null;
 
     const email = (payload?.email ?? "").trim().toLowerCase();
     const password = payload?.password ?? "";
     const displayName = (payload?.displayName ?? "").trim();
 
-    // Security: never allow 'admin' signup from public endpoint
     const allowedRoles: SignupRole[] = ["student", "teacher", "caregiver"];
     const requestedRole = (payload?.role ?? "student").trim();
     const role: SignupRole = allowedRoles.includes(requestedRole as SignupRole)
@@ -53,18 +47,17 @@ serve(async (req) => {
     if (!password || password.length < 6) return respond({ error: "Password must be at least 6 characters" });
     if (!displayName) return respond({ error: "Name is required" });
 
-    // Admin client (service role) for user creation + provisioning
-    const admin = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_SERVICE_ROLE_KEY, {
+    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
     });
 
     const { data: created, error: createError } = await admin.auth.admin.createUser({
       email,
       password,
-      email_confirm: true, // makes login work immediately (no email verification)
+      email_confirm: true,
       user_metadata: {
         display_name: displayName,
-        role, // metadata is not used for authZ; real role is stored in user_roles
+        role,
       },
     });
 
@@ -79,7 +72,7 @@ serve(async (req) => {
     const userId = created.user?.id;
     if (!userId) return respond({ error: "Signup succeeded but user was not returned" });
 
-    // Provision app tables (idempotent)
+    // Provision app tables (idempotent) - triggers should handle this but just in case
     await admin.from("profiles").upsert(
       { user_id: userId, display_name: displayName },
       { onConflict: "user_id" },
@@ -95,8 +88,7 @@ serve(async (req) => {
       { onConflict: "user_id" },
     );
 
-    // Return a real session so the frontend can immediately open the app
-    const authClient = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_ANON_KEY, {
+    const authClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
       auth: { persistSession: false },
     });
 

@@ -3,11 +3,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? "";
-const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
 const MAX_QUESTION_LENGTH = 4000;
 const MAX_SUBJECT_LENGTH = 100;
@@ -27,7 +27,7 @@ async function requireUser(req: Request): Promise<{ userId: string } | { error: 
     return { error: jsonResponse({ error: "Unauthorized" }, { status: 401 }) };
   }
 
-  const userSupabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_ANON_KEY, {
+  const userSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } }
   });
 
@@ -132,8 +132,6 @@ ${contextValidation.value ? `Context: ${contextValidation.value}` : ""}
 
 Be encouraging and patient!`;
 
-    console.log("[homework-assist] Calling Lovable AI Gateway");
-
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
       headers: {
@@ -169,7 +167,6 @@ Be encouraging and patient!`;
       return jsonResponse({ error: "AI returned empty response." }, { status: 502 });
     }
 
-    console.log("[homework-assist] Success, reply length:", reply.length);
     return jsonResponse({ reply });
   } catch (error) {
     console.error("Error in homework-assist:", error);

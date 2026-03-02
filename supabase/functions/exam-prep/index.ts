@@ -3,11 +3,11 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
-const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? "";
-const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
+const SUPABASE_ANON_KEY = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
 
 const MAX_SUBJECT_LENGTH = 100;
 const MAX_TOPIC_LENGTH = 200;
@@ -29,7 +29,7 @@ async function requireUser(req: Request): Promise<{ userId: string } | { error: 
     return { error: jsonResponse({ error: "Unauthorized" }, { status: 401 }) };
   }
 
-  const userSupabase = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_ANON_KEY, {
+  const userSupabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
     global: { headers: { Authorization: authHeader } }
   });
 
@@ -81,19 +81,13 @@ serve(async (req) => {
     }
 
     const subjectValidation = validateString(subject, "Subject", MAX_SUBJECT_LENGTH, true);
-    if (!subjectValidation.valid) {
-      return jsonResponse({ error: subjectValidation.error }, { status: 400 });
-    }
+    if (!subjectValidation.valid) return jsonResponse({ error: subjectValidation.error }, { status: 400 });
 
     const topicValidation = validateString(topic, "Topic", MAX_TOPIC_LENGTH, true);
-    if (!topicValidation.valid) {
-      return jsonResponse({ error: topicValidation.error }, { status: 400 });
-    }
+    if (!topicValidation.valid) return jsonResponse({ error: topicValidation.error }, { status: 400 });
 
     const difficultyValidation = validateString(difficulty, "Difficulty", MAX_DIFFICULTY_LENGTH, false);
-    if (!difficultyValidation.valid) {
-      return jsonResponse({ error: difficultyValidation.error }, { status: 400 });
-    }
+    if (!difficultyValidation.valid) return jsonResponse({ error: difficultyValidation.error }, { status: 400 });
 
     const validatedDifficulty = difficultyValidation.value.toLowerCase();
     if (validatedDifficulty && !VALID_DIFFICULTIES.includes(validatedDifficulty)) {
@@ -101,9 +95,7 @@ serve(async (req) => {
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("AI provider is not configured");
-    }
+    if (!LOVABLE_API_KEY) throw new Error("AI provider is not configured");
 
     const curriculumGuide: Record<string, string> = {
       "CBSE": "Generate questions in CBSE board exam style.",
@@ -116,11 +108,8 @@ serve(async (req) => {
       "General": "Create standard practice questions."
     };
 
-    const selectedCurriculum = curriculum && curriculumGuide[curriculum] 
-      ? curriculumGuide[curriculum] 
-      : curriculumGuide["General"];
+    const selectedCurriculum = curriculum && curriculumGuide[curriculum] ? curriculumGuide[curriculum] : curriculumGuide["General"];
     const safeCurriculum = curriculum || "General";
-
     const safeSubject = subjectValidation.value;
     const safeTopic = topicValidation.value;
     const safeDifficulty = validatedDifficulty || "medium";
@@ -147,7 +136,7 @@ RESPONSE FORMAT (JSON only, no markdown):
   ]
 }`;
       userPrompt = `Generate 5 ${safeDifficulty} level ${safeCurriculum} curriculum questions for ${safeSubject} on: ${safeTopic}`;
-    } else if (action === "study_plan") {
+    } else {
       systemPrompt = `You are a study planner.
 
 RESPONSE FORMAT (JSON only, no markdown):
@@ -164,11 +153,7 @@ RESPONSE FORMAT (JSON only, no markdown):
   "focusAreas": ["area1", "area2"]
 }`;
       userPrompt = `Create a study plan for ${safeSubject} covering: ${safeTopic}. Difficulty: ${safeDifficulty}`;
-    } else {
-      return jsonResponse({ error: "Unknown action" }, { status: 400 });
     }
-
-    console.log("[exam-prep] Calling Lovable AI Gateway");
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -188,22 +173,14 @@ RESPONSE FORMAT (JSON only, no markdown):
     if (!response.ok) {
       const errText = await response.text();
       console.error("[exam-prep] AI gateway error:", response.status, errText);
-
-      if (response.status === 429) {
-        return jsonResponse({ error: "Rate limit exceeded. Please wait and try again." }, { status: 429 });
-      }
-      if (response.status === 402) {
-        return jsonResponse({ error: "AI credits exhausted. Please add credits in Settings → Usage." }, { status: 402 });
-      }
+      if (response.status === 429) return jsonResponse({ error: "Rate limit exceeded." }, { status: 429 });
+      if (response.status === 402) return jsonResponse({ error: "AI credits exhausted." }, { status: 402 });
       return jsonResponse({ error: "AI service temporarily unavailable." }, { status: 502 });
     }
 
     const data = await response.json();
     const content = data.choices?.[0]?.message?.content || "";
-
-    if (!content) {
-      return jsonResponse({ error: "AI returned empty response." }, { status: 502 });
-    }
+    if (!content) return jsonResponse({ error: "AI returned empty response." }, { status: 502 });
 
     const cleaned = content.replace(/^```json\s*/i, "").replace(/```\s*$/i, "").trim();
 
