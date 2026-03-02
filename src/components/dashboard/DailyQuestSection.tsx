@@ -2,17 +2,21 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { externalSupabase } from "@/lib/external-supabase";
+import { GlassCard } from "@/components/ui/glass-card";
+import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
-import {
-  Target,
-  BookOpen,
-  Star,
+import { 
+  Target, 
+  BookOpen, 
+  Star, 
   CheckCircle2,
+  Clock,
   Brain,
-  Mic,
+  Mic
 } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 interface Quest {
   id: string;
@@ -29,20 +33,51 @@ export function DailyQuestSection() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [quests, setQuests] = useState<Quest[]>([
-    { id: "sessions", title: "Complete 2 sessions", icon: BookOpen, xpReward: 50, progress: 0, target: 2, completed: false, path: "/curriculum-study" },
-    { id: "tutor", title: "Ask AI Tutor", icon: Brain, xpReward: 25, progress: 0, target: 1, completed: false, path: "/tutor" },
-    { id: "voice", title: "Voice practice", icon: Mic, xpReward: 30, progress: 0, target: 1, completed: false, path: "/voice-tutor" },
+    {
+      id: "sessions",
+      title: "Complete 2 learning sessions",
+      icon: BookOpen,
+      xpReward: 50,
+      progress: 0,
+      target: 2,
+      completed: false,
+      path: "/curriculum-study",
+    },
+    {
+      id: "tutor",
+      title: "Ask AI Tutor a question",
+      icon: Brain,
+      xpReward: 25,
+      progress: 0,
+      target: 1,
+      completed: false,
+      path: "/tutor",
+    },
+    {
+      id: "voice",
+      title: "Practice with Voice Tutor",
+      icon: Mic,
+      xpReward: 30,
+      progress: 0,
+      target: 1,
+      completed: false,
+      path: "/voice-tutor",
+    },
   ]);
 
   useEffect(() => {
-    if (user) fetchQuestProgress();
+    if (user) {
+      fetchQuestProgress();
+    }
   }, [user]);
 
   const fetchQuestProgress = async () => {
     if (!user) return;
+
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
+    // Fetch today's sessions
     const { data: sessions } = await externalSupabase
       .from("chat_sessions")
       .select("id, mode")
@@ -51,70 +86,137 @@ export function DailyQuestSection() {
 
     if (sessions) {
       const sessionCount = sessions.length;
-      const hasTutor = sessions.some(s => s.mode === "tutor" || s.mode === "doubt");
-      const hasVoice = sessions.some(s => s.mode === "voice");
+      const hasTutorSession = sessions.some(s => s.mode === "tutor" || s.mode === "doubt");
+      const hasVoiceSession = sessions.some(s => s.mode === "voice");
 
       setQuests(prev => prev.map(quest => {
         if (quest.id === "sessions") {
-          const p = Math.min(sessionCount, quest.target);
-          return { ...quest, progress: p, completed: p >= quest.target };
+          const progress = Math.min(sessionCount, quest.target);
+          return { ...quest, progress, completed: progress >= quest.target };
         }
-        if (quest.id === "tutor") return { ...quest, progress: hasTutor ? 1 : 0, completed: hasTutor };
-        if (quest.id === "voice") return { ...quest, progress: hasVoice ? 1 : 0, completed: hasVoice };
+        if (quest.id === "tutor") {
+          return { ...quest, progress: hasTutorSession ? 1 : 0, completed: hasTutorSession };
+        }
+        if (quest.id === "voice") {
+          return { ...quest, progress: hasVoiceSession ? 1 : 0, completed: hasVoiceSession };
+        }
         return quest;
       }));
+    }
+  };
+
+  const handleQuestClick = (quest: Quest) => {
+    if (!quest.completed) {
+      navigate(quest.path);
     }
   };
 
   const completedCount = quests.filter(q => q.completed).length;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Target className="h-4 w-4 text-amber-500" />
-          <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Daily Goals</h3>
+    <GlassCard variant="elevated" className="p-6 relative overflow-hidden">
+      {/* Background decoration */}
+      <div className="absolute top-0 right-0 w-32 h-32 bg-gradient-to-bl from-warning/10 to-transparent rounded-full blur-2xl" />
+      
+      <div className="flex items-center justify-between mb-5 relative">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-warning to-warning/80 flex items-center justify-center shadow-lg">
+            <Target className="h-5 w-5 text-warning-foreground" />
+          </div>
+          <div>
+            <h3 className="text-lg font-bold text-foreground font-display">Daily Goals</h3>
+            <p className="text-xs text-muted-foreground">{completedCount}/{quests.length} completed</p>
+          </div>
         </div>
-        <span className="text-xs font-medium text-muted-foreground">{completedCount}/{quests.length}</span>
+        
+        {/* Progress ring */}
+        <div className="relative h-12 w-12">
+          <svg className="h-12 w-12 -rotate-90" viewBox="0 0 36 36">
+            <path
+              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              fill="none"
+              stroke="hsl(var(--muted))"
+              strokeWidth="3"
+            />
+            <path
+              d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+              fill="none"
+              stroke="hsl(var(--success))"
+              strokeWidth="3"
+              strokeDasharray={`${(completedCount / quests.length) * 100}, 100`}
+              className="transition-all duration-500"
+            />
+          </svg>
+          <span className="absolute inset-0 flex items-center justify-center text-sm font-bold text-foreground">
+            {Math.round((completedCount / quests.length) * 100)}%
+          </span>
+        </div>
       </div>
 
-      <div className="space-y-2.5">
-        {quests.map((quest) => {
+      <div className="space-y-3 relative">
+        {quests.map((quest, index) => {
           const Icon = quest.icon;
+          const progressPercent = (quest.progress / quest.target) * 100;
+
           return (
             <div
               key={quest.id}
-              onClick={() => !quest.completed && navigate(quest.path)}
+              onClick={() => handleQuestClick(quest)}
               className={cn(
-                "p-3 rounded-lg border transition-all cursor-pointer",
-                quest.completed
-                  ? "bg-emerald-50 dark:bg-emerald-950/30 border-emerald-200 dark:border-emerald-800"
-                  : "bg-background border-border hover:border-primary/40"
+                "p-4 rounded-2xl border-2 transition-all cursor-pointer group",
+                quest.completed 
+                  ? "bg-gradient-to-r from-success/10 to-success/5 border-success/40 shadow-sm" 
+                  : "bg-muted/20 border-border/50 hover:border-primary/40 hover:bg-muted/40 hover:shadow-md"
               )}
+              style={{ animationDelay: `${index * 100}ms` }}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-4">
+                {/* Icon */}
                 <div className={cn(
-                  "h-8 w-8 rounded-lg flex items-center justify-center shrink-0",
-                  quest.completed
-                    ? "bg-emerald-100 dark:bg-emerald-900/50 text-emerald-600 dark:text-emerald-400"
-                    : "bg-muted text-muted-foreground"
+                  "h-12 w-12 rounded-xl flex items-center justify-center shrink-0 shadow-md transition-all group-hover:scale-105",
+                  quest.completed 
+                    ? "bg-gradient-to-br from-success to-success/80 text-success-foreground" 
+                    : "bg-gradient-to-br from-primary/20 to-accent/20 text-primary"
                 )}>
-                  {quest.completed ? <CheckCircle2 className="h-4 w-4" /> : <Icon className="h-4 w-4" />}
+                  {quest.completed ? (
+                    <CheckCircle2 className="h-6 w-6" />
+                  ) : (
+                    <Icon className="h-6 w-6" />
+                  )}
                 </div>
+
+                {/* Content */}
                 <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-1">
-                    <span className="text-sm font-medium text-foreground">{quest.title}</span>
-                    <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-5">
-                      <Star className="h-2.5 w-2.5 mr-0.5" />+{quest.xpReward}
+                  <div className="flex items-center justify-between gap-2 mb-2">
+                    <h4 className="font-semibold text-foreground text-sm">{quest.title}</h4>
+                    <Badge 
+                      variant="secondary" 
+                      className={cn(
+                        "shrink-0 text-xs font-bold px-3",
+                        quest.completed && "bg-success/20 text-success border-success/30"
+                      )}
+                    >
+                      <Star className="h-3 w-3 mr-1" />
+                      +{quest.xpReward} XP
                     </Badge>
                   </div>
-                  <Progress value={(quest.progress / quest.target) * 100} className="h-1.5" />
+
+                  {/* Progress */}
+                  <div className="space-y-1.5">
+                    <Progress value={progressPercent} className="h-2" />
+                    <p className={cn(
+                      "text-xs font-medium",
+                      quest.completed ? "text-success" : "text-muted-foreground"
+                    )}>
+                      {quest.progress}/{quest.target} {quest.completed && "✓ Complete!"}
+                    </p>
+                  </div>
                 </div>
               </div>
             </div>
           );
         })}
       </div>
-    </div>
+    </GlassCard>
   );
 }

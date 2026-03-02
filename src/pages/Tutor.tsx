@@ -312,8 +312,9 @@ export default function Tutor() {
         ).catch(() => {});
       }
       
-      // Track progress incrementally (non-blocking)
-      trackProgress(topic, subject, 10).catch(() => {});
+      // Track progress (non-blocking)
+      const currentScore = Math.min(80, 10 + messages.length * 5);
+      trackProgress(topic, subject, currentScore).catch(() => {});
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
         const msg = error instanceof Error ? error.message : "Unknown error";

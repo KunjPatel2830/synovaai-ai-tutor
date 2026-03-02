@@ -10,6 +10,7 @@ export function useProgressTracker() {
 
     const today = new Date().toISOString().split("T")[0];
 
+    // Get current streak data
     const { data: streakData } = await externalSupabase
       .from("learning_streaks")
       .select("*")
@@ -17,6 +18,7 @@ export function useProgressTracker() {
       .maybeSingle();
 
     if (!streakData) {
+      // Create streak record if it doesn't exist
       await externalSupabase.from("learning_streaks").insert({
         user_id: user.id,
         current_streak: 1,
@@ -27,6 +29,8 @@ export function useProgressTracker() {
     }
 
     const lastActivity = streakData.last_activity_date;
+    
+    // Already updated today
     if (lastActivity === today) return;
 
     const yesterday = new Date();
@@ -35,6 +39,7 @@ export function useProgressTracker() {
 
     let newStreak = 1;
     if (lastActivity === yesterdayStr) {
+      // Consecutive day - increment streak
       newStreak = (streakData.current_streak || 0) + 1;
     }
 
@@ -50,21 +55,14 @@ export function useProgressTracker() {
       .eq("user_id", user.id);
   }, [user]);
 
-  /**
-   * Track progress for a topic. Score is incremental:
-   * - Each interaction adds points based on quality (scoreIncrement)
-   * - Score caps at 100 and grows gradually over multiple interactions
-   * - mastered = true when score reaches 80+
-   */
   const trackProgress = useCallback(
-    async (topic: string, subject: string, scoreIncrement: number = 10) => {
+    async (topic: string, subject: string, score: number = 50) => {
       if (!user) return;
 
+      // Update streak first
       await updateStreak();
 
-      // Clamp increment to reasonable range
-      const increment = Math.max(1, Math.min(scoreIncrement, 25));
-
+      // Check if progress for this topic exists
       const { data: existingProgress } = await externalSupabase
         .from("learning_progress")
         .select("*")
@@ -73,11 +71,10 @@ export function useProgressTracker() {
         .maybeSingle();
 
       if (existingProgress) {
+        // Update existing progress
         const newAttempts = (existingProgress.attempts || 0) + 1;
-        // Gradual increase: add increment but cap at 100
-        const currentScore = existingProgress.score || 0;
-        const newScore = Math.min(100, currentScore + increment);
-
+        const newScore = Math.min(100, Math.max(score, existingProgress.score || 0));
+        
         await externalSupabase
           .from("learning_progress")
           .update({
@@ -85,19 +82,17 @@ export function useProgressTracker() {
             attempts: newAttempts,
             last_studied_at: new Date().toISOString(),
             mastered: newScore >= 80,
-            difficulty_level: Math.min(5, Math.floor(newAttempts / 3) + 1),
           })
           .eq("id", existingProgress.id);
       } else {
-        // First interaction: start low, not at 50%
+        // Create new progress record
         await externalSupabase.from("learning_progress").insert({
           user_id: user.id,
           topic,
-          score: increment,
+          score,
           attempts: 1,
           last_studied_at: new Date().toISOString(),
-          mastered: false,
-          difficulty_level: 1,
+          mastered: score >= 80,
         });
       }
     },

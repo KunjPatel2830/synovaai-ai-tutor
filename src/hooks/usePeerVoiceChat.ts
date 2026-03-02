@@ -73,7 +73,7 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
           from_user_id: userId,
           to_user_id: peerId,
           signal_type: 'ice-candidate',
-          signal_data: event.candidate.toJSON() as any,
+          signal_data: event.candidate.toJSON(),
         });
       }
     };
@@ -110,7 +110,7 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
           from_user_id: userId,
           to_user_id: peerId,
           signal_type: 'offer',
-          signal_data: { sdp: offer.sdp, type: offer.type } as any,
+          signal_data: { sdp: offer.sdp, type: offer.type },
         });
       }
     } else if (signal.signal_type === 'offer') {
@@ -131,7 +131,7 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
           from_user_id: userId,
           to_user_id: peerId,
           signal_type: 'answer',
-          signal_data: { sdp: answer.sdp, type: answer.type } as any,
+          signal_data: { sdp: answer.sdp, type: answer.type },
         });
       }
     } else if (signal.signal_type === 'answer') {
@@ -218,7 +218,7 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
         from_user_id: userId,
         to_user_id: null,
         signal_type: 'join',
-        signal_data: { timestamp: Date.now() } as any,
+        signal_data: { timestamp: Date.now() },
       });
 
       toast({
@@ -247,7 +247,7 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
       from_user_id: userId,
       to_user_id: null,
       signal_type: 'leave',
-      signal_data: { timestamp: Date.now() } as any,
+      signal_data: { timestamp: Date.now() },
     });
 
     // Close all peer connections

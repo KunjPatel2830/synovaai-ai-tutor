@@ -234,9 +234,8 @@ export default function ExamPrep() {
 
       const score = Math.round((correct / questions.length) * 100);
       
-      // Track progress incrementally based on exam performance
-      const increment = Math.max(5, Math.round(score / 10));
-      await trackProgress(`Exam: ${topic}`, subject, increment);
+      // Track progress with the exam score
+      await trackProgress(`Exam: ${topic}`, subject, score);
       
       // Track help request for questions they got wrong
       const wrongQuestions = feedback.filter(f => !f.correct);

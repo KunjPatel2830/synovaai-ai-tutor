@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useRef, useState, useCallback } from 'react';
 import { User, Session } from '@supabase/supabase-js';
+import { externalSupabase } from '@/lib/external-supabase';
 import { supabase } from '@/integrations/supabase/client';
 import { logError } from '@/lib/security';
 
@@ -19,8 +20,13 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+/**
+ * Clear all sensitive data from local state and storage
+ */
 function clearSensitiveData() {
+  // Clear any cached user data from sessionStorage (if used)
   try {
+    // Only clear app-specific keys, not the Supabase auth tokens (handled by Supabase)
     const keysToRemove = [];
     for (let i = 0; i < sessionStorage.length; i++) {
       const key = sessionStorage.key(i);
@@ -41,12 +47,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
 
+  // Prevent auth flicker by keeping "latest user" in a ref (avoids effect re-subscribing loops)
   const userRef = useRef<User | null>(null);
   const initializedRef = useRef(false);
 
   const fetchUserRole = async (userId: string) => {
     try {
-      const { data, error } = await supabase
+      const { data, error } = await externalSupabase
         .from('user_roles')
         .select('role')
         .eq('user_id', userId)
@@ -62,6 +69,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
+  const createProfileIfNeeded = async (userId: string, session: Session) => {
+    try {
+      const { error } = await supabase.functions.invoke('external-create-profile', {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      
+      if (error) {
+        logError('Error creating profile', error, { code: 'profile_create_error' });
+      }
+    } catch (err) {
+      logError('Failed to create profile', err);
+    }
+  };
+
+  /**
+   * Handle session expiry - clear state and mark as expired
+   */
   const handleSessionExpiry = useCallback(() => {
     setUser(null);
     setSession(null);
@@ -70,6 +96,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     clearSensitiveData();
   }, []);
 
+  /**
+   * Clear the session expired flag (after user acknowledges or navigates to login)
+   */
   const clearSessionExpired = useCallback(() => {
     setSessionExpired(false);
   }, []);
@@ -77,8 +106,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     let active = true;
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, nextSession) => {
+    // Subscribe once (do NOT re-subscribe when `user` changes)
+    const { data: { subscription } } = externalSupabase.auth.onAuthStateChange((event, nextSession) => {
       if (!active) return;
+
+      // During initialization we rely on the explicit getSession() below to avoid redirect flicker.
       if (!initializedRef.current) return;
 
       if (event === 'SIGNED_OUT') {
@@ -99,9 +131,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     });
 
+    // Initialize session state once
     (async () => {
       try {
-        const { data, error } = await supabase.auth.getSession();
+        const { data, error } = await externalSupabase.auth.getSession();
         if (error) {
           logError('Error getting session', error);
           handleSessionExpiry();
@@ -110,6 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
         const nextSession = data.session;
 
+        // Check if session is expired
         if (nextSession?.expires_at) {
           const expiresAt = new Date(nextSession.expires_at * 1000);
           if (expiresAt < new Date()) {
@@ -135,9 +169,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
 
+    // Periodic sanity check for unexpected session loss
     const sessionCheckInterval = setInterval(async () => {
       try {
-        const { data } = await supabase.auth.getSession();
+        const { data } = await externalSupabase.auth.getSession();
         if (!data.session && userRef.current) {
           handleSessionExpiry();
         }
@@ -155,29 +190,46 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, displayName: string, role: AppRole) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            display_name: displayName,
-            role,
-          },
+      const { data, error } = await supabase.functions.invoke('external-signup', {
+        body: {
+          email,
+          password,
+          displayName,
+          role,
         },
       });
 
       if (error) {
-        logError('Signup error', error);
-        return { error };
+        logError('Signup edge function error', error);
+        return { error: new Error(error.message) };
       }
 
-      if (!data.session) {
-        return { error: new Error('Signup succeeded but no session returned. Please try signing in.') };
+      if ((data as any)?.error) {
+        return { error: new Error((data as any).error) };
       }
 
-      // Update local state immediately
-      setSession(data.session);
-      setUser(data.session.user);
+      const access_token = (data as any)?.access_token as string | undefined;
+      const refresh_token = (data as any)?.refresh_token as string | undefined;
+
+      if (!access_token || !refresh_token) {
+        return { error: new Error('Signup failed: no session returned') };
+      }
+
+      const { data: sessionData, error: setSessionError } = await externalSupabase.auth.setSession({
+        access_token,
+        refresh_token,
+      });
+
+      if (setSessionError) {
+        logError('Error setting session', setSessionError);
+        return { error: setSessionError };
+      }
+
+      const nextSession = sessionData.session ?? (await externalSupabase.auth.getSession()).data.session;
+
+      // Update local state immediately to avoid redirect bounce
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
       setUserRole(role);
       setSessionExpired(false);
 
@@ -190,7 +242,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { error } = await externalSupabase.auth.signInWithPassword({
         email,
         password,
       });
@@ -208,10 +260,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signOut = async () => {
     try {
-      await supabase.auth.signOut();
+      await externalSupabase.auth.signOut();
     } catch (err) {
       logError('SignOut exception', err);
     }
+    // Always clear local state even if signOut fails
     setUser(null);
     setSession(null);
     setUserRole(null);

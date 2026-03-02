@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { externalSupabase } from "@/lib/external-supabase";
+import { GlassCard } from "@/components/ui/glass-card";
 import { Progress } from "@/components/ui/progress";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -17,14 +18,12 @@ interface UserStats {
   streak: number;
 }
 
-const XP_PER_LEVEL = 200;
-
 const rankConfig: Record<string, { color: string; bgColor: string; icon: React.ElementType }> = {
   Beginner: { color: "text-muted-foreground", bgColor: "bg-muted", icon: Star },
-  Learner: { color: "text-emerald-600 dark:text-emerald-400", bgColor: "bg-emerald-50 dark:bg-emerald-950/30", icon: Star },
-  Scholar: { color: "text-blue-600 dark:text-blue-400", bgColor: "bg-blue-50 dark:bg-blue-950/30", icon: Trophy },
-  Expert: { color: "text-amber-600 dark:text-amber-400", bgColor: "bg-amber-50 dark:bg-amber-950/30", icon: Crown },
-  Master: { color: "text-purple-600 dark:text-purple-400", bgColor: "bg-purple-50 dark:bg-purple-950/30", icon: Crown },
+  Learner: { color: "text-success", bgColor: "bg-success/10", icon: Star },
+  Scholar: { color: "text-primary", bgColor: "bg-primary/10", icon: Trophy },
+  Expert: { color: "text-warning", bgColor: "bg-warning/10", icon: Crown },
+  Master: { color: "text-accent-foreground", bgColor: "bg-accent", icon: Crown },
 };
 
 export function UserOverview() {
@@ -32,66 +31,55 @@ export function UserOverview() {
   const navigate = useNavigate();
   const [profile, setProfile] = useState<{ display_name: string | null; avatar_url: string | null } | null>(null);
   const [stats, setStats] = useState<UserStats>({
-    level: 1, xp: 0, maxXp: XP_PER_LEVEL, rank: "Beginner", points: 0, streak: 0,
+    level: 1,
+    xp: 0,
+    maxXp: 1000,
+    rank: "Beginner",
+    points: 0,
+    streak: 0,
   });
 
   useEffect(() => {
-    if (user) fetchUserData();
+    if (user) {
+      fetchUserData();
+    }
   }, [user]);
 
   const fetchUserData = async () => {
     if (!user) return;
 
-    const [profileRes, streakRes, sessionsRes, progressRes, badgeRes] = await Promise.all([
-      externalSupabase
-        .from("profiles")
-        .select("display_name, avatar_url")
-        .eq("user_id", user.id)
-        .maybeSingle(),
-      externalSupabase
-        .from("learning_streaks")
-        .select("current_streak")
-        .eq("user_id", user.id)
-        .maybeSingle(),
-      externalSupabase
-        .from("chat_sessions")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", user.id),
-      externalSupabase
-        .from("learning_progress")
-        .select("score, attempts, mastered")
-        .eq("user_id", user.id),
-      externalSupabase
-        .from("user_badges")
-        .select("badge_id, badges:badges_public(points)")
-        .eq("user_id", user.id),
-    ]);
+    // Fetch profile
+    const { data: profileData } = await externalSupabase
+      .from("profiles")
+      .select("display_name, avatar_url")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    if (profileRes.data) setProfile(profileRes.data);
+    if (profileData) {
+      setProfile(profileData);
+    }
 
-    // Calculate XP from multiple sources
-    const sessionCount = sessionsRes.count || 0;
-    const topicData = progressRes.data || [];
-    const badgeData = badgeRes.data || [];
-    const streak = streakRes.data?.current_streak || 0;
+    // Fetch streak
+    const { data: streakData } = await externalSupabase
+      .from("learning_streaks")
+      .select("current_streak")
+      .eq("user_id", user.id)
+      .maybeSingle();
 
-    // XP sources:
-    // - Sessions: 10 XP each
-    // - Topic attempts: 5 XP per attempt
-    // - Mastered topics: 50 XP bonus each
-    // - Badge points: as earned
-    // - Streak bonus: streak * 5
-    const sessionXp = sessionCount * 10;
-    const attemptXp = topicData.reduce((s, t) => s + (t.attempts || 0) * 5, 0);
-    const masteredXp = topicData.filter(t => t.mastered).length * 50;
-    const badgeXp = badgeData.reduce((sum, b) => sum + ((b.badges as any)?.points || 0), 0);
-    const streakXp = streak * 5;
+    // Fetch badges/points for stats calculation
+    const { data: badgeData } = await externalSupabase
+      .from("user_badges")
+      .select("badge_id, badges:badges_public(points)")
+      .eq("user_id", user.id);
 
-    const totalXp = sessionXp + attemptXp + masteredXp + badgeXp + streakXp;
+    const totalPoints = badgeData?.reduce((sum, b) => {
+      const points = (b.badges as any)?.points || 0;
+      return sum + points;
+    }, 0) || 0;
 
-    const level = Math.floor(totalXp / XP_PER_LEVEL) + 1;
-    const xpInCurrentLevel = totalXp % XP_PER_LEVEL;
-
+    // Calculate level and rank based on points
+    const level = Math.floor(totalPoints / 100) + 1;
+    const xp = (totalPoints % 100) * 10;
     let rank = "Beginner";
     if (level >= 20) rank = "Master";
     else if (level >= 15) rank = "Expert";
@@ -100,11 +88,11 @@ export function UserOverview() {
 
     setStats({
       level,
-      xp: xpInCurrentLevel,
-      maxXp: XP_PER_LEVEL,
+      xp,
+      maxXp: 1000,
       rank,
-      points: totalXp,
-      streak,
+      points: totalPoints,
+      streak: streakData?.current_streak || 0,
     });
   };
 
@@ -114,55 +102,77 @@ export function UserOverview() {
   const xpPercentage = (stats.xp / stats.maxXp) * 100;
 
   return (
-    <div className="rounded-xl border border-border bg-card p-5 space-y-4">
-      <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">My Progress</h3>
-
-      <div className="flex items-center gap-3">
-        <Avatar className="h-12 w-12 border-2 border-border">
-          <AvatarImage src={profile?.avatar_url || undefined} />
-          <AvatarFallback className="bg-muted text-foreground font-bold">
-            {displayName.charAt(0).toUpperCase()}
-          </AvatarFallback>
-        </Avatar>
-        <div>
-          <h4 className="font-bold text-foreground">{displayName}</h4>
-          <div className="flex items-center gap-2">
-            <span className={cn("text-xs font-medium px-2 py-0.5 rounded-full", rankInfo.bgColor, rankInfo.color)}>
-              <RankIcon className="h-3 w-3 inline mr-1" />
-              {stats.rank}
-            </span>
-            <span className="text-xs text-muted-foreground">Lv. {stats.level}</span>
+    <GlassCard variant="elevated" className="p-6 relative overflow-hidden">
+      {/* Background gradient */}
+      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
+      
+      <h3 className="text-lg font-semibold text-foreground mb-5 font-display flex items-center gap-2 relative">
+        <div className="h-8 w-8 rounded-lg bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center">
+          <Trophy className="h-4 w-4 text-primary-foreground" />
+        </div>
+        My Progress
+      </h3>
+      
+      <div className="flex flex-col items-center text-center relative">
+        {/* Avatar with animated ring */}
+        <div className="relative mb-5">
+          <div className="absolute inset-0 rounded-full bg-gradient-to-r from-primary via-accent to-primary animate-gradient blur-sm scale-110" />
+          <Avatar className="h-24 w-24 border-4 border-background shadow-2xl relative">
+            <AvatarImage src={profile?.avatar_url || undefined} />
+            <AvatarFallback className="bg-gradient-to-br from-primary via-accent to-primary text-primary-foreground text-2xl font-bold">
+              {displayName.charAt(0).toUpperCase()}
+            </AvatarFallback>
+          </Avatar>
+          <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 px-4 py-1.5 rounded-full bg-gradient-to-r from-primary to-accent text-primary-foreground text-sm font-bold shadow-lg border-2 border-background">
+            Lv. {stats.level}
           </div>
         </div>
-      </div>
 
-      {stats.streak > 0 && (
-        <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-orange-50 dark:bg-orange-950/30 border border-orange-200 dark:border-orange-800">
-          <Flame className="h-4 w-4 text-orange-500" />
-          <span className="text-sm font-medium text-orange-700 dark:text-orange-400">{stats.streak} day streak 🔥</span>
+        {/* User name */}
+        <h4 className="text-xl font-bold text-foreground mt-2">{displayName}</h4>
+        
+        {/* Streak badge with flame animation */}
+        {stats.streak > 0 && (
+          <div className="flex items-center gap-2 mt-2 px-4 py-1.5 rounded-full bg-warning/15 border border-warning/30">
+            <Flame className="h-5 w-5 text-warning animate-pulse" />
+            <span className="text-sm font-semibold text-warning">{stats.streak} day streak 🔥</span>
+          </div>
+        )}
+
+        {/* XP Progress with enhanced styling */}
+        <div className="w-full mt-5 space-y-2 p-4 rounded-2xl bg-muted/30 border border-border/50">
+          <div className="flex justify-between text-sm">
+            <span className="font-medium text-foreground">Experience Points</span>
+            <span className="font-bold text-primary">{stats.points} pts</span>
+          </div>
+          <Progress value={xpPercentage} className="h-3" />
+          <div className="text-xs text-muted-foreground text-center">
+            <span className="font-medium">{stats.xp}</span> / {stats.maxXp} XP to Level {stats.level + 1}
+          </div>
         </div>
-      )}
 
-      <div className="space-y-1.5">
-        <div className="flex justify-between text-xs">
-          <span className="text-muted-foreground">XP to next level</span>
-          <span className="font-medium text-foreground">{stats.xp}/{stats.maxXp}</span>
+        {/* Rank Badge with enhanced styling */}
+        <div className={cn(
+          "mt-4 px-5 py-3 rounded-2xl flex items-center gap-3 w-full justify-center border shadow-sm transition-all",
+          rankInfo.bgColor,
+          "border-border/50"
+        )}>
+          <RankIcon className={cn("h-6 w-6", rankInfo.color)} />
+          <div className="text-left">
+            <p className="text-xs text-muted-foreground">Current Rank</p>
+            <span className={cn("font-bold", rankInfo.color)}>{stats.rank}</span>
+          </div>
         </div>
-        <Progress value={xpPercentage} className="h-2" />
-      </div>
 
-      <div className="flex items-center justify-between px-3 py-2.5 rounded-lg bg-muted/50 border border-border">
-        <span className="text-xs text-muted-foreground">Total XP</span>
-        <span className="font-bold text-foreground">{stats.points} XP</span>
+        <Button 
+          className="w-full mt-5 bg-gradient-to-r from-primary to-accent hover:from-primary/90 hover:to-accent/90 shadow-lg hover:shadow-xl transition-all hover:scale-[1.02]" 
+          size="lg"
+          onClick={() => navigate("/curriculum-study")}
+        >
+          <Zap className="h-5 w-5 mr-2" />
+          Continue Learning
+        </Button>
       </div>
-
-      <Button
-        className="w-full"
-        onClick={() => navigate("/curriculum-study")}
-      >
-        <Zap className="h-4 w-4 mr-2" />
-        Continue Learning
-      </Button>
-    </div>
+    </GlassCard>
   );
 }
