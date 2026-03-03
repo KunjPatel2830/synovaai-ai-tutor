@@ -190,46 +190,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, displayName: string, role: AppRole) => {
     try {
-      const { data, error } = await supabase.functions.invoke('external-signup', {
-        body: {
-          email,
-          password,
-          displayName,
-          role,
+      // Use direct Supabase auth signup (internal Lovable Cloud)
+      // Database triggers handle profile + role creation automatically
+      const { data: signUpData, error: signUpError } = await externalSupabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            display_name: displayName,
+            role,
+          },
         },
       });
 
-      if (error) {
-        logError('Signup edge function error', error);
-        return { error: new Error(error.message) };
+      if (signUpError) {
+        logError('Signup error', signUpError);
+        return { error: signUpError };
       }
 
-      if ((data as any)?.error) {
-        return { error: new Error((data as any).error) };
+      if (!signUpData.session) {
+        // Email confirmation required
+        return { error: new Error('Please check your email to confirm your account before signing in.') };
       }
 
-      const access_token = (data as any)?.access_token as string | undefined;
-      const refresh_token = (data as any)?.refresh_token as string | undefined;
-
-      if (!access_token || !refresh_token) {
-        return { error: new Error('Signup failed: no session returned') };
-      }
-
-      const { data: sessionData, error: setSessionError } = await externalSupabase.auth.setSession({
-        access_token,
-        refresh_token,
-      });
-
-      if (setSessionError) {
-        logError('Error setting session', setSessionError);
-        return { error: setSessionError };
-      }
-
-      const nextSession = sessionData.session ?? (await externalSupabase.auth.getSession()).data.session;
-
-      // Update local state immediately to avoid redirect bounce
-      setSession(nextSession);
-      setUser(nextSession?.user ?? null);
+      // Update local state immediately
+      setSession(signUpData.session);
+      setUser(signUpData.user ?? null);
       setUserRole(role);
       setSessionExpired(false);
 
