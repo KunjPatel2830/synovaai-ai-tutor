@@ -133,24 +133,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // Initialize session state once
     (async () => {
-      console.log('[auth] Initializing session...');
       try {
         const { data, error } = await externalSupabase.auth.getSession();
         if (error) {
-          console.log('[auth] getSession error:', error.message);
           logError('Error getting session', error);
           handleSessionExpiry();
           return;
         }
 
         const nextSession = data.session;
-        console.log('[auth] Session found:', !!nextSession);
 
         // Check if session is expired
         if (nextSession?.expires_at) {
           const expiresAt = new Date(nextSession.expires_at * 1000);
           if (expiresAt < new Date()) {
-            console.log('[auth] Session expired');
             handleSessionExpiry();
             return;
           }
@@ -162,16 +158,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(nextUser);
 
         if (nextUser) {
-          console.log('[auth] Fetching role for user:', nextUser.id);
           await fetchUserRole(nextUser.id);
-          console.log('[auth] Role fetched');
         }
       } catch (err) {
-        console.log('[auth] Init exception:', err);
         logError('Exception getting session', err);
         handleSessionExpiry();
       } finally {
-        console.log('[auth] Init complete, setting loading=false');
         initializedRef.current = true;
         setLoading(false);
       }
@@ -198,51 +190,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signUp = async (email: string, password: string, displayName: string, role: AppRole) => {
     try {
-      console.log('[auth] Starting signup for', email);
-      const { data: signUpData, error: signUpError } = await externalSupabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            display_name: displayName,
-            role,
-          },
+      const { data, error } = await supabase.functions.invoke('external-signup', {
+        body: {
+          email,
+          password,
+          displayName,
+          role,
         },
       });
 
-      if (signUpError) {
-        logError('Signup error', signUpError);
-        return { error: signUpError };
+      if (error) {
+        logError('Signup edge function error', error);
+        return { error: new Error(error.message) };
       }
 
-      console.log('[auth] Signup response received, session:', !!signUpData.session);
-
-      if (signUpData.session) {
-        // Session returned immediately (auto-confirm enabled)
-        setSession(signUpData.session);
-        setUser(signUpData.user ?? null);
-        setUserRole(role);
-        setSessionExpired(false);
-        return { error: null };
+      if ((data as any)?.error) {
+        return { error: new Error((data as any).error) };
       }
 
-      // No session — auto-confirm might not be active yet, try signing in
-      console.log('[auth] No session after signup, attempting sign-in...');
-      const { data: signInData, error: signInError } = await externalSupabase.auth.signInWithPassword({
-        email,
-        password,
+      const access_token = (data as any)?.access_token as string | undefined;
+      const refresh_token = (data as any)?.refresh_token as string | undefined;
+
+      if (!access_token || !refresh_token) {
+        return { error: new Error('Signup failed: no session returned') };
+      }
+
+      const { data: sessionData, error: setSessionError } = await externalSupabase.auth.setSession({
+        access_token,
+        refresh_token,
       });
 
-      if (signInError) {
-        // If sign-in also fails, the email might need confirmation
-        console.log('[auth] Sign-in after signup failed:', signInError.message);
-        return { error: new Error('Account created! Please check your email to verify, then sign in.') };
+      if (setSessionError) {
+        logError('Error setting session', setSessionError);
+        return { error: setSessionError };
       }
 
-      setSession(signInData.session);
-      setUser(signInData.user ?? null);
+      const nextSession = sessionData.session ?? (await externalSupabase.auth.getSession()).data.session;
+
+      // Update local state immediately to avoid redirect bounce
+      setSession(nextSession);
+      setUser(nextSession?.user ?? null);
       setUserRole(role);
       setSessionExpired(false);
+
       return { error: null };
     } catch (err) {
       logError('Signup exception', err);
@@ -252,16 +242,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const signIn = async (email: string, password: string) => {
     try {
-      console.log('[auth] Starting sign-in for', email);
       const { error } = await externalSupabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) {
-        console.log('[auth] Sign-in error:', error.message);
-      } else {
-        console.log('[auth] Sign-in successful');
+      if (!error) {
         setSessionExpired(false);
       }
 

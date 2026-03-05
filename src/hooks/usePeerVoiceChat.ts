@@ -68,13 +68,13 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
     pc.onicecandidate = async (event) => {
       if (event.candidate && roomId && userId) {
         console.log(`Sending ICE candidate to ${peerId}`);
-        await externalSupabase.from('peer_voice_signals').insert([{
+        await externalSupabase.from('peer_voice_signals').insert({
           room_id: roomId,
           from_user_id: userId,
           to_user_id: peerId,
           signal_type: 'ice-candidate',
-          signal_data: event.candidate.toJSON() as any,
-        }]);
+          signal_data: event.candidate.toJSON(),
+        });
       }
     };
 
