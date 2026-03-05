@@ -1,16 +1,15 @@
 import { useNavigate } from "react-router-dom";
-import { GlassCard } from "@/components/ui/glass-card";
-import { Button } from "@/components/ui/button";
-import { 
-  BookOpen, 
-  Brain, 
-  FileText, 
-  ClipboardList, 
+import {
+  BookOpen,
+  Brain,
+  FileText,
+  ClipboardList,
   Mic,
   Globe,
   HelpCircle,
   Users,
-  ArrowRight
+  ArrowRight,
+  Calendar,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +19,8 @@ interface LearningMode {
   description: string;
   icon: React.ElementType;
   path: string;
-  gradient: string;
+  color: string;
+  iconColor: string;
 }
 
 const learningModes: LearningMode[] = [
@@ -30,7 +30,8 @@ const learningModes: LearningMode[] = [
     description: "NCERT-aligned lessons",
     icon: BookOpen,
     path: "/curriculum-study",
-    gradient: "from-primary to-primary/80",
+    color: "bg-accent/60 dark:bg-accent/30 border-accent dark:border-accent/50",
+    iconColor: "text-accent-foreground",
   },
   {
     id: "tutor",
@@ -38,7 +39,8 @@ const learningModes: LearningMode[] = [
     description: "Personalized teaching",
     icon: Brain,
     path: "/tutor",
-    gradient: "from-accent to-accent/80",
+    color: "bg-primary/10 dark:bg-primary/10 border-primary/30 dark:border-primary/20",
+    iconColor: "text-primary",
   },
   {
     id: "homework",
@@ -46,7 +48,8 @@ const learningModes: LearningMode[] = [
     description: "Step-by-step solutions",
     icon: FileText,
     path: "/homework",
-    gradient: "from-secondary to-secondary/80",
+    color: "bg-secondary dark:bg-secondary border-border dark:border-border",
+    iconColor: "text-secondary-foreground",
   },
   {
     id: "exam",
@@ -54,18 +57,17 @@ const learningModes: LearningMode[] = [
     description: "Practice & quizzes",
     icon: ClipboardList,
     path: "/exam-prep",
-    gradient: "from-success to-success/80",
+    color: "bg-success/10 dark:bg-success/10 border-success/30 dark:border-success/20",
+    iconColor: "text-success",
   },
-];
-
-const additionalModes: LearningMode[] = [
   {
     id: "voice",
     title: "Voice Tutor",
     description: "Speak to learn",
     icon: Mic,
     path: "/voice-tutor",
-    gradient: "from-warning to-warning/80",
+    color: "bg-warning/10 dark:bg-warning/10 border-warning/30 dark:border-warning/20",
+    iconColor: "text-warning",
   },
   {
     id: "language",
@@ -73,7 +75,8 @@ const additionalModes: LearningMode[] = [
     description: "Master new languages",
     icon: Globe,
     path: "/language-practice",
-    gradient: "from-destructive/70 to-destructive/50",
+    color: "bg-accent/40 dark:bg-accent/20 border-accent/60 dark:border-accent/30",
+    iconColor: "text-accent-foreground",
   },
   {
     id: "doubt",
@@ -81,7 +84,17 @@ const additionalModes: LearningMode[] = [
     description: "Quick answers",
     icon: HelpCircle,
     path: "/doubt-solver",
-    gradient: "from-muted-foreground/50 to-muted-foreground/30",
+    color: "bg-destructive/20 dark:bg-destructive/15 border-destructive/30 dark:border-destructive/20",
+    iconColor: "text-destructive-foreground",
+  },
+  {
+    id: "planner",
+    title: "Study Planner",
+    description: "Plan your schedule",
+    icon: Calendar,
+    path: "/study-planner",
+    color: "bg-muted dark:bg-muted border-border dark:border-border",
+    iconColor: "text-muted-foreground",
   },
   {
     id: "peer",
@@ -89,7 +102,8 @@ const additionalModes: LearningMode[] = [
     description: "Study with friends",
     icon: Users,
     path: "/peer-mode",
-    gradient: "from-primary/70 to-accent/70",
+    color: "bg-primary/8 dark:bg-primary/8 border-primary/20 dark:border-primary/15",
+    iconColor: "text-primary",
   },
 ];
 
@@ -97,93 +111,33 @@ export function LearningModesSection() {
   const navigate = useNavigate();
 
   return (
-    <div className="space-y-8">
-      {/* Primary Learning Modes */}
-      <div>
-        <div className="flex items-center gap-3 mb-5">
-          <div className="h-10 w-10 rounded-xl bg-gradient-to-br from-primary to-accent flex items-center justify-center shadow-lg">
-            <BookOpen className="h-5 w-5 text-primary-foreground" />
-          </div>
-          <div>
-            <h3 className="text-xl font-bold text-foreground font-display">Learning Modes</h3>
-            <p className="text-sm text-muted-foreground">Choose how you want to learn today</p>
-          </div>
-        </div>
-        
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-5">
-          {learningModes.map((mode, index) => {
-            const Icon = mode.icon;
-            return (
-              <GlassCard
-                key={mode.id}
-                variant="elevated"
-                className="cursor-pointer group transition-all duration-500 hover:scale-[1.03] hover:shadow-2xl overflow-hidden relative"
-                onClick={() => navigate(mode.path)}
-              >
-                {/* Hover gradient overlay */}
-                <div className="absolute inset-0 bg-gradient-to-br from-primary/0 to-accent/0 group-hover:from-primary/5 group-hover:to-accent/10 transition-all duration-500" />
-                
-                <div className="p-6 relative">
-                  {/* Icon with enhanced styling */}
-                  <div className={cn(
-                    "h-14 w-14 rounded-2xl bg-gradient-to-br flex items-center justify-center mb-5 shadow-xl transition-all duration-300 group-hover:scale-110 group-hover:shadow-2xl group-hover:rotate-3",
-                    mode.gradient
-                  )}>
-                    <Icon className="h-7 w-7 text-primary-foreground" />
-                  </div>
-                  
-                  {/* Title */}
-                  <h4 className="font-bold text-foreground text-base mb-2 group-hover:text-primary transition-colors">{mode.title}</h4>
-                  
-                  {/* Description */}
-                  <p className="text-sm text-muted-foreground leading-relaxed">{mode.description}</p>
-                  
-                  {/* Arrow indicator */}
-                  <div className="mt-4 flex items-center text-muted-foreground group-hover:text-primary transition-all">
-                    <span className="text-xs font-medium opacity-0 group-hover:opacity-100 transition-opacity">Start now</span>
-                    <ArrowRight className="h-5 w-5 ml-auto transition-transform group-hover:translate-x-2" />
-                  </div>
-                </div>
-              </GlassCard>
-            );
-          })}
-        </div>
+    <div>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-lg font-bold text-foreground font-display">Learning Modes</h3>
+        <span className="text-xs text-muted-foreground">{learningModes.length} modes</span>
       </div>
 
-      {/* Additional Modes - Better layout to show full names */}
-      <div>
-        <h3 className="text-sm font-semibold text-muted-foreground mb-4 uppercase tracking-wider flex items-center gap-2">
-          <span className="h-px flex-1 bg-border" />
-          More Ways to Learn
-          <span className="h-px flex-1 bg-border" />
-        </h3>
-        
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-          {additionalModes.map((mode) => {
-            const Icon = mode.icon;
-            return (
-              <GlassCard
-                key={mode.id}
-                variant="subtle"
-                className="cursor-pointer group transition-all duration-300 hover:scale-[1.02] hover:shadow-lg"
-                onClick={() => navigate(mode.path)}
-              >
-                <div className="p-3 flex flex-col items-center text-center gap-2">
-                  <div className={cn(
-                    "h-10 w-10 rounded-xl bg-gradient-to-br flex items-center justify-center shrink-0 shadow-md transition-transform group-hover:scale-110",
-                    mode.gradient
-                  )}>
-                    <Icon className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                  <div>
-                    <h4 className="font-semibold text-foreground text-xs group-hover:text-primary transition-colors leading-tight">{mode.title}</h4>
-                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{mode.description}</p>
-                  </div>
-                </div>
-              </GlassCard>
-            );
-          })}
-        </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3">
+        {learningModes.map((mode) => {
+          const Icon = mode.icon;
+          return (
+            <div
+              key={mode.id}
+              onClick={() => navigate(mode.path)}
+              className={cn(
+                "rounded-xl border p-4 cursor-pointer group transition-all duration-200 hover:shadow-md hover:-translate-y-0.5",
+                mode.color
+              )}
+            >
+              <div className={cn("h-10 w-10 rounded-lg bg-background/60 flex items-center justify-center mb-3", mode.iconColor)}>
+                <Icon className="h-5 w-5" />
+              </div>
+              <h4 className="font-semibold text-foreground text-sm leading-tight mb-1">{mode.title}</h4>
+              <p className="text-xs text-muted-foreground leading-tight">{mode.description}</p>
+              <ArrowRight className="h-4 w-4 mt-2 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+            </div>
+          );
+        })}
       </div>
     </div>
   );

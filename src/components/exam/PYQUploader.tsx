@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
-import { Upload, FileText, Loader2 } from "lucide-react";
+import { Upload, FileText, Loader2, AlertCircle } from "lucide-react";
 
 interface PYQUploaderProps {
   userId: string;
@@ -20,6 +20,7 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
   const [shift, setShift] = useState<string>("");
   const [file, setFile] = useState<File | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState("");
 
   const currentYear = new Date().getFullYear();
   const years = Array.from({ length: 10 }, (_, i) => (currentYear - i).toString());
@@ -31,8 +32,8 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
         toast({ title: "Please select a PDF file", variant: "destructive" });
         return;
       }
-      if (selectedFile.size > 20 * 1024 * 1024) {
-        toast({ title: "File size must be less than 20MB", variant: "destructive" });
+      if (selectedFile.size > 15 * 1024 * 1024) {
+        toast({ title: "File too large", description: "Please use a PDF under 15MB for reliable processing.", variant: "destructive" });
         return;
       }
       setFile(selectedFile);
@@ -44,7 +45,7 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
       const reader = new FileReader();
       reader.readAsDataURL(file);
       reader.onload = () => resolve(reader.result as string);
-      reader.onerror = (error) => reject(error);
+      reader.onerror = () => reject(new Error("Failed to read file"));
     });
   };
 
@@ -55,11 +56,12 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
     }
 
     setIsUploading(true);
+    setUploadProgress("Reading file...");
 
     try {
       const pdfBase64 = await convertToBase64(file);
+      setUploadProgress("Uploading & extracting questions with AI... This may take 2-4 minutes.");
 
-      // Send everything to edge function — it creates the DB record internally
       const result = await invokeBackendFunction("parse-pyq-pdf", {
         pdfBase64,
         examType,
@@ -70,23 +72,40 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
       }, { timeoutMs: 300000, retries: 0, label: "pyq-upload" });
 
       if (!result.ok) {
-        throw new Error(result.error || "Processing failed");
+        const errorMsg = result.error || "Processing failed";
+        // Provide user-friendly error messages
+        if (errorMsg.includes("timed out") || errorMsg.includes("timeout")) {
+          throw new Error("Processing timed out. The PDF may be too large or complex. Try a smaller file or split into parts.");
+        }
+        if (errorMsg.includes("Rate limited")) {
+          throw new Error("Too many requests. Please wait a minute and try again.");
+        }
+        if (errorMsg.includes("credits")) {
+          throw new Error("AI processing credits exhausted. Please try again later.");
+        }
+        throw new Error(errorMsg);
       }
 
-      toast({ title: "PDF uploaded and processed!", description: `Extracted ${result.data?.questionsCount || 0} questions` });
-      
+      toast({
+        title: "✅ PDF processed successfully!",
+        description: `Extracted ${result.data?.questionsCount || 0} questions from ${examType} ${year}`,
+      });
+
       setExamType("");
       setYear("");
       setShift("");
       setFile(null);
+      // Reset file input
+      const fileInput = document.querySelector('input[type="file"]') as HTMLInputElement;
+      if (fileInput) fileInput.value = "";
       onUploadComplete?.();
     } catch (error) {
       console.error("Upload error:", error);
-      const msg = error instanceof Error ? error.message 
-        : (error as any)?.message || JSON.stringify(error) || "Unknown error";
+      const msg = error instanceof Error ? error.message : "Unknown error occurred";
       toast({ title: "Upload failed", description: msg, variant: "destructive" });
     } finally {
       setIsUploading(false);
+      setUploadProgress("");
     }
   };
 
@@ -136,7 +155,7 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
         <div className="space-y-2">
           <Label>PDF File *</Label>
           <div className="flex items-center gap-3">
-            <Input type="file" accept=".pdf" onChange={handleFileChange} className="flex-1" />
+            <Input type="file" accept=".pdf" onChange={handleFileChange} className="flex-1" disabled={isUploading} />
             {file && (
               <div className="flex items-center gap-2 text-sm text-muted-foreground">
                 <FileText className="h-4 w-4" />
@@ -144,8 +163,15 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
               </div>
             )}
           </div>
-          <p className="text-xs text-muted-foreground">Max file size: 20MB</p>
+          <p className="text-xs text-muted-foreground">Max 15MB. Clear, text-based PDFs work best.</p>
         </div>
+
+        {isUploading && uploadProgress && (
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-primary/5 border border-primary/20">
+            <Loader2 className="h-4 w-4 animate-spin text-primary shrink-0" />
+            <p className="text-sm text-primary">{uploadProgress}</p>
+          </div>
+        )}
 
         <Button onClick={handleUpload} disabled={isUploading || !examType || !year || !file} className="w-full">
           {isUploading ? (
