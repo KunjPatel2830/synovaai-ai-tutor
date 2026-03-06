@@ -194,8 +194,13 @@ export default function GamifiedDashboard() {
           </div>
         </motion.div>
 
+        {/* My Progress */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.12, duration: 0.5 }}>
+          <UserOverview />
+        </motion.div>
+
         {/* Stats Row */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.15, duration: 0.5 }}>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.18, duration: 0.5 }}>
           <StatsCards />
         </motion.div>
 
@@ -300,10 +305,6 @@ export default function GamifiedDashboard() {
           </div>
         </motion.div>
 
-        {/* XP & Profile Overview */}
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.55, duration: 0.5 }}>
-          <UserOverview />
-        </motion.div>
       </div>
     </AppLayout>
   );
