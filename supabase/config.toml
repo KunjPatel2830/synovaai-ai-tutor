@@ -40,3 +40,6 @@ verify_jwt = false
 
 [functions.peer-join-room]
 verify_jwt = false
+
+[functions.language-practice]
+verify_jwt = false
