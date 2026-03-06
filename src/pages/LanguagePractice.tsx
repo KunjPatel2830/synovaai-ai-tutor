@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -16,109 +16,124 @@ import {
   GlassCardHeader,
   GlassCardTitle,
 } from "@/components/ui/glass-card";
-import { Globe, Send, Volume2, Mic, RefreshCw } from "lucide-react";
+import { Globe, Send, Volume2, RefreshCw } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
+import { invokeBackendFunction } from "@/lib/backend-invoke";
+import { MarkdownContent } from "@/components/ui/markdown-content";
+import { toast } from "sonner";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
-  translation?: string;
 }
 
 const languages = [
-  { code: "en", name: "English" },
-  { code: "hi", name: "हिंदी (Hindi)" },
-  { code: "es", name: "Español (Spanish)" },
-  { code: "fr", name: "Français (French)" },
-  { code: "de", name: "Deutsch (German)" },
-  { code: "zh", name: "中文 (Chinese)" },
-  { code: "ar", name: "العربية (Arabic)" },
-  { code: "pt", name: "Português (Portuguese)" },
-  { code: "ja", name: "日本語 (Japanese)" },
-  { code: "ko", name: "한국어 (Korean)" },
+  { code: "Hindi", name: "हिंदी (Hindi)" },
+  { code: "Spanish", name: "Español (Spanish)" },
+  { code: "French", name: "Français (French)" },
+  { code: "German", name: "Deutsch (German)" },
+  { code: "Chinese", name: "中文 (Mandarin Chinese)" },
+  { code: "Arabic", name: "العربية (Arabic)" },
+  { code: "Portuguese", name: "Português (Portuguese)" },
+  { code: "Japanese", name: "日本語 (Japanese)" },
+  { code: "Korean", name: "한국어 (Korean)" },
+  { code: "Italian", name: "Italiano (Italian)" },
+  { code: "Russian", name: "Русский (Russian)" },
+  { code: "Tamil", name: "தமிழ் (Tamil)" },
+  { code: "Telugu", name: "తెలుగు (Telugu)" },
+  { code: "Bengali", name: "বাংলা (Bengali)" },
+  { code: "Marathi", name: "मराठी (Marathi)" },
+];
+
+const levels = [
+  { value: "absolute_beginner", label: "Absolute Beginner (Zero knowledge)" },
+  { value: "beginner", label: "Beginner (Know basics)" },
+  { value: "intermediate", label: "Intermediate (Can form sentences)" },
+  { value: "advanced", label: "Advanced (Conversational)" },
 ];
 
 export default function LanguagePractice() {
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      role: "assistant",
-      content: "Welcome to Language Practice! Select your target language and start learning. I'll help you with vocabulary, pronunciation, and conversation practice.",
-    },
-  ]);
+  const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [selectedLanguage, setSelectedLanguage] = useState("es");
-  const [autoSpeak, setAutoSpeak] = useState(true);
-  const [showTranslations, setShowTranslations] = useState(true);
+  const [selectedLanguage, setSelectedLanguage] = useState("Spanish");
+  const [selectedLevel, setSelectedLevel] = useState("absolute_beginner");
+  const [autoSpeak, setAutoSpeak] = useState(false);
+  const [hasStarted, setHasStarted] = useState(false);
+  const scrollRef = useRef<HTMLDivElement>(null);
 
-  const speakText = (text: string, lang: string = selectedLanguage) => {
-    if ('speechSynthesis' in window) {
+  useEffect(() => {
+    if (scrollRef.current) {
+      scrollRef.current.scrollIntoView({ behavior: "smooth" });
+    }
+  }, [messages, isLoading]);
+
+  const speakText = (text: string) => {
+    if ("speechSynthesis" in window) {
       window.speechSynthesis.cancel();
-      const utterance = new SpeechSynthesisUtterance(text);
-      utterance.lang = lang;
-      utterance.rate = 0.8;
+      // Strip markdown for speech
+      const clean = text.replace(/[*#_~`>|[\]()!]/g, "").replace(/\n+/g, ". ");
+      const utterance = new SpeechSynthesisUtterance(clean);
+      utterance.rate = 0.75;
       window.speechSynthesis.speak(utterance);
     }
   };
 
-  const handleSubmit = async () => {
-    if (!input.trim() || isLoading) return;
+  const sendMessage = async (userContent: string) => {
+    const conversationHistory = [
+      ...messages.map((m) => ({ role: m.role, content: m.content })),
+      { role: "user" as const, content: userContent },
+    ];
 
-    const userMessage = input.trim();
-    setInput("");
-    setMessages((prev) => [...prev, { role: "user", content: userMessage }]);
+    setMessages((prev) => [...prev, { role: "user", content: userContent }]);
     setIsLoading(true);
 
-    try {
-      // Simulate language learning response
-      await new Promise((resolve) => setTimeout(resolve, 1500));
-      
-      const targetLang = languages.find(l => l.code === selectedLanguage)?.name || "Spanish";
-      
-      let response = "";
-      let translation = "";
-      
-      if (userMessage.toLowerCase().includes("hello") || userMessage.toLowerCase().includes("hi")) {
-        if (selectedLanguage === "es") {
-          response = "¡Hola! ¿Cómo estás? (OH-la, KOH-mo es-TAHS)";
-          translation = "Hello! How are you?";
-        } else if (selectedLanguage === "fr") {
-          response = "Bonjour! Comment allez-vous? (bon-ZHOOR, koh-mahn tah-lay VOO)";
-          translation = "Hello! How are you?";
-        } else if (selectedLanguage === "de") {
-          response = "Hallo! Wie geht es Ihnen? (HA-lo, vee GAYT es EE-nen)";
-          translation = "Hello! How are you?";
-        } else if (selectedLanguage === "hi") {
-          response = "नमस्ते! आप कैसे हैं? (na-mas-TAY, aap KAY-say hain)";
-          translation = "Hello! How are you?";
-        } else {
-          response = `In ${targetLang}, you would greet someone warmly. Let me teach you the proper greeting!`;
-        }
-      } else {
-        response = `Great question about "${userMessage}"! In ${targetLang}, we would express this as follows. Would you like me to break down the vocabulary and pronunciation?`;
-      }
-      
-      const assistantMessage: Message = { 
-        role: "assistant", 
-        content: response,
-        translation: translation || undefined
-      };
-      
-      setMessages((prev) => [...prev, assistantMessage]);
-      
-      if (autoSpeak && response) {
-        speakText(response, selectedLanguage);
-      }
-    } catch (error) {
+    const result = await invokeBackendFunction<{ reply: string }>(
+      "language-practice",
+      {
+        messages: conversationHistory,
+        targetLanguage: selectedLanguage,
+        level: selectedLevel,
+      },
+      { timeoutMs: 30000, label: "language-practice" }
+    );
+
+    setIsLoading(false);
+
+    if (result.ok && result.data?.reply) {
+      const reply = result.data.reply;
+      setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
+      if (autoSpeak) speakText(reply);
+    } else {
+      toast.error(result.error || "Failed to get response. Please try again.");
       setMessages((prev) => [
         ...prev,
-        { role: "assistant", content: "I'm sorry, I encountered an error. Please try again." },
+        { role: "assistant", content: "Sorry, I encountered an error. Please try again." },
       ]);
-    } finally {
-      setIsLoading(false);
     }
+  };
+
+  const handleStart = async () => {
+    setHasStarted(true);
+    setMessages([]);
+    await sendMessage(
+      `I want to learn ${selectedLanguage} from scratch. I'm an ${selectedLevel.replace(/_/g, " ")}. Please start teaching me from the very beginning — start with the alphabet/script and basic sounds.`
+    );
+  };
+
+  const handleSubmit = async () => {
+    if (!input.trim() || isLoading) return;
+    const text = input.trim();
+    setInput("");
+    await sendMessage(text);
+  };
+
+  const handleReset = () => {
+    setHasStarted(false);
+    setMessages([]);
+    window.speechSynthesis?.cancel();
   };
 
   return (
@@ -134,12 +149,14 @@ export default function LanguagePractice() {
                 </div>
                 <div>
                   <span className="text-xl">Language Practice</span>
-                  <p className="text-sm text-muted-foreground font-normal">Learn languages with AI guidance</p>
+                  <p className="text-sm text-muted-foreground font-normal">
+                    Learn from alphabets to fluency
+                  </p>
                 </div>
               </GlassCardTitle>
-              
-              <div className="flex items-center gap-4">
-                <Select value={selectedLanguage} onValueChange={setSelectedLanguage}>
+
+              <div className="flex items-center gap-3 flex-wrap">
+                <Select value={selectedLanguage} onValueChange={(v) => { setSelectedLanguage(v); if (hasStarted) handleReset(); }}>
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Select language" />
                   </SelectTrigger>
@@ -151,106 +168,135 @@ export default function LanguagePractice() {
                     ))}
                   </SelectContent>
                 </Select>
+
+                {hasStarted && (
+                  <Button variant="outline" size="sm" onClick={handleReset}>
+                    <RefreshCw className="h-4 w-4 mr-1" />
+                    Reset
+                  </Button>
+                )}
               </div>
             </div>
           </GlassCardHeader>
-          
+
           <GlassCardContent className="pt-0 pb-4">
-            <div className="flex items-center gap-6">
+            <div className="flex items-center gap-6 flex-wrap">
+              <Select value={selectedLevel} onValueChange={(v) => { setSelectedLevel(v); if (hasStarted) handleReset(); }}>
+                <SelectTrigger className="w-[280px]">
+                  <SelectValue placeholder="Select your level" />
+                </SelectTrigger>
+                <SelectContent>
+                  {levels.map((l) => (
+                    <SelectItem key={l.value} value={l.value}>
+                      {l.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+
               <div className="flex items-center gap-2">
-                <Switch 
-                  id="auto-speak" 
-                  checked={autoSpeak} 
-                  onCheckedChange={setAutoSpeak}
-                />
+                <Switch id="auto-speak" checked={autoSpeak} onCheckedChange={setAutoSpeak} />
                 <Label htmlFor="auto-speak" className="text-sm">Auto-Speak</Label>
-              </div>
-              <div className="flex items-center gap-2">
-                <Switch 
-                  id="translations" 
-                  checked={showTranslations} 
-                  onCheckedChange={setShowTranslations}
-                />
-                <Label htmlFor="translations" className="text-sm">Show Translations</Label>
               </div>
             </div>
           </GlassCardContent>
         </GlassCard>
 
-        {/* Chat Area */}
+        {/* Chat / Start Screen */}
         <GlassCard className="flex-1 flex flex-col overflow-hidden">
-          <ScrollArea className="flex-1 p-2.5 sm:p-4">
-            <div className="space-y-4">
-              {messages.map((message, index) => (
-                <div
-                  key={index}
-                  className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <div
-                    className={`max-w-[92%] sm:max-w-[85%] p-3 sm:p-4 rounded-2xl ${
-                      message.role === "user"
-                        ? "bg-primary text-primary-foreground"
-                        : "bg-muted/50 border border-border"
-                    }`}
-                  >
-                    <p className="text-base leading-relaxed">{message.content}</p>
-                    {message.translation && showTranslations && (
-                      <p className="text-sm text-muted-foreground mt-2 pt-2 border-t border-border/50">
-                        📝 {message.translation}
-                      </p>
-                    )}
-                    {message.role === "assistant" && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="mt-2"
-                        onClick={() => speakText(message.content, selectedLanguage)}
-                      >
-                        <Volume2 className="h-4 w-4 mr-2" />
-                        Listen
-                      </Button>
-                    )}
-                  </div>
+          {!hasStarted ? (
+            <div className="flex-1 flex items-center justify-center p-6">
+              <div className="text-center max-w-md space-y-6">
+                <div className="h-20 w-20 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto">
+                  <Globe className="h-10 w-10 text-primary" />
                 </div>
-              ))}
-              {isLoading && (
-                <div className="flex justify-start">
-                  <div className="bg-muted/50 border border-border p-4 rounded-2xl max-w-[80%] space-y-2">
-                    <Skeleton className="h-4 w-48" />
-                    <Skeleton className="h-4 w-40" />
-                    <Skeleton className="h-4 w-32" />
-                  </div>
+                <div>
+                  <h2 className="text-2xl font-bold text-foreground mb-2">
+                    Learn {selectedLanguage}
+                  </h2>
+                  <p className="text-muted-foreground leading-relaxed">
+                    Start from the very basics — alphabets, sounds, pronunciation, and build up to words and sentences step by step.
+                  </p>
                 </div>
-              )}
-            </div>
-          </ScrollArea>
-
-          {/* Input Area */}
-          <div className="p-4 border-t border-border/50">
-            <div className="flex gap-2">
-              <Textarea
-                value={input}
-                onChange={(e) => setInput(e.target.value)}
-                placeholder="Type in English and I'll help you learn..."
-                className="min-h-[60px] resize-none"
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" && !e.shiftKey) {
-                    e.preventDefault();
-                    handleSubmit();
-                  }
-                }}
-              />
-              <div className="flex flex-col gap-2">
-                <Button
-                  onClick={handleSubmit}
-                  disabled={!input.trim() || isLoading}
-                  className="h-full"
-                >
-                  <Send className="h-5 w-5" />
+                <Button size="lg" onClick={handleStart} className="px-8">
+                  Start Learning
                 </Button>
               </div>
             </div>
-          </div>
+          ) : (
+            <>
+              <ScrollArea className="flex-1 p-2.5 sm:p-4">
+                <div className="space-y-4">
+                  {messages.map((message, index) => (
+                    <div
+                      key={index}
+                      className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+                    >
+                      <div
+                        className={`max-w-[92%] sm:max-w-[85%] p-3 sm:p-4 rounded-2xl ${
+                          message.role === "user"
+                            ? "bg-primary text-primary-foreground"
+                            : "bg-muted/50 border border-border"
+                        }`}
+                      >
+                        {message.role === "assistant" ? (
+                          <MarkdownContent content={message.content} />
+                        ) : (
+                          <p className="text-base leading-relaxed">{message.content}</p>
+                        )}
+                        {message.role === "assistant" && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="mt-2"
+                            onClick={() => speakText(message.content)}
+                          >
+                            <Volume2 className="h-4 w-4 mr-2" />
+                            Listen
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                  {isLoading && (
+                    <div className="flex justify-start">
+                      <div className="bg-muted/50 border border-border p-4 rounded-2xl max-w-[80%] space-y-2">
+                        <Skeleton className="h-4 w-48" />
+                        <Skeleton className="h-4 w-40" />
+                        <Skeleton className="h-4 w-32" />
+                      </div>
+                    </div>
+                  )}
+                  <div ref={scrollRef} />
+                </div>
+              </ScrollArea>
+
+              {/* Input Area */}
+              <div className="p-4 border-t border-border/50">
+                <div className="flex gap-2">
+                  <Textarea
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    placeholder="Type your answer or ask a question..."
+                    className="min-h-[60px] resize-none"
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" && !e.shiftKey) {
+                        e.preventDefault();
+                        handleSubmit();
+                      }
+                    }}
+                  />
+                  <Button
+                    onClick={handleSubmit}
+                    disabled={!input.trim() || isLoading}
+                    className="h-full"
+                  >
+                    <Send className="h-5 w-5" />
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
         </GlassCard>
       </div>
     </AppLayout>
