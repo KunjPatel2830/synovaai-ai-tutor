@@ -19,7 +19,7 @@ import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
-import { Brain, Send, Mic, MicOff, Volume2, Plus, Pause, Play, Square } from "lucide-react";
+import { Brain, Send, Mic, MicOff, Volume2, Plus, Pause, Play, Square, BookOpen, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
