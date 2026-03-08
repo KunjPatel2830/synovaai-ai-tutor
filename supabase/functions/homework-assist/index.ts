@@ -90,7 +90,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { question, subject, context, curriculum, messages } = body;
+    const { question, subject, context, curriculum, messages, studentContext } = body;
 
     const questionValidation = validateString(question, "Question", MAX_QUESTION_LENGTH, true);
     if (!questionValidation.valid) {
