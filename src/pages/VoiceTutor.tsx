@@ -13,6 +13,8 @@ import { Mic, MicOff, Volume2, VolumeX, RefreshCw, Globe } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
+import { ChatHistory } from "@/components/chat/ChatHistory";
+import { useChatSession } from "@/hooks/useChatSession";
 
 interface Message {
   role: "user" | "assistant";

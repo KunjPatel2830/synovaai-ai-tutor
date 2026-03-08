@@ -23,6 +23,8 @@ import { Label } from "@/components/ui/label";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
+import { ChatHistory } from "@/components/chat/ChatHistory";
+import { useChatSession } from "@/hooks/useChatSession";
 import { toast } from "sonner";
 
 interface Message {
