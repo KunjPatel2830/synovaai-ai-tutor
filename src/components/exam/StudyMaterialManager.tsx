@@ -133,7 +133,7 @@ export function StudyMaterialManager({ userId, refreshKey }: StudyMaterialManage
         subject: pdf.subject,
         chapter: pdf.chapter,
         teacherId: userId,
-      }, { timeoutMs: 120000, retries: 1, label: "study-pdf-retry", useExternal: true });
+      }, { timeoutMs: 120000, retries: 1, label: "study-pdf-retry" });
 
       if (!result.ok) throw new Error(result.error || "Processing failed");
       toast({ title: "PDF re-processed successfully!" });
