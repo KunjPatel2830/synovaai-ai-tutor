@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { externalSupabase } from "@/lib/external-supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
