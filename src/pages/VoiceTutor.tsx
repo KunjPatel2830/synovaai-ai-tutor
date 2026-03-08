@@ -402,7 +402,6 @@ export default function VoiceTutor() {
                   <span className="ml-2 hidden sm:inline">{autoSpeak ? "Auto-Speak" : "Auto-Speak Off"}</span>
                 </Button>
                 <ChatHistory mode="voice" onLoadSession={handleLoadSession} />
-                </Button>
               </div>
             </div>
           </GlassCardHeader>
