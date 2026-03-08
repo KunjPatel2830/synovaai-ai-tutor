@@ -243,7 +243,7 @@ serve(async (req) => {
       topic: q.topic || null,
       explanation: q.explanation || null,
       difficulty: q.difficulty || "medium",
-      created_by: userId,
+      created_by: null,
     }));
 
     let insertedCount = 0;
