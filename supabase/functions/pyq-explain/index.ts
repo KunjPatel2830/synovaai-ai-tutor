@@ -24,15 +24,14 @@ serve(async (req) => {
     let userPrompt: string;
 
     if (isFollowUp) {
-      // Follow-up question: keep it short and directly useful
       systemPrompt = `You are an expert ${subject} teacher helping students prepare for ${examType || "competitive exams"} like JEE and NEET.
 
-Answer the student's follow-up question in an exam-style, VERY SHORT way.
+Answer the student's follow-up question clearly and completely.
 
 RULES:
-- Total length: <= 80 words
-- No long theory, no extra sections, no fluff
+- Total length: <= 250 words
 - Use LaTeX for any math/formulas
+- Show complete working — do NOT cut off mid-solution
 - Prefer bullets if multiple points
 - If a diagram/visual is necessary, include exactly ONE tag on its own line: [IMAGE: ...]
 `;
@@ -51,7 +50,7 @@ ${topic ? `Topic: ${topic}` : ""}
 
 Student's Follow-up Question: ${followUpQuery}
 
-Reply briefly (<= 80 words).`;
+Give a complete answer.`;
     } else {
       // Initial explanation after answering: short, direct, exam-focused
       systemPrompt = `You are an expert ${subject} teacher helping students prepare for ${examType || "competitive exams"} like JEE and NEET.
