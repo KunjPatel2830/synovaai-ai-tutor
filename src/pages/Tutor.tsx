@@ -339,6 +339,16 @@ export default function Tutor() {
       
       // Track progress incrementally (non-blocking)
       trackProgress(topic, subject, 10).catch(() => {});
+      
+      // Track in learning history
+      const detectedTopic = res.data?.detectedTopic || topic;
+      trackLearning({
+        subject: res.data?.detectedSubject || subject,
+        topic: detectedTopic || undefined,
+        question: userMessage.content,
+        status: "solved",
+        mode: "tutor",
+      }).catch(() => {});
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
         const msg = error instanceof Error ? error.message : "Unknown error";
