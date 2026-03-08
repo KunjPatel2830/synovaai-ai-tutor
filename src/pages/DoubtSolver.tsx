@@ -8,16 +8,19 @@ import {
   GlassCardHeader,
   GlassCardTitle,
 } from "@/components/ui/glass-card";
-import { HelpCircle, Send, Mic, MicOff, Volume2 } from "lucide-react";
+import { HelpCircle, Send, Mic, MicOff, Volume2, BookOpen, Tag } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { cn } from "@/lib/utils";
 import { MarkdownContent } from "@/components/ui/markdown-content";
+import { Badge } from "@/components/ui/badge";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
+  detectedSubject?: string;
+  detectedTopic?: string;
 }
 
 export default function DoubtSolver() {
@@ -81,13 +84,13 @@ export default function DoubtSolver() {
     if (!userMessage || isLoading) return;
 
     setInput("");
-    const updatedMessages = [...messages, { role: "user" as const, content: userMessage }];
+    const updatedMessages: Message[] = [...messages, { role: "user", content: userMessage }];
     setMessages(updatedMessages);
     setIsLoading(true);
     const controller = new AbortController();
 
     try {
-      const res = await invokeBackendFunction<{ reply: string }>(
+      const res = await invokeBackendFunction<{ reply: string; detectedSubject?: string; detectedTopic?: string }>(
         "ai-tutor",
         {
           messages: updatedMessages.map((msg) => ({ role: msg.role, content: msg.content })),
@@ -100,7 +103,12 @@ export default function DoubtSolver() {
       if (!res.ok) throw new Error(res.error || "Failed");
       
       const reply = res.data?.reply || "I understand your question. Let me help you with that.";
-      setMessages(prev => [...prev, { role: "assistant", content: reply }]);
+      setMessages(prev => [...prev, {
+        role: "assistant",
+        content: reply,
+        detectedSubject: res.data?.detectedSubject,
+        detectedTopic: res.data?.detectedTopic,
+      }]);
     } catch (error) {
       setMessages(prev => [
         ...prev,
@@ -129,7 +137,7 @@ export default function DoubtSolver() {
           </GlassCardHeader>
         </GlassCard>
 
-        {/* Chat Area - maximized */}
+        {/* Chat Area */}
         <GlassCard className="flex-1 flex flex-col overflow-hidden min-h-0">
           <ScrollArea className="flex-1">
             <div className="p-2.5 sm:p-4 space-y-4">
@@ -139,13 +147,33 @@ export default function DoubtSolver() {
                   className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[92%] sm:max-w-[85%] p-3 sm:p-4 rounded-2xl ${
+                    className={`max-w-[92%] sm:max-w-[85%] rounded-2xl ${
                       message.role === "user"
-                        ? "bg-primary text-primary-foreground"
+                        ? "bg-primary text-primary-foreground p-3 sm:p-4"
                         : "bg-muted/50 border border-border"
                     }`}
                   >
-                    <div className="flex items-start gap-2">
+                    {/* Subject/Topic tags for assistant messages */}
+                    {message.role === "assistant" && (message.detectedSubject || message.detectedTopic) && (
+                      <div className="flex flex-wrap gap-1.5 px-3 pt-3 pb-0 sm:px-4 sm:pt-3">
+                        {message.detectedSubject && message.detectedSubject !== "General" && (
+                          <Badge variant="secondary" className="text-[10px] sm:text-xs gap-1 font-medium">
+                            <BookOpen className="h-3 w-3" />
+                            {message.detectedSubject}
+                          </Badge>
+                        )}
+                        {message.detectedTopic && (
+                          <Badge variant="outline" className="text-[10px] sm:text-xs gap-1 font-medium">
+                            <Tag className="h-3 w-3" />
+                            {message.detectedTopic}
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                    <div className={cn(
+                      "flex items-start gap-2",
+                      message.role === "assistant" ? "p-3 sm:p-4" : ""
+                    )}>
                       {message.role === "user" ? (
                         <p className="whitespace-pre-line flex-1">{message.content}</p>
                       ) : (
