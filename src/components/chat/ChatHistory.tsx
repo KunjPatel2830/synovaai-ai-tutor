@@ -25,7 +25,7 @@ interface Message {
 }
 
 interface ChatHistoryProps {
-  mode: "tutor" | "homework" | "exam";
+  mode: "tutor" | "homework" | "exam" | "doubt" | "language" | "voice";
   onLoadSession: (messages: Message[], session: ChatSession) => void;
 }
 
