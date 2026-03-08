@@ -18,6 +18,7 @@ import { BadgesDisplay } from "@/components/badges/BadgesDisplay";
 import { QuickNotesWidget } from "@/components/dashboard/QuickNotesWidget";
 import { JoinWithCode } from "@/components/invitation/JoinWithCode";
 import { UserOverview } from "@/components/dashboard/UserOverview";
+import { TeacherChatWidget } from "@/components/dashboard/TeacherChatWidget";
 
 const mainModes = [
   {
@@ -292,6 +293,8 @@ export default function GamifiedDashboard() {
             <BadgesDisplay />
             <LeaderboardSection />
             <div className="space-y-5">
+              {/* Teacher Chat */}
+              <TeacherChatWidget />
               {/* Teacher Connect */}
               <div className="rounded-2xl border border-border bg-card p-5">
                 <div className="flex items-center gap-2 mb-3">
