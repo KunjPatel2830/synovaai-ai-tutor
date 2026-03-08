@@ -79,7 +79,7 @@ serve(async (req) => {
     // AI call with 55s timeout
     const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
-      signal: createTimeoutSignal(55000),
+      signal: createTimeoutSignal(150000),
       headers: {
         Authorization: `Bearer ${LOVABLE_API_KEY}`,
         "Content-Type": "application/json",
