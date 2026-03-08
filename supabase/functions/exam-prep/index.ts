@@ -74,7 +74,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { action, subject, topic, difficulty, curriculum } = body;
+    const { action, subject, topic, difficulty, curriculum, studentContext } = body;
 
     if (!action || typeof action !== "string" || !VALID_ACTIONS.includes(action)) {
       return jsonResponse({ error: `Invalid action. Must be one of: ${VALID_ACTIONS.join(", ")}` }, { status: 400 });
