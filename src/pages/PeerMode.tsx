@@ -11,7 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { usePeerVoiceChat } from "@/hooks/usePeerVoiceChat";
 import { VoiceChatControls } from "@/components/peer/VoiceChatControls";
-import { Users, Plus, LogIn, Send, Loader2, PenTool, X, Copy, UserPlus } from "lucide-react";
+import { Users, Plus, LogIn, Send, Loader2, PenTool, X, Copy, UserPlus, Bot, Sparkles } from "lucide-react";
+import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/utils";
 import { PeerWhiteboard } from "@/components/peer/PeerWhiteboard";
 
