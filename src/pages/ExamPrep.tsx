@@ -312,17 +312,17 @@ export default function ExamPrep() {
               /* Teacher View: Upload PYQ, Study Materials, and Needs Help tabs */
               <>
                 <TabsList className="grid w-full grid-cols-3 shrink-0">
-                  <TabsTrigger value="upload" className="flex items-center gap-2">
-                    <Upload className="h-4 w-4" />
-                    Upload PYQ
+                  <TabsTrigger value="upload" className="flex items-center gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                    <Upload className="h-3.5 w-3.5 shrink-0 hidden sm:block" />
+                    <span className="truncate">Upload PYQ</span>
                   </TabsTrigger>
-                  <TabsTrigger value="study" className="flex items-center gap-2">
-                    <FileText className="h-4 w-4" />
-                    Study Materials
+                  <TabsTrigger value="study" className="flex items-center gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                    <FileText className="h-3.5 w-3.5 shrink-0 hidden sm:block" />
+                    <span className="truncate">Study Material</span>
                   </TabsTrigger>
-                  <TabsTrigger value="help" className="flex items-center gap-2">
-                    <HelpCircle className="h-4 w-4" />
-                    Needs Help
+                  <TabsTrigger value="help" className="flex items-center gap-1.5 text-xs sm:text-sm px-2 sm:px-3">
+                    <HelpCircle className="h-3.5 w-3.5 shrink-0 hidden sm:block" />
+                    <span className="truncate">Needs Help</span>
                   </TabsTrigger>
                 </TabsList>
 
