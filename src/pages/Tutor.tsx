@@ -55,6 +55,7 @@ export default function Tutor() {
   const { waitForRateLimit } = useRateLimiter({ minDelayMs: 500 });
   const { trackProgress } = useProgressTracker();
   const { getAIContext } = useStudentProfile();
+  const { trackLearning, getMemoryContext } = useLearningHistory();
 
   // Profile loaded flag
   useEffect(() => {
