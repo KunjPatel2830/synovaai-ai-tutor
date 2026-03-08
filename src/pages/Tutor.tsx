@@ -306,7 +306,12 @@ export default function Tutor() {
         return;
       }
 
-      const assistantMessage = { role: "assistant" as const, content: res.data?.reply ?? "" };
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: res.data?.reply ?? "",
+        detectedSubject: res.data?.detectedSubject,
+        detectedTopic: res.data?.detectedTopic,
+      };
       const finalMessages = [...updatedMessages, assistantMessage];
       setMessages(finalMessages);
       
