@@ -140,6 +140,9 @@ export function ChatHistory({ mode, onLoadSession }: ChatHistoryProps) {
       case "tutor": return "Tutor";
       case "homework": return "Homework";
       case "exam": return "Exam Prep";
+      case "doubt": return "Doubt Solver";
+      case "language": return "Language Practice";
+      case "voice": return "Voice Tutor";
       default: return "Chat";
     }
   };
