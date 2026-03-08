@@ -442,8 +442,8 @@ export default function Homework() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Type, paste, or speak your homework question..."
-                className="min-h-10 max-h-32 resize-none flex-1 py-2"
-                rows={1}
+                className="min-h-[120px] max-h-48 resize-none flex-1 py-2"
+                rows={4}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();

@@ -187,7 +187,7 @@ export default function DoubtSolver() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask your doubt..."
-                className="min-h-[60px] resize-none flex-1"
+                className="min-h-[120px] max-h-48 resize-none flex-1"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();

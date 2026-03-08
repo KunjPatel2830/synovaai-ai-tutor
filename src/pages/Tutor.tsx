@@ -557,13 +557,18 @@ export default function Tutor() {
             >
               {voice.isListening ? <MicOff className="h-4 w-4" /> : <Mic className="h-4 w-4" />}
             </Button>
-            <Input
+            <Textarea
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder={aiPaused ? "Type your thoughts (AI paused)..." : "Type or speak your answer..."}
-              onKeyDown={(e) => e.key === "Enter" && (aiPaused ? sendPausedMessage() : sendMessage())}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  aiPaused ? sendPausedMessage() : sendMessage();
+                }
+              }}
               disabled={isLoading}
-              className={cn("flex-1 h-10", aiPaused && "border-warning/50")}
+              className={cn("flex-1 min-h-[120px] max-h-48 resize-none", aiPaused && "border-warning/50")}
             />
             {isLoading && !aiPaused && (
               <Button
