@@ -55,6 +55,7 @@ export default function DoubtSolver() {
     resetSession();
   };
 
+  useEffect(() => {
     if (messages.length === 0) return;
     requestAnimationFrame(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
