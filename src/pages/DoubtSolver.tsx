@@ -98,6 +98,7 @@ export default function DoubtSolver() {
           messages: updatedMessages.map((msg) => ({ role: msg.role, content: msg.content })),
           mode: "doubt",
           studentContext: getAIContext(),
+          memoryContext: getMemoryContext(),
         },
         { signal: controller.signal, timeoutMs: 20000, retries: 1, label: "doubt:chat" }
       );
