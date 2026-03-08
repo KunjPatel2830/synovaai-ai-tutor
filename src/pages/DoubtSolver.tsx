@@ -8,11 +8,13 @@ import {
   GlassCardHeader,
   GlassCardTitle,
 } from "@/components/ui/glass-card";
-import { HelpCircle, Send, Mic, MicOff, Volume2, BookOpen, Tag } from "lucide-react";
+import { HelpCircle, Send, Mic, MicOff, Volume2, BookOpen, Tag, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { useLearningHistory } from "@/hooks/useLearningHistory";
+import { useChatSession } from "@/hooks/useChatSession";
+import { ChatHistory } from "@/components/chat/ChatHistory";
 import { cn } from "@/lib/utils";
 import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
 import { Badge } from "@/components/ui/badge";
@@ -38,6 +40,20 @@ export default function DoubtSolver() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { getAIContext } = useStudentProfile();
   const { trackLearning, getMemoryContext } = useLearningHistory();
+  const { saveMessages, resetSession, loadSession } = useChatSession("doubt");
+
+  const handleLoadSession = (loadedMessages: Message[], session: { id: string; subject?: string | null; topic?: string | null }) => {
+    setMessages(loadedMessages);
+    loadSession(loadedMessages, session);
+  };
+
+  const startNewSession = () => {
+    setMessages([{
+      role: "assistant",
+      content: "Hi! I'm your Doubt Solver. Ask me any question and I'll give you a clear, concise answer. Need an example? Just ask!",
+    }]);
+    resetSession();
+  };
 
   useEffect(() => {
     if (messages.length === 0) return;
@@ -109,12 +125,22 @@ export default function DoubtSolver() {
       const detectedSubject = res.data?.detectedSubject || "";
       const detectedTopic = res.data?.detectedTopic || "";
       
-      setMessages(prev => [...prev, {
+      const assistantMsg: Message = {
         role: "assistant",
         content: reply,
         detectedSubject,
         detectedTopic,
-      }]);
+      };
+      
+      setMessages(prev => [...prev, assistantMsg]);
+
+      // Save session in background
+      const userMsg = updatedMessages[updatedMessages.length - 1];
+      saveMessages(
+        [userMsg, assistantMsg],
+        detectedSubject || undefined,
+        detectedTopic || undefined
+      ).catch(() => {});
 
       // Track learning in background
       if (detectedSubject && detectedSubject !== "General") {
@@ -142,15 +168,26 @@ export default function DoubtSolver() {
         {/* Header */}
         <GlassCard className="mb-2 shrink-0">
           <GlassCardHeader className="py-4">
-            <GlassCardTitle className="flex items-center gap-3">
-              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                <HelpCircle className="h-5 w-5 text-primary" />
+            <div className="flex items-center justify-between">
+              <GlassCardTitle className="flex items-center gap-3">
+                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                  <HelpCircle className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <span className="text-xl">Doubt Solver</span>
+                  <p className="text-sm text-muted-foreground font-normal">Quick answers to your questions</p>
+                </div>
+              </GlassCardTitle>
+              <div className="flex items-center gap-2">
+                <ChatHistory mode="doubt" onLoadSession={handleLoadSession} />
+                {messages.length > 1 && (
+                  <Button variant="outline" size="sm" onClick={startNewSession} className="gap-1.5">
+                    <Plus className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">New</span>
+                  </Button>
+                )}
               </div>
-              <div>
-                <span className="text-xl">Doubt Solver</span>
-                <p className="text-sm text-muted-foreground font-normal">Quick answers to your questions</p>
-              </div>
-            </GlassCardTitle>
+            </div>
           </GlassCardHeader>
         </GlassCard>
 

@@ -13,6 +13,8 @@ import { Mic, MicOff, Volume2, VolumeX, RefreshCw, Globe } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
+import { ChatHistory } from "@/components/chat/ChatHistory";
+import { useChatSession } from "@/hooks/useChatSession";
 
 interface Message {
   role: "user" | "assistant";
@@ -67,6 +69,13 @@ export default function VoiceTutor() {
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const recognitionRef = useRef<any>(null);
   const conversationHistoryRef = useRef<Message[]>([]);
+  const { saveMessages, resetSession, loadSession } = useChatSession("voice");
+
+  const handleLoadSession = (loadedMessages: Message[], session: { id: string; subject?: string | null; topic?: string | null }) => {
+    setMessages(loadedMessages);
+    conversationHistoryRef.current = loadedMessages;
+    loadSession(loadedMessages, session);
+  };
 
   // Load available voices
   useEffect(() => {
@@ -214,6 +223,11 @@ export default function VoiceTutor() {
       ];
       setMessages(newMessages);
       conversationHistoryRef.current = newMessages;
+      // Save session in background
+      saveMessages(
+        [{ role: "user", content: question }, { role: "assistant", content: reply }],
+        selectedLanguage === "en" ? "General" : LANGUAGES.find(l => l.code === selectedLanguage)?.name
+      ).catch(() => {});
       
       if (autoSpeak) {
         speakText(reply);
@@ -387,6 +401,7 @@ export default function VoiceTutor() {
                   {autoSpeak ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
                   <span className="ml-2 hidden sm:inline">{autoSpeak ? "Auto-Speak" : "Auto-Speak Off"}</span>
                 </Button>
+                <ChatHistory mode="voice" onLoadSession={handleLoadSession} />
               </div>
             </div>
           </GlassCardHeader>
