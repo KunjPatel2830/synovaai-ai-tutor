@@ -432,7 +432,7 @@ export default function Tutor() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-[calc(100vh-5rem)]">
+      <div className="flex flex-col h-[calc(100vh-4.5rem)]">
         {/* Header with controls */}
         <div className="flex items-center justify-between gap-2 mb-3 shrink-0 flex-wrap">
           <div className="flex items-center gap-1.5 flex-wrap">
