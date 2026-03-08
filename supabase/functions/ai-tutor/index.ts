@@ -191,7 +191,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { messages, preferredLanguage, subject, topic, curriculum, studentContext } = body;
+    const { messages, preferredLanguage, subject, topic, curriculum, studentContext, memoryContext } = body;
 
     const validation = validateMessages(messages);
     if (!validation.valid) {
