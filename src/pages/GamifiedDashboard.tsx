@@ -19,6 +19,7 @@ import { QuickNotesWidget } from "@/components/dashboard/QuickNotesWidget";
 import { JoinWithCode } from "@/components/invitation/JoinWithCode";
 import { UserOverview } from "@/components/dashboard/UserOverview";
 import { TeacherChatWidget } from "@/components/dashboard/TeacherChatWidget";
+import { ContinueLearningWidget } from "@/components/dashboard/ContinueLearningWidget";
 
 const mainModes = [
   {
