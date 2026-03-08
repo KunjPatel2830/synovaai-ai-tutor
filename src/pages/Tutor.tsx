@@ -100,7 +100,7 @@ export default function Tutor() {
       let currentSessionId = sessionId;
       
       if (!currentSessionId) {
-        const { data: session, error: sessionError } = await externalSupabase
+        const { data: session, error: sessionError } = await supabase
           .from("chat_sessions")
           .insert({
             user_id: user.id,
