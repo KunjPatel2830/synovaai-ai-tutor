@@ -178,6 +178,7 @@ export default function Homework() {
           subject,
           messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
           files: fileData.length > 0 ? fileData : undefined,
+          studentContext: getAIContext(),
         },
         {
           signal: inFlightControllerRef.current.signal,
