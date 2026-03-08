@@ -513,13 +513,30 @@ export default function Tutor() {
                 return (
                   <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div className={cn(
-                      "max-w-[92%] sm:max-w-[80%] p-3 rounded-2xl",
+                      "max-w-[92%] sm:max-w-[80%] rounded-2xl",
                       msg.role === "user" 
                         ? isPausedMessage 
-                          ? "bg-warning/80 text-warning-foreground" 
-                          : "bg-primary text-primary-foreground"
+                          ? "bg-warning/80 text-warning-foreground p-3" 
+                          : "bg-primary text-primary-foreground p-3"
                         : "bg-card border border-border"
                     )}>
+                      {/* Subject/Topic tags */}
+                      {msg.role === "assistant" && (msg.detectedSubject || msg.detectedTopic) && (
+                        <div className="flex flex-wrap gap-1.5 px-3 pt-3 pb-0">
+                          {msg.detectedSubject && msg.detectedSubject !== "General" && (
+                            <Badge variant="secondary" className="text-[10px] sm:text-xs gap-1 font-medium">
+                              <BookOpen className="h-3 w-3" />
+                              {msg.detectedSubject}
+                            </Badge>
+                          )}
+                          {msg.detectedTopic && (
+                            <Badge variant="outline" className="text-[10px] sm:text-xs gap-1 font-medium">
+                              <Tag className="h-3 w-3" />
+                              {msg.detectedTopic}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
                       <div className="flex items-start gap-2">
                         {msg.role === "assistant" ? (
                           i === messages.length - 1 && !isLoading ? (
