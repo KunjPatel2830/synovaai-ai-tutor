@@ -215,6 +215,102 @@ serve(async (req) => {
       return jsonRes({ ok: true });
     }
 
+    // ── ASK AI ──
+    if (action === "ask-ai") {
+      const { room_id, question, subject, recentMessages } = body;
+      if (!room_id || !question?.trim()) return jsonRes({ error: "Missing question" }, 400);
+
+      // Verify participant
+      const { data: participant } = await admin
+        .from("peer_room_participants")
+        .select("id")
+        .eq("room_id", room_id)
+        .eq("user_id", user.id)
+        .is("left_at", null)
+        .maybeSingle();
+
+      if (!participant) return jsonRes({ error: "Not a participant" }, 403);
+
+      // Insert user's question as a message
+      await admin.from("peer_room_messages").insert({
+        room_id,
+        user_id: user.id,
+        message: question.trim(),
+        message_type: "text",
+      });
+
+      // Build context from recent chat
+      const chatContext = (recentMessages || [])
+        .slice(-10)
+        .map((m: any) => `${m.name || "User"}: ${m.message}`)
+        .join("\n");
+
+      const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+      if (!LOVABLE_API_KEY) {
+        return jsonRes({ error: "AI not configured" }, 500);
+      }
+
+      const systemPrompt = `You are SYNOVA AI, an expert tutor for JEE and NEET preparation, assisting students in a collaborative peer study room.
+${subject ? `The room subject is: ${subject}` : ""}
+
+IMPORTANT RULES:
+- Give clear, concise explanations suitable for a group study chat
+- Show step-by-step derivations when needed — NEVER skip steps
+- Use simple language and real-world analogies
+- If the question is about a specific concept, explain the core idea first, then the math
+- Keep responses focused and not too long (this is a chat, not a lecture)
+- Use markdown formatting for clarity
+- Be encouraging and supportive
+
+${chatContext ? `Recent chat context:\n${chatContext}` : ""}`;
+
+      try {
+        const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-3-flash-preview",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: question.trim() },
+            ],
+          }),
+        });
+
+        if (!aiResponse.ok) {
+          const status = aiResponse.status;
+          if (status === 429) return jsonRes({ error: "AI rate limit exceeded, try again shortly" }, 429);
+          if (status === 402) return jsonRes({ error: "AI credits exhausted" }, 402);
+          console.error("[peer-room-action] AI error:", status);
+          return jsonRes({ error: "AI temporarily unavailable" }, 500);
+        }
+
+        const aiData = await aiResponse.json();
+        const aiText = aiData.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
+
+        // Insert AI response as a message
+        const AI_USER_ID = "00000000-0000-0000-0000-000000000000";
+        const { data: aiMsg } = await admin
+          .from("peer_room_messages")
+          .insert({
+            room_id,
+            user_id: AI_USER_ID,
+            message: aiText,
+            message_type: "ai",
+          })
+          .select()
+          .single();
+
+        return jsonRes({ aiMessage: aiMsg });
+      } catch (aiErr) {
+        console.error("[peer-room-action] AI fetch error:", aiErr);
+        return jsonRes({ error: "Failed to get AI response" }, 500);
+      }
+    }
+
     return jsonRes({ error: "Unknown action" }, 400);
   } catch (err) {
     console.error("[peer-room-action] Error:", err);
