@@ -14,6 +14,7 @@ import { useProgressTracker } from "@/hooks/useProgressTracker";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
+import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
 import { FileUpload } from "@/components/upload/FileUpload";
 import { FileText, Send, Lightbulb, AlertTriangle, CheckCircle, Mic, MicOff, Volume2, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -360,7 +361,13 @@ export default function Homework() {
                       }`}>
                         <div className="flex items-start gap-2">
                           <div className="text-sm leading-relaxed flex-1 overflow-x-auto">
-                            {msg.role === "assistant" ? <MarkdownContent content={msg.content} /> : msg.content}
+                            {msg.role === "assistant" ? (
+                              i === messages.length - 1 && !isLoading ? (
+                                <TypingMarkdown content={msg.content} />
+                              ) : (
+                                <MarkdownContent content={msg.content} />
+                              )
+                            ) : msg.content}
                           </div>
                           {msg.role === "assistant" && (
                             <Button
