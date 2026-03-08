@@ -65,10 +65,8 @@ export function PYQQuizChat() {
   const fetchQuestions = async () => {
     setIsLoading(true);
     try {
-      // Use public view to avoid exposing author metadata (created_by)
-      let query = externalSupabase
+      let query = supabase
         .from("pyq_questions_public")
-        // NOTE: Keep this as a literal string so Supabase types infer correctly.
         .select(
           "id,question_text,options,correct_option,subject,topic,explanation,difficulty,exam_type,year,created_at"
         );
