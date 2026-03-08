@@ -8,11 +8,13 @@ import {
   GlassCardHeader,
   GlassCardTitle,
 } from "@/components/ui/glass-card";
-import { HelpCircle, Send, Mic, MicOff, Volume2, BookOpen, Tag } from "lucide-react";
+import { HelpCircle, Send, Mic, MicOff, Volume2, BookOpen, Tag, Plus } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { useLearningHistory } from "@/hooks/useLearningHistory";
+import { useChatSession } from "@/hooks/useChatSession";
+import { ChatHistory } from "@/components/chat/ChatHistory";
 import { cn } from "@/lib/utils";
 import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
 import { Badge } from "@/components/ui/badge";
