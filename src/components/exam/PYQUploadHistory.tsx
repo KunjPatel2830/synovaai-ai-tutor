@@ -36,7 +36,7 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
   const fetchUploads = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await externalSupabase
+      const { data, error } = await supabase
         .from("pyq_uploads")
         .select("*")
         .eq("uploaded_by", userId)
