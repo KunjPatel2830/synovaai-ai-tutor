@@ -141,13 +141,51 @@ You MUST respond using the provided tool/function.`,
 
     const aiResult = await aiResponse.json();
     const toolCall = aiResult.choices?.[0]?.message?.tool_calls?.[0];
+    let extracted: { topics: any[] };
 
-    if (!toolCall?.function?.arguments) {
-      throw new Error("AI did not return structured content");
+    if (toolCall?.function?.arguments) {
+      extracted = JSON.parse(toolCall.function.arguments);
+    } else {
+      // Fallback: try to parse the content as JSON
+      const content = aiResult.choices?.[0]?.message?.content || "";
+      console.log("[process-study-pdf] Tool call not returned, attempting JSON fallback...");
+      extracted = tryParseContent(content);
+      if (!extracted) {
+        // Second attempt: ask AI to re-format as JSON
+        console.log("[process-study-pdf] Fallback parse failed, retrying with JSON-only prompt...");
+        const retryResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${LOVABLE_API_KEY}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            model: "google/gemini-2.5-flash",
+            messages: [
+              {
+                role: "system",
+                content: "Convert the following educational content into a JSON object with this exact structure: {\"topics\":[{\"topic_name\":\"...\",\"questions\":[{\"question_text\":\"...\",\"solution_text\":\"...\"}]}]}. Return ONLY valid JSON, no markdown.",
+              },
+              { role: "user", content: content.slice(0, 30000) },
+            ],
+          }),
+        });
+        if (retryResp.ok) {
+          const retryResult = await retryResp.json();
+          const retryContent = retryResult.choices?.[0]?.message?.content || "";
+          extracted = tryParseContent(retryContent);
+        }
+        if (!extracted) {
+          throw new Error("AI did not return structured content after fallback");
+        }
+      }
     }
 
-    const extracted = JSON.parse(toolCall.function.arguments);
-    console.log(`[process-study-pdf] Extracted ${extracted.topics?.length || 0} topics`);
+    if (!extracted.topics || !Array.isArray(extracted.topics) || extracted.topics.length === 0) {
+      throw new Error("No topics extracted from PDF");
+    }
+
+    console.log(`[process-study-pdf] Extracted ${extracted.topics.length} topics`);
 
     let totalQuestions = 0;
 
