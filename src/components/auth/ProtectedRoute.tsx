@@ -1,7 +1,5 @@
 import { Navigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
-import { useStudentProfile } from "@/hooks/useStudentProfile";
-import { StudentOnboarding } from "@/components/onboarding/StudentOnboarding";
 import { Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
 
@@ -17,7 +15,6 @@ export function ProtectedRoute({
   requireEmailVerification = false 
 }: ProtectedRouteProps) {
   const { user, userRole, loading } = useAuth();
-  const { needsOnboarding, isLoading: profileLoading, updateProfile } = useStudentProfile();
   const [redirectReady, setRedirectReady] = useState(false);
 
   useEffect(() => {
@@ -33,7 +30,7 @@ export function ProtectedRoute({
     return () => window.clearTimeout(t);
   }, [loading, user]);
 
-  if (loading || profileLoading) {
+  if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <Loader2 className="h-8 w-8 animate-spin text-primary" />
@@ -59,20 +56,6 @@ export function ProtectedRoute({
 
   if (allowedRoles && userRole && !allowedRoles.includes(userRole)) {
     return <Navigate to="/dashboard" replace />;
-  }
-
-  // Show onboarding for students who haven't set up their profile
-  if (needsOnboarding && userRole === "student") {
-    return (
-      <StudentOnboarding
-        onComplete={async (data) => {
-          const result = await updateProfile(data);
-          if (result?.error) {
-            console.error("Onboarding profile update failed:", result.error);
-          }
-        }}
-      />
-    );
   }
 
   return <>{children}</>;
