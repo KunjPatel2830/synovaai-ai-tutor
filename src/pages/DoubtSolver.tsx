@@ -143,7 +143,11 @@ export default function DoubtSolver() {
                     }`}
                   >
                     <div className="flex items-start gap-2">
-                      <p className="whitespace-pre-line flex-1">{message.content}</p>
+                      {message.role === "user" ? (
+                        <p className="whitespace-pre-line flex-1">{message.content}</p>
+                      ) : (
+                        <MarkdownContent content={message.content} className="flex-1" enableImageGeneration={true} />
+                      )}
                       {message.role === "assistant" && (
                         <Button
                           variant="ghost"
