@@ -104,7 +104,7 @@ export default function Homework() {
         setSessionId(currentSessionId);
       }
 
-      await externalSupabase.from("chat_messages").insert([
+      await supabase.from("chat_messages").insert([
         { session_id: currentSessionId, role: userMsg.role, content: userMsg.content },
         { session_id: currentSessionId, role: assistantMsg.role, content: assistantMsg.content },
       ]);

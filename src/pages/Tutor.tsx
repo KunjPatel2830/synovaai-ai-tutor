@@ -330,7 +330,7 @@ export default function Tutor() {
       // Save to database (non-blocking)
       if (sessionId) {
         Promise.resolve(
-          externalSupabase.from("chat_messages").insert([
+          supabase.from("chat_messages").insert([
             { session_id: sessionId, role: userMessage.role, content: userMessage.content },
             { session_id: sessionId, role: assistantMessage.role, content: assistantMessage.content },
           ])
