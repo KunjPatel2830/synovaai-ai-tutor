@@ -99,7 +99,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { messages, preferredLanguage, subject, topic, curriculum } = body;
+    const { messages, preferredLanguage, subject, topic, curriculum, studentContext } = body;
 
     // Validate messages input
     const validation = validateMessages(messages);
