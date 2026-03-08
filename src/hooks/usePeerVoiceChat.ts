@@ -127,13 +127,13 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
         const answer = await peerData.connection.createAnswer();
         await peerData.connection.setLocalDescription(answer);
         
-        await externalSupabase.from('peer_voice_signals').insert({
+        await externalSupabase.from('peer_voice_signals').insert([{
           room_id: roomId,
           from_user_id: userId,
           to_user_id: peerId,
           signal_type: 'answer',
-          signal_data: { sdp: answer.sdp, type: answer.type },
-        });
+          signal_data: { sdp: answer.sdp, type: answer.type } as unknown as Json,
+        }]);
       }
     } else if (signal.signal_type === 'answer') {
       // Received answer
