@@ -42,7 +42,7 @@ export function ChatHistory({ mode, onLoadSession }: ChatHistoryProps) {
     
     setIsLoading(true);
     try {
-      const { data, error } = await externalSupabase
+      const { data, error } = await supabase
         .from("chat_sessions")
         .select(`
           id,
