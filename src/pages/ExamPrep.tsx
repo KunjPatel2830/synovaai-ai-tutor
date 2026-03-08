@@ -278,7 +278,7 @@ export default function ExamPrep() {
   if (state === "setup") {
     return (
       <AppLayout>
-        <div className="max-w-4xl mx-auto flex flex-col h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)]">
+        <div className={cn("max-w-4xl mx-auto flex flex-col", mode === "pyq" ? "h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)]" : "")}>
           {/* Compact Header Row */}
           <div className="flex items-center justify-between gap-4 mb-3 shrink-0">
             <div className="flex items-center gap-3">
@@ -307,7 +307,7 @@ export default function ExamPrep() {
           </div>
 
           {/* Tabs for different modes - Different UI for Teachers vs Students */}
-          <Tabs value={mode} onValueChange={(v) => setMode(v as ExamMode)} className="flex-1 flex flex-col min-h-0">
+          <Tabs value={mode} onValueChange={(v) => setMode(v as ExamMode)} className={cn(mode === "pyq" ? "flex-1 flex flex-col min-h-0" : "")}>
             {isTeacher ? (
               /* Teacher View: Upload PYQ, Study Materials, and Needs Help tabs */
               <>
