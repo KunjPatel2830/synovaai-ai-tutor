@@ -106,13 +106,13 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         
-        await externalSupabase.from('peer_voice_signals').insert({
+        await externalSupabase.from('peer_voice_signals').insert([{
           room_id: roomId,
           from_user_id: userId,
           to_user_id: peerId,
           signal_type: 'offer',
-          signal_data: { sdp: offer.sdp, type: offer.type },
-        });
+          signal_data: { sdp: offer.sdp, type: offer.type } as unknown as Json,
+        }]);
       }
     } else if (signal.signal_type === 'offer') {
       // Received offer, create answer
