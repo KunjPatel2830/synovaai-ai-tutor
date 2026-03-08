@@ -132,10 +132,14 @@ serve(async (req) => {
 
     const subjectContext = subject ? `Subject: ${subject}` : "";
     const topicContext = topic ? `Current Topic: ${topic}` : "";
+    const studentProfileContext = typeof studentContext === "string" && studentContext.trim() 
+      ? studentContext.trim() 
+      : "";
 
     const systemPrompt = `You are SYNOVA, an adaptive AI tutor. Follow these rules:
 
 CURRICULUM: ${selectedCurriculum}
+${studentProfileContext ? `${studentProfileContext}\n` : ""}
 ${subjectContext}
 ${topicContext}
 
