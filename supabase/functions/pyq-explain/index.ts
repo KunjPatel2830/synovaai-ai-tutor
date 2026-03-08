@@ -109,7 +109,7 @@ Explain using the exact format above.`;
           { role: "user", content: userPrompt },
         ],
         temperature: 0.3,
-        max_tokens: isFollowUp ? 220 : 320,
+        max_tokens: isFollowUp ? 400 : 600,
         stream: true,
       }),
     });
