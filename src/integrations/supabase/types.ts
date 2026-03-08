@@ -624,6 +624,8 @@ export type Database = {
           grade_level: string | null
           id: string
           language_preference: string | null
+          standard: string | null
+          target_exam: string | null
           tutor_language: string | null
           updated_at: string | null
           user_id: string
@@ -636,6 +638,8 @@ export type Database = {
           grade_level?: string | null
           id?: string
           language_preference?: string | null
+          standard?: string | null
+          target_exam?: string | null
           tutor_language?: string | null
           updated_at?: string | null
           user_id: string
@@ -648,6 +652,8 @@ export type Database = {
           grade_level?: string | null
           id?: string
           language_preference?: string | null
+          standard?: string | null
+          target_exam?: string | null
           tutor_language?: string | null
           updated_at?: string | null
           user_id?: string
