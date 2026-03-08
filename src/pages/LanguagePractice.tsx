@@ -278,7 +278,7 @@ export default function LanguagePractice() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Type your answer or ask a question..."
-                    className="min-h-[60px] resize-none"
+                    className="min-h-[120px] max-h-48 resize-none"
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();
