@@ -327,7 +327,7 @@ export default function ExamPrep() {
                 </TabsList>
 
                 {/* Upload Tab */}
-                <TabsContent value="upload" className="flex-1 mt-4 overflow-auto space-y-4">
+                <TabsContent value="upload" className="mt-4 overflow-auto space-y-4">
                   {user && (
                     <>
                       <PYQUploader userId={user.id} />
@@ -337,7 +337,7 @@ export default function ExamPrep() {
                 </TabsContent>
 
                 {/* Study Materials Tab */}
-                <TabsContent value="study" className="flex-1 mt-4 overflow-auto space-y-4">
+                <TabsContent value="study" className="mt-4 overflow-auto space-y-4">
                   {user && (
                     <>
                       <StudyMaterialUploader userId={user.id} onUploadComplete={() => setStudyRefreshKey((k) => k + 1)} />
@@ -347,7 +347,7 @@ export default function ExamPrep() {
                 </TabsContent>
 
                 {/* Needs Help Tab */}
-                <TabsContent value="help" className="flex-1 mt-4 overflow-auto">
+                <TabsContent value="help" className="mt-4 overflow-auto">
                   <NeedsHelpTab linkedStudentIds={linkedStudentIds} />
                 </TabsContent>
               </>
