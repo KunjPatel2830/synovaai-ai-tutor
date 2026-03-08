@@ -14,7 +14,7 @@ import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { useLearningHistory } from "@/hooks/useLearningHistory";
 import { cn } from "@/lib/utils";
-import { MarkdownContent } from "@/components/ui/markdown-content";
+import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
 import { Badge } from "@/components/ui/badge";
 
 interface Message {
@@ -194,7 +194,7 @@ export default function DoubtSolver() {
                       {message.role === "user" ? (
                         <p className="whitespace-pre-line flex-1">{message.content}</p>
                       ) : (
-                        <MarkdownContent content={message.content} className="flex-1" enableImageGeneration={true} />
+                        <TypingMarkdown content={message.content} className="flex-1" enableImageGeneration={true} animate={index === messages.length - 1} />
                       )}
                       {message.role === "assistant" && (
                         <Button
