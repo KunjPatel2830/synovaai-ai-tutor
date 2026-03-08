@@ -134,6 +134,7 @@ serve(async (req) => {
 
     if (action === "generate_questions") {
       systemPrompt = `You are an exam preparation assistant. ${selectedCurriculum}
+${studentProfileContext ? `\n${studentProfileContext}\n` : ""}
 
 Generate exactly 5 questions following board exam format. Mix multiple choice and short answer.
 

@@ -127,9 +127,13 @@ serve(async (req) => {
       ? curriculumGuide[curriculum] 
       : curriculumGuide["General"];
 
+    const studentProfileContext = typeof studentContext === "string" && studentContext.trim() 
+      ? `\n${studentContext.trim()}` 
+      : "";
+
     const systemPrompt = `You are SYNOVA's Homework Assistant. GUIDE students, don't give direct answers.
 
-CURRICULUM: ${selectedCurriculum}
+CURRICULUM: ${selectedCurriculum}${studentProfileContext}
 
 RULES:
 1. NEVER give the final answer directly
