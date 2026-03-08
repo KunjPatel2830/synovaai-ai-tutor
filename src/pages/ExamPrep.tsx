@@ -133,7 +133,7 @@ export default function ExamPrep() {
     if (!user) return;
     
     try {
-      const { data: session, error } = await externalSupabase
+      const { data: session, error } = await supabase
         .from("chat_sessions")
         .insert({
           user_id: user.id,
