@@ -50,18 +50,36 @@ export function useStudentProfile() {
     if (!user) return;
 
     try {
-      const { error } = await externalSupabase
+      // Try update first
+      const { error, count } = await externalSupabase
         .from("profiles")
         .update(updates)
-        .eq("user_id", user.id);
+        .eq("user_id", user.id)
+        .select("user_id")
+        .then(({ data, error }) => ({ error, count: data?.length ?? 0 }));
 
-      if (!error) {
-        setProfile((prev) => (prev ? { ...prev, ...updates } : (updates as StudentProfile)));
-        if (updates.standard) {
-          setNeedsOnboarding(false);
+      if (error) {
+        console.error("Profile update error:", error);
+        return { error };
+      }
+
+      // If no rows were updated, the profile row might not exist yet — upsert it
+      if (count === 0) {
+        const { error: upsertError } = await externalSupabase
+          .from("profiles")
+          .upsert({ user_id: user.id, ...updates }, { onConflict: "user_id" });
+
+        if (upsertError) {
+          console.error("Profile upsert error:", upsertError);
+          return { error: upsertError };
         }
       }
-      return { error };
+
+      setProfile((prev) => (prev ? { ...prev, ...updates } : (updates as StudentProfile)));
+      if (updates.standard) {
+        setNeedsOnboarding(false);
+      }
+      return { error: null };
     } catch (err) {
       console.error("Failed to update profile:", err);
       return { error: err };
