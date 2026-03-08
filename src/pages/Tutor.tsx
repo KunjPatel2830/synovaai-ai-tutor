@@ -147,7 +147,7 @@ export default function Tutor() {
     try {
       await waitForRateLimit();
 
-      const res = await invokeBackendFunction<{ reply: string }>(
+      const res = await invokeBackendFunction<{ reply: string; detectedSubject?: string; detectedTopic?: string }>(
         "ai-tutor",
         {
           messages: [{ role: "user", content: systemMessage }],
