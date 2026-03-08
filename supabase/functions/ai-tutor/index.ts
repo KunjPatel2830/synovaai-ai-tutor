@@ -231,6 +231,9 @@ serve(async (req) => {
     const studentProfileContext = typeof studentContext === "string" && studentContext.trim()
       ? studentContext.trim()
       : "";
+    const learningMemory = typeof memoryContext === "string" && memoryContext.trim()
+      ? memoryContext.trim()
+      : "";
 
     const systemPrompt = `You are SYNOVA, an adaptive AI tutor. Follow these rules:
 
