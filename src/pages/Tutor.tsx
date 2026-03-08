@@ -152,6 +152,7 @@ export default function Tutor() {
           mode: "start",
           subject,
           topic,
+          studentContext: getAIContext(),
         },
         {
           signal: inFlightControllerRef.current.signal,
