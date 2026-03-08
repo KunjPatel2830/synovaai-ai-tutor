@@ -57,8 +57,6 @@ const Landing = () => {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { scrollYProgress } = useScroll();
-  const bgY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
 
   const [reviews, setReviews] = useState<ReviewData[]>(fallbackTestimonials);
   const [newReview, setNewReview] = useState("");
