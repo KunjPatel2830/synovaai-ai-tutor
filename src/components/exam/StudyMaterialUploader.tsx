@@ -63,7 +63,7 @@ export function StudyMaterialUploader({ userId, onUploadComplete }: StudyMateria
         chapter: chapter.trim(),
         teacherId: userId,
         fileName: file.name,
-      }, { timeoutMs: 300000, retries: 0, label: "study-pdf-upload" });
+      }, { timeoutMs: 300000, retries: 0, label: "study-pdf-upload", useExternal: true });
 
       if (!result.ok) {
         const errorMsg = result.error || "Processing failed";

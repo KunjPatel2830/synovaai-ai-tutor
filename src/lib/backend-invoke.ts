@@ -1,4 +1,5 @@
 import { getExternalAccessToken } from "@/lib/external-auth";
+import { EXTERNAL_SUPABASE_URL_PUBLIC } from "@/lib/external-supabase";
 
 type InvokeOptions = {
   /** Abort signal for user-cancel / page unmount */
@@ -11,6 +12,8 @@ type InvokeOptions = {
   label?: string;
   /** Warn when request exceeds this duration (ms) */
   slowThresholdMs?: number;
+  /** Use external Supabase URL instead of Lovable Cloud */
+  useExternal?: boolean;
 };
 
 export type InvokeResult<T> = {
@@ -98,10 +101,11 @@ export async function invokeBackendFunction<T = any>(
     retries = 1,
     label,
     slowThresholdMs = 2500,
+    useExternal = false,
   } = opts;
 
-  const baseUrl = getBackendBaseUrl();
-  const apiKey = getBackendApiKey();
+  const baseUrl = useExternal ? EXTERNAL_SUPABASE_URL_PUBLIC.replace(/\/$/, "") : getBackendBaseUrl();
+  const apiKey = useExternal ? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5ZWNoYnhmZmJnbnVrZ2ZyZnlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5NDE0MzAsImV4cCI6MjA4MzUxNzQzMH0.ip0gQwK9x5mvlNHq_ge9xlt8yfz5O_AZpz8YPLei3rw" : getBackendApiKey();
   const url = `${baseUrl}/functions/v1/${functionName}`;
 
   const token = await getExternalAccessToken();

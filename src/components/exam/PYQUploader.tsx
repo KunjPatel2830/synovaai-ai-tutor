@@ -69,7 +69,7 @@ export function PYQUploader({ userId, onUploadComplete }: PYQUploaderProps) {
         shift: shift || null,
         userId,
         fileName: file.name,
-      }, { timeoutMs: 300000, retries: 0, label: "pyq-upload" });
+      }, { timeoutMs: 300000, retries: 0, label: "pyq-upload", useExternal: true });
 
       if (!result.ok) {
         const errorMsg = result.error || "Processing failed";

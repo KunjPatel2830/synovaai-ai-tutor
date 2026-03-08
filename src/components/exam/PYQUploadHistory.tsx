@@ -113,7 +113,7 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
         shift: selectedUploadForRetry.shift,
         userId,
         fileName: file.name,
-      }, { timeoutMs: 300000, retries: 0, label: "pyq-retry" });
+      }, { timeoutMs: 300000, retries: 0, label: "pyq-retry", useExternal: true });
 
       if (!result.ok) throw new Error(result.error || "Retry failed");
 
