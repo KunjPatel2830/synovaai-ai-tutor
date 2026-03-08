@@ -295,6 +295,7 @@ export default function Tutor() {
           subject,
           topic,
           studentContext: getAIContext(),
+          memoryContext: getMemoryContext(),
         },
         {
           signal: inFlightControllerRef.current.signal,
