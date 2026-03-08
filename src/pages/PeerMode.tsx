@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { externalSupabase } from "@/lib/external-supabase";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
@@ -15,7 +14,6 @@ import { VoiceChatControls } from "@/components/peer/VoiceChatControls";
 import { Users, Plus, LogIn, Send, Loader2, PenTool, X, Copy, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { PeerWhiteboard } from "@/components/peer/PeerWhiteboard";
-import { getExternalAccessToken } from "@/lib/external-auth";
 
 interface Room {
   id: string;
@@ -27,20 +25,12 @@ interface Room {
   is_active: boolean | null;
 }
 
-interface Participant {
-  id: string;
-  user_id: string;
-  role: string;
-  display_name?: string;
-}
-
 interface Message {
   id: string;
   user_id: string;
   message: string;
   message_type: string;
   created_at: string;
-  display_name?: string;
 }
 
 export default function PeerMode() {
@@ -48,220 +38,191 @@ export default function PeerMode() {
   const { toast } = useToast();
 
   const [activeRoom, setActiveRoom] = useState<Room | null>(null);
-  const [participants, setParticipants] = useState<Participant[]>([]);
+  const [participantCount, setParticipantCount] = useState(0);
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
   const [showWhiteboard, setShowWhiteboard] = useState(false);
+  const [displayNames, setDisplayNames] = useState<Record<string, string>>({});
 
-  // Room creation/joining
   const [roomName, setRoomName] = useState("");
   const [roomSubject, setRoomSubject] = useState("");
   const [joinCode, setJoinCode] = useState("");
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [displayNames, setDisplayNames] = useState<Record<string, string>>({});
+  const pollingRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const lastMessageTime = useRef<string | null>(null);
 
-  // Voice chat hook
   const voiceChat = usePeerVoiceChat(activeRoom?.id || null, user?.id || null);
 
-  // Fetch display names for participants
-  const fetchDisplayNames = async (userIds: string[]) => {
-    if (userIds.length === 0) return;
-    
-    const { data } = await externalSupabase
-      .from("profiles")
-      .select("user_id, display_name")
-      .in("user_id", userIds);
+  // ── Room Action Helper ──
+  const roomAction = useCallback(async (action: string, extra: Record<string, unknown> = {}) => {
+    if (!activeRoom) return null;
+    const res = await invokeBackendFunction("peer-room-action", {
+      action,
+      room_id: activeRoom.id,
+      ...extra,
+    }, { timeoutMs: 15000, retries: 1, label: `peer:${action}` });
+    if (!res.ok) throw new Error(res.error || "Failed");
+    return res.data;
+  }, [activeRoom]);
 
-    if (data) {
-      const names: Record<string, string> = {};
-      data.forEach((p) => {
-        names[p.user_id] = p.display_name || "Anonymous";
-      });
-      setDisplayNames((prev) => ({ ...prev, ...names }));
-    }
-  };
-
-  // Create a new room
+  // ── Create Room ──
   const createRoom = async () => {
     if (!user || !roomName.trim()) {
       toast({ title: "Please enter a room name", variant: "destructive" });
       return;
     }
-
     setIsLoading(true);
     try {
       const res = await invokeBackendFunction<{ room: Room }>(
         "peer-create-room",
-        {
-          name: roomName.trim(),
-          subject: roomSubject.trim() || null,
-          role: userRole === "teacher" ? "teacher" : "student",
-        },
+        { name: roomName.trim(), subject: roomSubject.trim() || null, role: userRole === "teacher" ? "teacher" : "student" },
         { timeoutMs: 20000, retries: 1, label: "peer:create" }
       );
-
       if (!res.ok) throw new Error(res.error || "Failed");
-
-      const room = res.data?.room as Room | undefined;
-      if (!room) {
-        throw new Error("Failed to create room");
-      }
-
+      const room = res.data?.room;
+      if (!room) throw new Error("Failed to create room");
       setActiveRoom(room);
       toast({ title: "Room created!", description: `Share code: ${room.room_code}` });
       setRoomName("");
       setRoomSubject("");
     } catch (error: any) {
-      console.error("Create room error:", error);
-      toast({
-        title: "Failed to create room",
-        description: error?.message,
-        variant: "destructive",
-      });
+      toast({ title: "Failed to create room", description: error?.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Join a room by code
+  // ── Join Room ──
   const joinRoom = async () => {
     if (!user || !joinCode.trim()) {
       toast({ title: "Please enter a room code", variant: "destructive" });
       return;
     }
-
     setIsLoading(true);
     try {
       const res = await invokeBackendFunction<{ room: Room }>(
         "peer-join-room",
-        {
-          code: joinCode.toUpperCase(),
-          role: userRole === "teacher" ? "teacher" : "student",
-        },
+        { code: joinCode.toUpperCase(), role: userRole === "teacher" ? "teacher" : "student" },
         { timeoutMs: 20000, retries: 1, label: "peer:join" }
       );
-
       if (!res.ok) throw new Error(res.error || "Failed");
-
-      const room = res.data?.room as Room | undefined;
+      const room = res.data?.room;
       if (!room) {
         toast({ title: "Room not found or inactive", variant: "destructive" });
         return;
       }
-
       setActiveRoom(room);
       toast({ title: "Joined room!" });
       setJoinCode("");
     } catch (error: any) {
-      console.error("Join room error:", error);
-      toast({
-        title: "Failed to join room",
-        description: error?.message,
-        variant: "destructive",
-      });
+      toast({ title: "Failed to join room", description: error?.message, variant: "destructive" });
     } finally {
       setIsLoading(false);
     }
   };
 
-
-  // Leave room
+  // ── Leave Room ──
   const leaveRoom = async () => {
     if (!user || !activeRoom) return;
-
-    // Stop voice chat if active
-    if (voiceChat.isVoiceEnabled) {
-      await voiceChat.stopVoiceChat();
-    }
-
-    await externalSupabase
-      .from("peer_room_participants")
-      .update({ left_at: new Date().toISOString() })
-      .eq("room_id", activeRoom.id)
-      .eq("user_id", user.id);
-
+    if (voiceChat.isVoiceEnabled) await voiceChat.stopVoiceChat();
+    try {
+      await roomAction("leave-room");
+    } catch { /* ignore */ }
     setActiveRoom(null);
     setMessages([]);
-    setParticipants([]);
+    setParticipantCount(0);
+    setDisplayNames({});
     setShowWhiteboard(false);
   };
 
-  // Send message
+  // ── Send Message ──
   const sendMessage = async () => {
-    if (!user || !activeRoom || !newMessage.trim()) return;
-
-    const { error } = await externalSupabase.from("peer_room_messages").insert({
-      room_id: activeRoom.id,
-      user_id: user.id,
-      message: newMessage.trim(),
-      message_type: "text",
-    });
-
-    if (!error) {
+    if (!user || !activeRoom || !newMessage.trim() || isSending) return;
+    setIsSending(true);
+    try {
+      const data = await roomAction("send-message", { message: newMessage.trim() });
+      if (data?.message) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === data.message.id)) return prev;
+          return [...prev, data.message];
+        });
+        lastMessageTime.current = data.message.created_at;
+      }
       setNewMessage("");
+    } catch (error: any) {
+      toast({ title: "Failed to send message", variant: "destructive" });
+    } finally {
+      setIsSending(false);
     }
   };
 
-  // Load participants and messages when room is active
+  // ── Load Initial Data ──
   useEffect(() => {
     if (!activeRoom) return;
 
-    const loadRoomData = async () => {
-      // Load participants
-      const { data: parts } = await externalSupabase
-        .from("peer_room_participants")
-        .select("*")
-        .eq("room_id", activeRoom.id)
-        .is("left_at", null);
-
-      if (parts) {
-        setParticipants(parts);
-        await fetchDisplayNames(parts.map((p) => p.user_id));
-      }
-
-      // Load messages
-      const { data: msgs } = await externalSupabase
-        .from("peer_room_messages")
-        .select("*")
-        .eq("room_id", activeRoom.id)
-        .order("created_at", { ascending: true });
-
-      if (msgs) {
-        setMessages(msgs);
-        const userIds = [...new Set(msgs.map((m) => m.user_id))];
-        await fetchDisplayNames(userIds);
+    const loadInitial = async () => {
+      try {
+        const data = await roomAction("load-data");
+        if (data) {
+          setMessages(data.messages || []);
+          setParticipantCount((data.participants || []).length);
+          setDisplayNames(prev => ({ ...prev, ...(data.displayNames || {}) }));
+          const msgs = data.messages || [];
+          if (msgs.length > 0) {
+            lastMessageTime.current = msgs[msgs.length - 1].created_at;
+          }
+        }
+      } catch (err) {
+        console.error("Failed to load room data:", err);
       }
     };
 
-    loadRoomData();
-
-    // Subscribe to realtime messages
-    const channel = externalSupabase
-      .channel(`room-${activeRoom.id}`)
-      .on(
-        "postgres_changes",
-        {
-          event: "INSERT",
-          schema: "public",
-          table: "peer_room_messages",
-          filter: `room_id=eq.${activeRoom.id}`,
-        },
-        async (payload) => {
-          const newMsg = payload.new as Message;
-          setMessages((prev) => [...prev, newMsg]);
-          if (!displayNames[newMsg.user_id]) {
-            await fetchDisplayNames([newMsg.user_id]);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => { externalSupabase.removeChannel(channel); };
+    loadInitial();
   }, [activeRoom?.id]);
 
-  // Scroll to bottom on new messages
+  // ── Poll for new messages ──
+  useEffect(() => {
+    if (!activeRoom) return;
+
+    const poll = async () => {
+      try {
+        const res = await invokeBackendFunction("peer-room-action", {
+          action: "poll-messages",
+          room_id: activeRoom.id,
+          since: lastMessageTime.current,
+        }, { timeoutMs: 10000, retries: 0, label: "peer:poll" });
+
+        if (res.ok && res.data) {
+          const newMsgs = res.data.messages || [];
+          if (newMsgs.length > 0) {
+            setMessages(prev => {
+              const existingIds = new Set(prev.map((m: Message) => m.id));
+              const unique = newMsgs.filter((m: Message) => !existingIds.has(m.id));
+              if (unique.length === 0) return prev;
+              return [...prev, ...unique];
+            });
+            lastMessageTime.current = newMsgs[newMsgs.length - 1].created_at;
+          }
+          if (res.data.displayNames) {
+            setDisplayNames(prev => ({ ...prev, ...res.data.displayNames }));
+          }
+          if (typeof res.data.participantCount === "number") {
+            setParticipantCount(res.data.participantCount);
+          }
+        }
+      } catch { /* ignore polling errors */ }
+    };
+
+    pollingRef.current = setInterval(poll, 3000);
+    return () => {
+      if (pollingRef.current) clearInterval(pollingRef.current);
+    };
+  }, [activeRoom?.id]);
+
+  // ── Scroll to bottom ──
   useEffect(() => {
     if (messages.length === 0) return;
     requestAnimationFrame(() => {
@@ -309,7 +270,6 @@ export default function PeerMode() {
         </div>
 
         {!activeRoom ? (
-          /* Room Selection */
           <div className="grid md:grid-cols-2 gap-6">
             {/* Create Room */}
             <GlassCard>
@@ -322,19 +282,11 @@ export default function PeerMode() {
               <GlassCardContent className="space-y-4">
                 <div className="space-y-2">
                   <Label>Room Name</Label>
-                  <Input
-                    placeholder="e.g., Physics Study Group"
-                    value={roomName}
-                    onChange={(e) => setRoomName(e.target.value)}
-                  />
+                  <Input placeholder="e.g., Physics Study Group" value={roomName} onChange={(e) => setRoomName(e.target.value)} />
                 </div>
                 <div className="space-y-2">
                   <Label>Subject (Optional)</Label>
-                  <Input
-                    placeholder="e.g., Physics, Chemistry"
-                    value={roomSubject}
-                    onChange={(e) => setRoomSubject(e.target.value)}
-                  />
+                  <Input placeholder="e.g., Physics, Chemistry" value={roomSubject} onChange={(e) => setRoomSubject(e.target.value)} />
                 </div>
                 <Button className="w-full" onClick={createRoom} disabled={isLoading}>
                   {isLoading ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : <Plus className="h-4 w-4 mr-2" />}
@@ -370,9 +322,7 @@ export default function PeerMode() {
             </GlassCard>
           </div>
         ) : (
-          /* Active Room */
           <div className="flex-1 flex flex-col md:flex-row gap-4 min-h-0">
-            {/* Chat Area */}
             <div className={cn("flex-1 flex flex-col min-h-0", showWhiteboard && "md:w-1/2")}>
               <GlassCard className="flex-1 flex flex-col min-h-0">
                 {/* Room Header */}
@@ -385,11 +335,10 @@ export default function PeerMode() {
                         {activeRoom.room_code}
                       </Badge>
                       {activeRoom.subject && <span>• {activeRoom.subject}</span>}
-                      <span>• {participants.length} online</span>
+                      <span>• {participantCount} online</span>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 flex-wrap">
-                    {/* Voice Chat Controls */}
                     <VoiceChatControls
                       isVoiceEnabled={voiceChat.isVoiceEnabled}
                       isMuted={voiceChat.isMuted}
@@ -399,11 +348,7 @@ export default function PeerMode() {
                       onStopVoice={voiceChat.stopVoiceChat}
                       onToggleMute={voiceChat.toggleMute}
                     />
-                    <Button
-                      variant={showWhiteboard ? "default" : "outline"}
-                      size="sm"
-                      onClick={() => setShowWhiteboard(!showWhiteboard)}
-                    >
+                    <Button variant={showWhiteboard ? "default" : "outline"} size="sm" onClick={() => setShowWhiteboard(!showWhiteboard)}>
                       <PenTool className="h-4 w-4 mr-2" />
                       Whiteboard
                     </Button>
@@ -418,9 +363,7 @@ export default function PeerMode() {
                         key={msg.id}
                         className={cn(
                           "flex flex-col max-w-[80%] rounded-xl p-3",
-                          msg.user_id === user.id
-                            ? "ml-auto bg-primary text-primary-foreground"
-                            : "bg-muted"
+                          msg.user_id === user.id ? "ml-auto bg-primary text-primary-foreground" : "bg-muted"
                         )}
                       >
                         {msg.user_id !== user.id && (
@@ -447,14 +390,13 @@ export default function PeerMode() {
                     onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
                     className="flex-1"
                   />
-                  <Button onClick={sendMessage} disabled={!newMessage.trim()}>
-                    <Send className="h-4 w-4" />
+                  <Button onClick={sendMessage} disabled={!newMessage.trim() || isSending}>
+                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
                   </Button>
                 </div>
               </GlassCard>
             </div>
 
-            {/* Whiteboard */}
             {showWhiteboard && (
               <div className="flex-1 md:w-1/2 min-h-[400px]">
                 <PeerWhiteboard roomId={activeRoom.id} />
