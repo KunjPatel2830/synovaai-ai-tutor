@@ -11,6 +11,7 @@ import {
 import { HelpCircle, Send, Mic, MicOff, Volume2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
+import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { cn } from "@/lib/utils";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 
