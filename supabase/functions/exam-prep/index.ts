@@ -121,6 +121,10 @@ serve(async (req) => {
       : curriculumGuide["General"];
     const safeCurriculum = curriculum || "General";
 
+    const studentProfileContext = typeof studentContext === "string" && studentContext.trim() 
+      ? studentContext.trim() 
+      : "";
+
     const safeSubject = subjectValidation.value;
     const safeTopic = topicValidation.value;
     const safeDifficulty = validatedDifficulty || "medium";
