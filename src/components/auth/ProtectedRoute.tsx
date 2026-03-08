@@ -66,7 +66,10 @@ export function ProtectedRoute({
     return (
       <StudentOnboarding
         onComplete={async (data) => {
-          await updateProfile(data);
+          const result = await updateProfile(data);
+          if (result?.error) {
+            console.error("Onboarding profile update failed:", result.error);
+          }
         }}
       />
     );
