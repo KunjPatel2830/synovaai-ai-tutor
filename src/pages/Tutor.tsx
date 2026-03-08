@@ -181,7 +181,7 @@ export default function Tutor() {
       
       const newMessages: Message[] = [
         { role: "user", content: systemMessage },
-        { role: "assistant", content: res.data?.reply ?? "" },
+        { role: "assistant", content: res.data?.reply ?? "", detectedSubject: res.data?.detectedSubject, detectedTopic: res.data?.detectedTopic },
       ];
       
       setMessages(newMessages);
