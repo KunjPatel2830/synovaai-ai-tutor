@@ -125,20 +125,25 @@ async function structureQuestions(
   year: string,
   shift: string | null
 ): Promise<ParsedQuestion[]> {
-  console.log("[parse-pyq-pdf] Structuring questions with tool calling...");
+  console.log("[parse-pyq-pdf] Structuring questions with JSON mode...");
 
-  const structuringResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${LOVABLE_API_KEY}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      messages: [
-        {
-          role: "system",
-          content: `You are an expert at parsing JEE/NEET examination questions into structured JSON format.
+  // Try tool calling first, fall back to JSON parsing
+  let parsedQuestions: ParsedQuestion[] | null = null;
+
+  // Attempt 1: Tool calling
+  try {
+    const structuringResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "system",
+            content: `You are an expert at parsing JEE/NEET examination questions into structured JSON format.
 
 Parse ALL questions from the provided text. For each question:
 - question_text: Complete question with LaTeX formulas preserved
@@ -150,71 +155,114 @@ Parse ALL questions from the provided text. For each question:
 - difficulty: easy, medium, or hard
 
 IMPORTANT: Parse EVERY question. Do not skip any.`,
-        },
-        {
-          role: "user",
-          content: `Parse ALL questions from this ${examType} ${year}${shift ? ` ${shift}` : ""} exam:\n\n${extractedText}`,
-        },
-      ],
-      tools: [
-        {
-          type: "function",
-          function: {
-            name: "save_questions",
-            description: "Save all parsed examination questions",
-            parameters: {
-              type: "object",
-              properties: {
-                questions: {
-                  type: "array",
-                  items: {
-                    type: "object",
-                    properties: {
-                      question_text: { type: "string" },
-                      options: {
-                        type: "object",
-                        properties: { A: { type: "string" }, B: { type: "string" }, C: { type: "string" }, D: { type: "string" } },
-                        required: ["A", "B", "C", "D"],
+          },
+          {
+            role: "user",
+            content: `Parse ALL questions from this ${examType} ${year}${shift ? ` ${shift}` : ""} exam:\n\n${extractedText}`,
+          },
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "save_questions",
+              description: "Save all parsed examination questions",
+              parameters: {
+                type: "object",
+                properties: {
+                  questions: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        question_text: { type: "string" },
+                        options: {
+                          type: "object",
+                          properties: { A: { type: "string" }, B: { type: "string" }, C: { type: "string" }, D: { type: "string" } },
+                          required: ["A", "B", "C", "D"],
+                        },
+                        correct_option: { type: "string", enum: ["A", "B", "C", "D"] },
+                        subject: { type: "string", enum: ["Physics", "Chemistry", "Mathematics", "Biology"] },
+                        topic: { type: "string" },
+                        explanation: { type: "string" },
+                        difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
                       },
-                      correct_option: { type: "string", enum: ["A", "B", "C", "D"] },
-                      subject: { type: "string", enum: ["Physics", "Chemistry", "Mathematics", "Biology"] },
-                      topic: { type: "string" },
-                      explanation: { type: "string" },
-                      difficulty: { type: "string", enum: ["easy", "medium", "hard"] },
+                      required: ["question_text", "options", "correct_option", "subject"],
                     },
-                    required: ["question_text", "options", "correct_option", "subject"],
                   },
                 },
+                required: ["questions"],
               },
-              required: ["questions"],
             },
           },
-        },
-      ],
-      tool_choice: { type: "function", function: { name: "save_questions" } },
-    }),
-  });
+        ],
+        tool_choice: { type: "function", function: { name: "save_questions" } },
+      }),
+    });
 
-  if (!structuringResponse.ok) {
-    const errorText = await structuringResponse.text();
-    console.error("[parse-pyq-pdf] Structuring API error:", structuringResponse.status, errorText);
-    throw new Error(`Structuring failed: ${structuringResponse.status}`);
-  }
+    if (structuringResponse.ok) {
+      const structuringData = await structuringResponse.json();
+      const toolCall = structuringData.choices?.[0]?.message?.tool_calls?.[0];
 
-  const structuringData = await structuringResponse.json();
-  const toolCall = structuringData.choices?.[0]?.message?.tool_calls?.[0];
-
-  if (!toolCall || toolCall.function.name !== "save_questions") {
-    throw new Error("Tool call not returned - structuring failed");
-  }
-
-  let parsedQuestions: ParsedQuestion[];
-  try {
-    const args = JSON.parse(toolCall.function.arguments);
-    parsedQuestions = args.questions;
-    console.log(`[parse-pyq-pdf] Parsed ${parsedQuestions?.length || 0} questions from tool call`);
+      if (toolCall && toolCall.function.name === "save_questions") {
+        const args = JSON.parse(toolCall.function.arguments);
+        parsedQuestions = args.questions;
+        console.log(`[parse-pyq-pdf] Tool calling succeeded: ${parsedQuestions?.length || 0} questions`);
+      } else {
+        // Check if model returned content instead of tool call
+        const content = structuringData.choices?.[0]?.message?.content;
+        if (content) {
+          console.log("[parse-pyq-pdf] Tool call not used, trying to parse content as JSON...");
+          parsedQuestions = tryParseJsonContent(content);
+        }
+      }
+    }
   } catch (e) {
-    throw new Error("Failed to parse structured questions JSON");
+    console.warn("[parse-pyq-pdf] Tool calling attempt failed:", e instanceof Error ? e.message : e);
+  }
+
+  // Attempt 2: Direct JSON response (fallback)
+  if (!parsedQuestions || parsedQuestions.length === 0) {
+    console.log("[parse-pyq-pdf] Falling back to direct JSON parsing...");
+
+    const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "user",
+            content: `Parse ALL questions from this ${examType} ${year}${shift ? ` ${shift}` : ""} exam paper into a JSON array.
+
+For EACH question return an object with these exact keys:
+- "question_text": string (complete question)
+- "options": {"A": "...", "B": "...", "C": "...", "D": "..."}
+- "correct_option": "A" or "B" or "C" or "D"
+- "subject": "Physics" or "Chemistry" or "Mathematics" or "Biology"
+- "topic": string
+- "explanation": string (brief)
+- "difficulty": "easy" or "medium" or "hard"
+
+Return ONLY a raw JSON array, no markdown, no code fences, no explanation. Start with [ and end with ].
+
+Exam text:
+${extractedText}`,
+          },
+        ],
+      }),
+    });
+
+    if (!fallbackResponse.ok) {
+      throw new Error(`Fallback structuring failed: ${fallbackResponse.status}`);
+    }
+
+    const fallbackData = await fallbackResponse.json();
+    const content = fallbackData.choices?.[0]?.message?.content || "";
+    parsedQuestions = tryParseJsonContent(content);
   }
 
   if (!parsedQuestions || parsedQuestions.length === 0) {
@@ -236,6 +284,31 @@ IMPORTANT: Parse EVERY question. Do not skip any.`,
   }
 
   return validQuestions;
+}
+
+function tryParseJsonContent(content: string): ParsedQuestion[] | null {
+  try {
+    // Strip markdown code fences if present
+    let cleaned = content.trim();
+    cleaned = cleaned.replace(/^```(?:json)?\s*/i, "").replace(/```\s*$/i, "").trim();
+
+    // Try parsing as array directly
+    const parsed = JSON.parse(cleaned);
+    if (Array.isArray(parsed)) return parsed;
+    if (parsed.questions && Array.isArray(parsed.questions)) return parsed.questions;
+    return null;
+  } catch {
+    // Try to find JSON array in content
+    const match = content.match(/\[[\s\S]*\]/);
+    if (match) {
+      try {
+        return JSON.parse(match[0]);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }
 }
 
 serve(async (req) => {
