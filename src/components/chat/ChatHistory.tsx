@@ -121,7 +121,7 @@ export function ChatHistory({ mode, onLoadSession }: ChatHistoryProps) {
         .eq("session_id", sessionId);
 
       // Then delete session
-      const { error } = await externalSupabase
+      const { error } = await supabase
         .from("chat_sessions")
         .delete()
         .eq("id", sessionId);
