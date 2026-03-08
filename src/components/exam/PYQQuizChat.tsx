@@ -117,7 +117,7 @@ export function PYQQuizChat() {
   };
 
   const fetchAvailableYears = async () => {
-    const { data } = await externalSupabase
+    const { data } = await supabase
       .from("pyq_questions_public")
       .select("year")
       .order("year", { ascending: false });
