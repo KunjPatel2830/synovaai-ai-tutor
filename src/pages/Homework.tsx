@@ -49,6 +49,7 @@ export default function Homework() {
 
   const voice = useVoice();
   const { trackProgress, trackHelpRequest } = useProgressTracker();
+  const { getAIContext } = useStudentProfile();
 
   useEffect(() => {
     if (messages.length === 0) return;
