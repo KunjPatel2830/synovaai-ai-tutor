@@ -61,7 +61,7 @@ export function ChatHistory({ mode, onLoadSession }: ChatHistoryProps) {
       // Get message counts for each session
       const sessionsWithCounts = await Promise.all(
         (data || []).map(async (session) => {
-          const { count } = await externalSupabase
+          const { count } = await supabase
             .from("chat_messages")
             .select("*", { count: "exact", head: true })
             .eq("session_id", session.id);
