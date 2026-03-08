@@ -165,7 +165,7 @@ export default function ExamPrep() {
     try {
       const res = await invokeBackendFunction<{ questions: Question[] }>(
         "exam-prep",
-        { action: "generate_questions", subject, topic, difficulty },
+        { action: "generate_questions", subject, topic, difficulty, studentContext: getAIContext(), curriculum: profile?.curriculum },
         { timeoutMs: 45000, retries: 2, label: "exam:generate" }
       );
 
