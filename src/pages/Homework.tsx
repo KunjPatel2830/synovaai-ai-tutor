@@ -456,11 +456,6 @@ export default function Homework() {
                     sendMessage();
                   }
                 }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = Math.min(target.scrollHeight, 128) + 'px';
-                }}
               />
               {isLoading && (
                 <Button
