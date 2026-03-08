@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { externalSupabase } from "@/lib/external-supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
