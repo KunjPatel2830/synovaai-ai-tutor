@@ -49,8 +49,10 @@ serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    // Use Authorization header to verify the user making the request
-    const supabaseUser = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    // Use External Supabase to verify user (users registered on external project)
+    const externalUrl = EXTERNAL_SUPABASE_URL || SUPABASE_URL;
+    const externalKey = EXTERNAL_SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUser = createClient(externalUrl!, externalKey!, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false },
     });
