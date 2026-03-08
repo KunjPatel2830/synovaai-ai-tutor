@@ -190,8 +190,9 @@ export default function LanguagePractice() {
                   </SelectContent>
                 </Select>
 
+                <ChatHistory mode="language" onLoadSession={handleLoadSession} />
                 {hasStarted && (
-                  <Button variant="outline" size="sm" onClick={handleReset}>
+                  <Button variant="outline" size="sm" onClick={() => { handleReset(); startNewSession(); }}>
                     <RefreshCw className="h-4 w-4 mr-1" />
                     Reset
                   </Button>
