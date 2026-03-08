@@ -537,7 +537,7 @@ export default function Tutor() {
                           )}
                         </div>
                       )}
-                      <div className="flex items-start gap-2">
+                      <div className={cn("flex items-start gap-2", msg.role === "assistant" ? "p-3" : "")}>
                         {msg.role === "assistant" ? (
                           i === messages.length - 1 && !isLoading ? (
                             <TypingMarkdown content={msg.content} className="flex-1 overflow-x-auto" />
