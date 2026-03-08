@@ -89,7 +89,7 @@ export default function Homework() {
       let currentSessionId = sessionId;
       
       if (!currentSessionId) {
-        const { data: session, error } = await externalSupabase
+        const { data: session, error } = await supabase
           .from("chat_sessions")
           .insert({
             user_id: user.id,
