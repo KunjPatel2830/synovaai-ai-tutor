@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -36,7 +36,7 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
   const fetchUploads = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
+      const { data, error } = await externalSupabase
         .from("pyq_uploads")
         .select("*")
         .eq("uploaded_by", userId)
@@ -55,7 +55,7 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
   useEffect(() => {
     fetchUploads();
     
-    const channel = supabase
+    const channel = externalSupabase
       .channel("pyq_uploads_changes")
       .on("postgres_changes", {
         event: "UPDATE",
@@ -69,7 +69,7 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
       })
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => { externalSupabase.removeChannel(channel); };
   }, [userId]);
 
   const convertToBase64 = (file: File): Promise<string> => {

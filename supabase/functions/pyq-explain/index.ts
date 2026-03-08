@@ -24,14 +24,15 @@ serve(async (req) => {
     let userPrompt: string;
 
     if (isFollowUp) {
+      // Follow-up question: keep it short and directly useful
       systemPrompt = `You are an expert ${subject} teacher helping students prepare for ${examType || "competitive exams"} like JEE and NEET.
 
-Answer the student's follow-up question clearly and completely.
+Answer the student's follow-up question in an exam-style, VERY SHORT way.
 
 RULES:
-- Total length: <= 250 words
+- Total length: <= 80 words
+- No long theory, no extra sections, no fluff
 - Use LaTeX for any math/formulas
-- Show complete working — do NOT cut off mid-solution
 - Prefer bullets if multiple points
 - If a diagram/visual is necessary, include exactly ONE tag on its own line: [IMAGE: ...]
 `;
@@ -50,25 +51,26 @@ ${topic ? `Topic: ${topic}` : ""}
 
 Student's Follow-up Question: ${followUpQuery}
 
-Give a complete answer.`;
+Reply briefly (<= 80 words).`;
     } else {
+      // Initial explanation after answering: short, direct, exam-focused
       systemPrompt = `You are an expert ${subject} teacher helping students prepare for ${examType || "competitive exams"} like JEE and NEET.
 
-Give a COMPLETE exam-style explanation with full solution steps.
+Give a SHORT exam-style explanation (not a full lecture).
 
-OUTPUT FORMAT:
+OUTPUT FORMAT (follow EXACTLY):
 Result: ${isCorrect ? "Correct" : "Incorrect"}. Correct option: ${correctOption}.
-
-**Solution:**
-(Show complete step-by-step working. Do NOT cut off mid-calculation.)
-
-**Key formula:** (if applicable)
-**Quick tip:** (1 short line)
+Why:
+- (1 to 3 bullets, max 12 words each)
+Key formula: (1 line, omit if not needed)
+Quick tip: (1 short line)
 
 RULES:
-- Show ALL steps — never leave a solution incomplete
-- Use LaTeX for all math/formulas
-- If the question needs a diagram/visual, add ONE line: [IMAGE: short descriptive diagram name]
+- Total length: <= 120 words
+- No extra headings/emojis/sections beyond the format above
+- Use LaTeX for formulas
+- If the question needs a diagram/visual (lens rays, circuits, geometry figure, graph, etc.), add EXACTLY ONE line right after the Why bullets:
+  [IMAGE: short descriptive diagram name]
 `;
 
       userPrompt = `Question: ${question}
@@ -107,7 +109,7 @@ Explain using the exact format above.`;
           { role: "user", content: userPrompt },
         ],
         temperature: 0.3,
-        max_tokens: isFollowUp ? 800 : 1024,
+        max_tokens: isFollowUp ? 220 : 320,
         stream: true,
       }),
     });

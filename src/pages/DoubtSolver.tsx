@@ -8,22 +8,15 @@ import {
   GlassCardHeader,
   GlassCardTitle,
 } from "@/components/ui/glass-card";
-import { HelpCircle, Send, Mic, MicOff, Volume2, BookOpen, Tag, Plus } from "lucide-react";
+import { HelpCircle, Send, Mic, MicOff, Volume2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
-import { useStudentProfile } from "@/hooks/useStudentProfile";
-import { useLearningHistory } from "@/hooks/useLearningHistory";
-import { useChatSession } from "@/hooks/useChatSession";
-import { ChatHistory } from "@/components/chat/ChatHistory";
 import { cn } from "@/lib/utils";
-import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
-import { Badge } from "@/components/ui/badge";
+import { MarkdownContent } from "@/components/ui/markdown-content";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
-  detectedSubject?: string;
-  detectedTopic?: string;
 }
 
 export default function DoubtSolver() {
@@ -38,22 +31,6 @@ export default function DoubtSolver() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { getAIContext } = useStudentProfile();
-  const { trackLearning, getMemoryContext } = useLearningHistory();
-  const { saveMessages, resetSession, loadSession } = useChatSession("doubt");
-
-  const handleLoadSession = (loadedMessages: Message[], session: { id: string; subject?: string | null; topic?: string | null }) => {
-    setMessages(loadedMessages);
-    loadSession(loadedMessages, session);
-  };
-
-  const startNewSession = () => {
-    setMessages([{
-      role: "assistant",
-      content: "Hi! I'm your Doubt Solver. Ask me any question and I'll give you a clear, concise answer. Need an example? Just ask!",
-    }]);
-    resetSession();
-  };
 
   useEffect(() => {
     if (messages.length === 0) return;
@@ -102,19 +79,17 @@ export default function DoubtSolver() {
     if (!userMessage || isLoading) return;
 
     setInput("");
-    const updatedMessages: Message[] = [...messages, { role: "user", content: userMessage }];
+    const updatedMessages = [...messages, { role: "user" as const, content: userMessage }];
     setMessages(updatedMessages);
     setIsLoading(true);
     const controller = new AbortController();
 
     try {
-      const res = await invokeBackendFunction<{ reply: string; detectedSubject?: string; detectedTopic?: string }>(
+      const res = await invokeBackendFunction<{ reply: string }>(
         "ai-tutor",
         {
           messages: updatedMessages.map((msg) => ({ role: msg.role, content: msg.content })),
           mode: "doubt",
-          studentContext: getAIContext(),
-          memoryContext: getMemoryContext(),
         },
         { signal: controller.signal, timeoutMs: 20000, retries: 1, label: "doubt:chat" }
       );
@@ -122,36 +97,7 @@ export default function DoubtSolver() {
       if (!res.ok) throw new Error(res.error || "Failed");
       
       const reply = res.data?.reply || "I understand your question. Let me help you with that.";
-      const detectedSubject = res.data?.detectedSubject || "";
-      const detectedTopic = res.data?.detectedTopic || "";
-      
-      const assistantMsg: Message = {
-        role: "assistant",
-        content: reply,
-        detectedSubject,
-        detectedTopic,
-      };
-      
-      setMessages(prev => [...prev, assistantMsg]);
-
-      // Save session in background
-      const userMsg = updatedMessages[updatedMessages.length - 1];
-      saveMessages(
-        [userMsg, assistantMsg],
-        detectedSubject || undefined,
-        detectedTopic || undefined
-      ).catch(() => {});
-
-      // Track learning in background
-      if (detectedSubject && detectedSubject !== "General") {
-        trackLearning({
-          subject: detectedSubject,
-          topic: detectedTopic || undefined,
-          question: userMessage,
-          status: "solved",
-          mode: "doubt",
-        }).catch(() => {});
-      }
+      setMessages(prev => [...prev, { role: "assistant", content: reply }]);
     } catch (error) {
       setMessages(prev => [
         ...prev,
@@ -168,30 +114,19 @@ export default function DoubtSolver() {
         {/* Header */}
         <GlassCard className="mb-2 shrink-0">
           <GlassCardHeader className="py-4">
-            <div className="flex items-center justify-between">
-              <GlassCardTitle className="flex items-center gap-3">
-                <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
-                  <HelpCircle className="h-5 w-5 text-primary" />
-                </div>
-                <div>
-                  <span className="text-xl">Doubt Solver</span>
-                  <p className="text-sm text-muted-foreground font-normal">Quick answers to your questions</p>
-                </div>
-              </GlassCardTitle>
-              <div className="flex items-center gap-2">
-                <ChatHistory mode="doubt" onLoadSession={handleLoadSession} />
-                {messages.length > 1 && (
-                  <Button variant="outline" size="sm" onClick={startNewSession} className="gap-1.5">
-                    <Plus className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">New</span>
-                  </Button>
-                )}
+            <GlassCardTitle className="flex items-center gap-3">
+              <div className="h-10 w-10 rounded-xl bg-primary/10 flex items-center justify-center">
+                <HelpCircle className="h-5 w-5 text-primary" />
               </div>
-            </div>
+              <div>
+                <span className="text-xl">Doubt Solver</span>
+                <p className="text-sm text-muted-foreground font-normal">Quick answers to your questions</p>
+              </div>
+            </GlassCardTitle>
           </GlassCardHeader>
         </GlassCard>
 
-        {/* Chat Area */}
+        {/* Chat Area - maximized */}
         <GlassCard className="flex-1 flex flex-col overflow-hidden min-h-0">
           <ScrollArea className="flex-1">
             <div className="p-2.5 sm:p-4 space-y-4">
@@ -201,37 +136,17 @@ export default function DoubtSolver() {
                   className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
                 >
                   <div
-                    className={`max-w-[92%] sm:max-w-[85%] rounded-2xl ${
+                    className={`max-w-[92%] sm:max-w-[85%] p-3 sm:p-4 rounded-2xl ${
                       message.role === "user"
-                        ? "bg-primary text-primary-foreground p-3 sm:p-4"
+                        ? "bg-primary text-primary-foreground"
                         : "bg-muted/50 border border-border"
                     }`}
                   >
-                    {/* Subject/Topic tags for assistant messages */}
-                    {message.role === "assistant" && (message.detectedSubject || message.detectedTopic) && (
-                      <div className="flex flex-wrap gap-1.5 px-3 pt-3 pb-0 sm:px-4 sm:pt-3">
-                        {message.detectedSubject && message.detectedSubject !== "General" && (
-                          <Badge variant="secondary" className="text-[10px] sm:text-xs gap-1 font-medium">
-                            <BookOpen className="h-3 w-3" />
-                            {message.detectedSubject}
-                          </Badge>
-                        )}
-                        {message.detectedTopic && (
-                          <Badge variant="outline" className="text-[10px] sm:text-xs gap-1 font-medium">
-                            <Tag className="h-3 w-3" />
-                            {message.detectedTopic}
-                          </Badge>
-                        )}
-                      </div>
-                    )}
-                    <div className={cn(
-                      "flex items-start gap-2",
-                      message.role === "assistant" ? "p-3 sm:p-4" : ""
-                    )}>
+                    <div className="flex items-start gap-2">
                       {message.role === "user" ? (
                         <p className="whitespace-pre-line flex-1">{message.content}</p>
                       ) : (
-                        <TypingMarkdown content={message.content} className="flex-1" enableImageGeneration={true} animate={index === messages.length - 1} />
+                        <MarkdownContent content={message.content} className="flex-1" enableImageGeneration={true} />
                       )}
                       {message.role === "assistant" && (
                         <Button

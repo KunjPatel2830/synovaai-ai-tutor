@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -66,7 +66,7 @@ export function PYQQuizChat() {
     setIsLoading(true);
     try {
       // Use public view to avoid exposing author metadata (created_by)
-      let query = supabase
+      let query = externalSupabase
         .from("pyq_questions_public")
         // NOTE: Keep this as a literal string so Supabase types infer correctly.
         .select(
@@ -117,13 +117,13 @@ export function PYQQuizChat() {
   };
 
   const fetchAvailableYears = async () => {
-    const { data } = await supabase
+    const { data } = await externalSupabase
       .from("pyq_questions_public")
       .select("year")
       .order("year", { ascending: false });
 
     if (data) {
-      const uniqueYears = [...new Set(data.map((d: any) => d.year as number))] as number[];
+      const uniqueYears = [...new Set(data.map((d) => d.year))];
       setAvailableYears(uniqueYears);
     }
   };

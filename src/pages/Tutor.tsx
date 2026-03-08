@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
@@ -14,13 +14,11 @@ import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useRateLimiter } from "@/hooks/useRateLimiter";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
-import { useStudentProfile } from "@/hooks/useStudentProfile";
-import { useLearningHistory } from "@/hooks/useLearningHistory";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
-import { Brain, Send, Mic, MicOff, Volume2, Plus, Pause, Play, Square, BookOpen, Tag } from "lucide-react";
+import { Brain, Send, Mic, MicOff, Volume2, Plus, Pause, Play, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -28,8 +26,6 @@ import { Badge } from "@/components/ui/badge";
 interface Message {
   role: "user" | "assistant";
   content: string;
-  detectedSubject?: string;
-  detectedTopic?: string;
 }
 
 export default function Tutor() {
@@ -54,8 +50,6 @@ export default function Tutor() {
   const voice = useVoice();
   const { waitForRateLimit } = useRateLimiter({ minDelayMs: 500 });
   const { trackProgress } = useProgressTracker();
-  const { getAIContext } = useStudentProfile();
-  const { trackLearning, getMemoryContext } = useLearningHistory();
 
   // Profile loaded flag
   useEffect(() => {
@@ -100,7 +94,7 @@ export default function Tutor() {
       let currentSessionId = sessionId;
       
       if (!currentSessionId) {
-        const { data: session, error: sessionError } = await supabase
+        const { data: session, error: sessionError } = await externalSupabase
           .from("chat_sessions")
           .insert({
             user_id: user.id,
@@ -123,7 +117,7 @@ export default function Tutor() {
         content: msg.content,
       }));
 
-      await supabase.from("chat_messages").insert(messagesToSave);
+      await externalSupabase.from("chat_messages").insert(messagesToSave);
       
       return currentSessionId;
     } catch (error) {
@@ -149,15 +143,13 @@ export default function Tutor() {
     try {
       await waitForRateLimit();
 
-      const res = await invokeBackendFunction<{ reply: string; detectedSubject?: string; detectedTopic?: string }>(
+      const res = await invokeBackendFunction<{ reply: string }>(
         "ai-tutor",
         {
           messages: [{ role: "user", content: systemMessage }],
           mode: "start",
           subject,
           topic,
-          studentContext: getAIContext(),
-          memoryContext: getMemoryContext(),
         },
         {
           signal: inFlightControllerRef.current.signal,
@@ -184,7 +176,7 @@ export default function Tutor() {
       
       const newMessages: Message[] = [
         { role: "user", content: systemMessage },
-        { role: "assistant", content: res.data?.reply ?? "", detectedSubject: res.data?.detectedSubject, detectedTopic: res.data?.detectedTopic },
+        { role: "assistant", content: res.data?.reply ?? "" },
       ];
       
       setMessages(newMessages);
@@ -193,14 +185,6 @@ export default function Tutor() {
       
       // Track progress in background (non-blocking)
       trackProgress(topic, subject, 10).catch(() => {});
-      
-      // Track in learning history
-      trackLearning({
-        subject,
-        topic,
-        status: "in_progress",
-        mode: "tutor",
-      }).catch(() => {});
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
         const msg = error instanceof Error ? error.message : "Unknown error";
@@ -287,15 +271,13 @@ export default function Tutor() {
     try {
       await waitForRateLimit();
 
-      const res = await invokeBackendFunction<{ reply: string; detectedSubject?: string; detectedTopic?: string }>(
+      const res = await invokeBackendFunction<{ reply: string }>(
         "ai-tutor",
         {
-          messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
+          messages: updatedMessages,
           mode: "chat",
           subject,
           topic,
-          studentContext: getAIContext(),
-          memoryContext: getMemoryContext(),
         },
         {
           signal: inFlightControllerRef.current.signal,
@@ -318,19 +300,14 @@ export default function Tutor() {
         return;
       }
 
-      const assistantMessage: Message = {
-        role: "assistant",
-        content: res.data?.reply ?? "",
-        detectedSubject: res.data?.detectedSubject,
-        detectedTopic: res.data?.detectedTopic,
-      };
+      const assistantMessage = { role: "assistant" as const, content: res.data?.reply ?? "" };
       const finalMessages = [...updatedMessages, assistantMessage];
       setMessages(finalMessages);
       
       // Save to database (non-blocking)
       if (sessionId) {
         Promise.resolve(
-          supabase.from("chat_messages").insert([
+          externalSupabase.from("chat_messages").insert([
             { session_id: sessionId, role: userMessage.role, content: userMessage.content },
             { session_id: sessionId, role: assistantMessage.role, content: assistantMessage.content },
           ])
@@ -339,16 +316,6 @@ export default function Tutor() {
       
       // Track progress incrementally (non-blocking)
       trackProgress(topic, subject, 10).catch(() => {});
-      
-      // Track in learning history
-      const detectedTopic = res.data?.detectedTopic || topic;
-      trackLearning({
-        subject: res.data?.detectedSubject || subject,
-        topic: detectedTopic || undefined,
-        question: userMessage.content,
-        status: "solved",
-        mode: "tutor",
-      }).catch(() => {});
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
         const msg = error instanceof Error ? error.message : "Unknown error";
@@ -535,31 +502,14 @@ export default function Tutor() {
                 return (
                   <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div className={cn(
-                      "max-w-[92%] sm:max-w-[80%] rounded-2xl",
+                      "max-w-[92%] sm:max-w-[80%] p-3 rounded-2xl",
                       msg.role === "user" 
                         ? isPausedMessage 
-                          ? "bg-warning/80 text-warning-foreground p-3" 
-                          : "bg-primary text-primary-foreground p-3"
+                          ? "bg-warning/80 text-warning-foreground" 
+                          : "bg-primary text-primary-foreground"
                         : "bg-card border border-border"
                     )}>
-                      {/* Subject/Topic tags */}
-                      {msg.role === "assistant" && (msg.detectedSubject || msg.detectedTopic) && (
-                        <div className="flex flex-wrap gap-1.5 px-3 pt-3 pb-0">
-                          {msg.detectedSubject && msg.detectedSubject !== "General" && (
-                            <Badge variant="secondary" className="text-[10px] sm:text-xs gap-1 font-medium">
-                              <BookOpen className="h-3 w-3" />
-                              {msg.detectedSubject}
-                            </Badge>
-                          )}
-                          {msg.detectedTopic && (
-                            <Badge variant="outline" className="text-[10px] sm:text-xs gap-1 font-medium">
-                              <Tag className="h-3 w-3" />
-                              {msg.detectedTopic}
-                            </Badge>
-                          )}
-                        </div>
-                      )}
-                      <div className={cn("flex items-start gap-2", msg.role === "assistant" ? "p-3" : "")}>
+                      <div className="flex items-start gap-2">
                         {msg.role === "assistant" ? (
                           i === messages.length - 1 && !isLoading ? (
                             <TypingMarkdown content={msg.content} className="flex-1 overflow-x-auto" />

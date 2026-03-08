@@ -23,8 +23,6 @@ import { Label } from "@/components/ui/label";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
-import { ChatHistory } from "@/components/chat/ChatHistory";
-import { useChatSession } from "@/hooks/useChatSession";
 import { toast } from "sonner";
 
 interface Message {
@@ -66,19 +64,6 @@ export default function LanguagePractice() {
   const [autoSpeak, setAutoSpeak] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { saveMessages, resetSession, loadSession } = useChatSession("language");
-
-  const handleLoadSession = (loadedMessages: Message[], session: { id: string; subject?: string | null; topic?: string | null }) => {
-    setMessages(loadedMessages);
-    setHasStarted(true);
-    loadSession(loadedMessages, session);
-  };
-
-  const startNewSession = () => {
-    setMessages([]);
-    setHasStarted(false);
-    resetSession();
-  };
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -122,11 +107,6 @@ export default function LanguagePractice() {
       const reply = result.data.reply;
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
       if (autoSpeak) speakText(reply);
-      // Save session in background
-      saveMessages(
-        [{ role: "user", content: userContent }, { role: "assistant", content: reply }],
-        selectedLanguage
-      ).catch(() => {});
     } else {
       toast.error(result.error || "Failed to get response. Please try again.");
       setMessages((prev) => [
@@ -190,9 +170,8 @@ export default function LanguagePractice() {
                   </SelectContent>
                 </Select>
 
-                <ChatHistory mode="language" onLoadSession={handleLoadSession} />
                 {hasStarted && (
-                  <Button variant="outline" size="sm" onClick={() => { handleReset(); startNewSession(); }}>
+                  <Button variant="outline" size="sm" onClick={handleReset}>
                     <RefreshCw className="h-4 w-4 mr-1" />
                     Reset
                   </Button>

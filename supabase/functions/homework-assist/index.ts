@@ -90,7 +90,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { question, subject, context, curriculum, messages, studentContext } = body;
+    const { question, subject, context, curriculum, messages } = body;
 
     const questionValidation = validateString(question, "Question", MAX_QUESTION_LENGTH, true);
     if (!questionValidation.valid) {
@@ -127,13 +127,9 @@ serve(async (req) => {
       ? curriculumGuide[curriculum] 
       : curriculumGuide["General"];
 
-    const studentProfileContext = typeof studentContext === "string" && studentContext.trim() 
-      ? `\n${studentContext.trim()}` 
-      : "";
-
     const systemPrompt = `You are SYNOVA's Homework Assistant. GUIDE students, don't give direct answers.
 
-CURRICULUM: ${selectedCurriculum}${studentProfileContext}
+CURRICULUM: ${selectedCurriculum}
 
 RULES:
 1. NEVER give the final answer directly

@@ -181,10 +181,6 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
-  console.log("[parse-pyq-pdf] Starting request...");
-  console.log("[parse-pyq-pdf] SUPABASE_URL:", SUPABASE_URL ? "set" : "NOT SET");
-  console.log("[parse-pyq-pdf] SERVICE_ROLE_KEY:", SUPABASE_SERVICE_ROLE_KEY ? "set (length=" + SUPABASE_SERVICE_ROLE_KEY.length + ")" : "NOT SET");
-
   const supabase = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY);
   let uploadId: string | null = null;
 
@@ -193,14 +189,12 @@ serve(async (req) => {
     const { pdfBase64, examType, year, shift, userId, fileName } = body;
     uploadId = body.uploadId || null;
 
-    console.log(`[parse-pyq-pdf] Received: examType=${examType}, year=${year}, userId=${userId}, fileName=${fileName}, pdfBase64Length=${pdfBase64?.length || 0}`);
-
     if (!pdfBase64 || !examType || !year || !userId) {
       throw new Error("Missing required fields: pdfBase64, examType, year, userId");
     }
 
     if (!uploadId) {
-      console.log(`[parse-pyq-pdf] Creating pyq_uploads record internally for user ${userId}`);
+      console.log(`[parse-pyq-pdf] Creating pyq_uploads record internally`);
       const { data: record, error: insertErr } = await supabase
         .from("pyq_uploads")
         .insert({
@@ -214,12 +208,8 @@ serve(async (req) => {
         .select("id")
         .single();
 
-      if (insertErr) {
-        console.error("[parse-pyq-pdf] Insert error:", insertErr);
-        throw new Error(`Failed to create upload record: ${insertErr.message}`);
-      }
+      if (insertErr) throw new Error(`Failed to create upload record: ${insertErr.message}`);
       uploadId = record.id;
-      console.log(`[parse-pyq-pdf] Created upload record: ${uploadId}`);
     } else {
       await supabase.from("pyq_uploads").update({ status: "processing", error_message: null }).eq("id", uploadId);
     }
@@ -243,7 +233,7 @@ serve(async (req) => {
       topic: q.topic || null,
       explanation: q.explanation || null,
       difficulty: q.difficulty || "medium",
-      created_by: null,
+      created_by: userId,
     }));
 
     let insertedCount = 0;

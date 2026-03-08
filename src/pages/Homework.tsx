@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
@@ -11,7 +11,6 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
-import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -49,7 +48,6 @@ export default function Homework() {
 
   const voice = useVoice();
   const { trackProgress, trackHelpRequest } = useProgressTracker();
-  const { getAIContext } = useStudentProfile();
 
   useEffect(() => {
     if (messages.length === 0) return;
@@ -89,7 +87,7 @@ export default function Homework() {
       let currentSessionId = sessionId;
       
       if (!currentSessionId) {
-        const { data: session, error } = await supabase
+        const { data: session, error } = await externalSupabase
           .from("chat_sessions")
           .insert({
             user_id: user.id,
@@ -104,7 +102,7 @@ export default function Homework() {
         setSessionId(currentSessionId);
       }
 
-      await supabase.from("chat_messages").insert([
+      await externalSupabase.from("chat_messages").insert([
         { session_id: currentSessionId, role: userMsg.role, content: userMsg.content },
         { session_id: currentSessionId, role: assistantMsg.role, content: assistantMsg.content },
       ]);
@@ -178,7 +176,6 @@ export default function Homework() {
           subject,
           messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
           files: fileData.length > 0 ? fileData : undefined,
-          studentContext: getAIContext(),
         },
         {
           signal: inFlightControllerRef.current.signal,

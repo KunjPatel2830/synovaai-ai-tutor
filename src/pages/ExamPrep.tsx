@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
@@ -15,7 +15,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
-import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { PYQQuizChat } from "@/components/exam/PYQQuizChat";
@@ -77,7 +76,7 @@ export default function ExamPrep() {
   const fetchLinkedStudents = async () => {
     if (!user) return;
     try {
-      const { data } = await supabase
+      const { data } = await externalSupabase
         .from("teacher_student_links")
         .select("student_id")
         .eq("teacher_id", user.id);
@@ -90,7 +89,6 @@ export default function ExamPrep() {
 
   const voice = useVoice();
   const { trackProgress, trackHelpRequest } = useProgressTracker();
-  const { getAIContext, profile } = useStudentProfile();
 
   // Sync voice transcript to current answer/topic
   useEffect(() => {
@@ -133,7 +131,7 @@ export default function ExamPrep() {
     if (!user) return;
     
     try {
-      const { data: session, error } = await supabase
+      const { data: session, error } = await externalSupabase
         .from("chat_sessions")
         .insert({
           user_id: user.id,
@@ -146,7 +144,7 @@ export default function ExamPrep() {
 
       if (error) throw error;
 
-      await supabase.from("chat_messages").insert([
+      await externalSupabase.from("chat_messages").insert([
         { session_id: session.id, role: "user", content: `Exam: ${topic} - ${difficulty}` },
         { session_id: session.id, role: "assistant", content: `Score: ${score}%` },
       ]);
@@ -165,7 +163,7 @@ export default function ExamPrep() {
     try {
       const res = await invokeBackendFunction<{ questions: Question[] }>(
         "exam-prep",
-        { action: "generate_questions", subject, topic, difficulty, studentContext: getAIContext(), curriculum: profile?.curriculum },
+        { action: "generate_questions", subject, topic, difficulty },
         { timeoutMs: 45000, retries: 2, label: "exam:generate" }
       );
 

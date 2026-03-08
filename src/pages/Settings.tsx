@@ -1,7 +1,6 @@
 import { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { externalSupabase } from "@/lib/external-supabase";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
@@ -11,31 +10,14 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Settings as SettingsIcon, User, Moon, Sun, Save, Loader2, GraduationCap } from "lucide-react";
-
-const STANDARDS = [
-  "Grade 6", "Grade 7", "Grade 8", "Grade 9", "Grade 10",
-  "Grade 11", "Grade 12", "College",
-];
-
-const CURRICULA = [
-  "CBSE", "ICSE", "State Board", "IB", "IGCSE", "Other",
-];
-
-const TARGET_EXAMS = [
-  "JEE", "NEET", "School Exams", "Other",
-];
+import { Settings as SettingsIcon, User, Moon, Sun, Save, Loader2 } from "lucide-react";
 
 export default function Settings() {
   const { user, userRole, signOut } = useAuth();
   const { theme, toggleTheme } = useTheme();
-  const { profile, updateProfile, refetch } = useStudentProfile();
   const { toast } = useToast();
   const [displayName, setDisplayName] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
-  const [standard, setStandard] = useState("");
-  const [curriculum, setCurriculum] = useState("");
-  const [targetExam, setTargetExam] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -43,14 +25,6 @@ export default function Settings() {
       fetchProfile();
     }
   }, [user]);
-
-  useEffect(() => {
-    if (profile) {
-      setStandard(profile.standard || "");
-      setCurriculum(profile.curriculum || "");
-      setTargetExam(profile.target_exam || "");
-    }
-  }, [profile]);
 
   const fetchProfile = async () => {
     if (!user) return;
@@ -77,15 +51,11 @@ export default function Settings() {
         .update({
           display_name: displayName,
           grade_level: gradeLevel,
-          standard,
-          curriculum,
-          target_exam: targetExam,
         })
         .eq("user_id", user.id);
 
       if (error) throw error;
 
-      await refetch();
       toast({ title: "Profile updated successfully" });
     } catch (error) {
       toast({ title: "Failed to update profile", variant: "destructive" });
@@ -135,63 +105,29 @@ export default function Settings() {
                 <Label>Role</Label>
                 <Input value={userRole || ""} disabled className="bg-muted capitalize" />
               </div>
+
+              {userRole === "student" && (
+                <div className="space-y-2">
+                  <Label>Grade Level</Label>
+                  <Select value={gradeLevel} onValueChange={setGradeLevel}>
+                    <SelectTrigger><SelectValue placeholder="Select grade" /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="elementary">Elementary (K-5)</SelectItem>
+                      <SelectItem value="middle">Middle School (6-8)</SelectItem>
+                      <SelectItem value="high">High School (9-12)</SelectItem>
+                      <SelectItem value="college">College / University</SelectItem>
+                      <SelectItem value="adult">Adult Learner</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
+              <Button onClick={saveProfile} disabled={isLoading}>
+                {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                Save Changes
+              </Button>
             </GlassCardContent>
           </GlassCard>
-
-          {/* Academic Profile - Only for students */}
-          {userRole === "student" && (
-            <GlassCard>
-              <GlassCardHeader>
-                <GlassCardTitle className="flex items-center gap-2">
-                  <GraduationCap className="h-5 w-5" />
-                  Academic Profile
-                </GlassCardTitle>
-              </GlassCardHeader>
-              <GlassCardContent className="space-y-4">
-                <div className="space-y-2">
-                  <Label>Standard / Grade</Label>
-                  <Select value={standard} onValueChange={setStandard}>
-                    <SelectTrigger><SelectValue placeholder="Select your grade" /></SelectTrigger>
-                    <SelectContent>
-                      {STANDARDS.map((s) => (
-                        <SelectItem key={s} value={s}>{s}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Curriculum / Board</Label>
-                  <Select value={curriculum} onValueChange={setCurriculum}>
-                    <SelectTrigger><SelectValue placeholder="Select your board" /></SelectTrigger>
-                    <SelectContent>
-                      {CURRICULA.map((c) => (
-                        <SelectItem key={c} value={c}>{c}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="space-y-2">
-                  <Label>Target Exam</Label>
-                  <Select value={targetExam} onValueChange={setTargetExam}>
-                    <SelectTrigger><SelectValue placeholder="Select target exam" /></SelectTrigger>
-                    <SelectContent>
-                      {TARGET_EXAMS.map((e) => (
-                        <SelectItem key={e} value={e}>{e}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </GlassCardContent>
-            </GlassCard>
-          )}
-
-          {/* Save Button */}
-          <Button onClick={saveProfile} disabled={isLoading}>
-            {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-            Save Changes
-          </Button>
 
           {/* Appearance */}
           <GlassCard>

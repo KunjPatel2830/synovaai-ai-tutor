@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { supabase } from "@/integrations/supabase/client";
+import { externalSupabase } from "@/lib/external-supabase";
 import { Brain, BookOpen, FileText, ClipboardList, ArrowRight, Flame, Search, MessageSquare, Zap, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -19,7 +19,6 @@ import { QuickNotesWidget } from "@/components/dashboard/QuickNotesWidget";
 import { JoinWithCode } from "@/components/invitation/JoinWithCode";
 import { UserOverview } from "@/components/dashboard/UserOverview";
 import { TeacherChatWidget } from "@/components/dashboard/TeacherChatWidget";
-import { ContinueLearningWidget } from "@/components/dashboard/ContinueLearningWidget";
 
 const mainModes = [
   {
@@ -93,13 +92,13 @@ export default function GamifiedDashboard() {
     today.setHours(0, 0, 0, 0);
 
     const [profileRes, streakRes, sessionsRes, todayRes, recentRes, homeworkTotalRes, homeworkTodayRes] = await Promise.all([
-      supabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
-      supabase.from("learning_streaks").select("current_streak").eq("user_id", user.id).maybeSingle(),
-      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", today.toISOString()),
-      supabase.from("chat_sessions").select("id, mode, subject, topic, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
-      supabase.from("homework_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      supabase.from("homework_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", today.toISOString()),
+      externalSupabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
+      externalSupabase.from("learning_streaks").select("current_streak").eq("user_id", user.id).maybeSingle(),
+      externalSupabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      externalSupabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", today.toISOString()),
+      externalSupabase.from("chat_sessions").select("id, mode, subject, topic, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
+      externalSupabase.from("homework_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      externalSupabase.from("homework_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", today.toISOString()),
     ]);
 
     if (profileRes.data?.display_name) setDisplayName(profileRes.data.display_name);
@@ -239,11 +238,6 @@ export default function GamifiedDashboard() {
             );
           })}
         </div>
-
-        {/* Continue Learning / Recommendations */}
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32, duration: 0.5 }}>
-          <ContinueLearningWidget />
-        </motion.div>
 
         {/* Recent Doubts + Daily Goals */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">

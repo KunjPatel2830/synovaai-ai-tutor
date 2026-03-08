@@ -12,20 +12,24 @@ interface ProtectedRouteProps {
 export function ProtectedRoute({ 
   children, 
   allowedRoles,
+  // For demo/onboarding we don't block the app behind email verification.
   requireEmailVerification = false 
 }: ProtectedRouteProps) {
   const { user, userRole, loading } = useAuth();
   const [redirectReady, setRedirectReady] = useState(false);
 
+  // Grace period: prevents redirect flicker if auth state is briefly null during refresh/reconnect.
   useEffect(() => {
     if (loading) {
       setRedirectReady(false);
       return;
     }
+
     if (user) {
       setRedirectReady(false);
       return;
     }
+
     const t = window.setTimeout(() => setRedirectReady(true), 700);
     return () => window.clearTimeout(t);
   }, [loading, user]);
@@ -50,6 +54,7 @@ export function ProtectedRoute({
     return <Navigate to="/auth" replace />;
   }
 
+  // Check email verification status
   if (requireEmailVerification && !user.email_confirmed_at) {
     return <Navigate to="/verify-email" replace />;
   }
