@@ -10,6 +10,27 @@ const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+function tryParseContent(text: string): { topics: any[] } | null {
+  if (!text) return null;
+  // Strip markdown code fences
+  let cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
+  try {
+    const parsed = JSON.parse(cleaned);
+    if (parsed.topics && Array.isArray(parsed.topics)) return parsed;
+    return null;
+  } catch {
+    // Try to find JSON object in text
+    const match = cleaned.match(/\{[\s\S]*"topics"\s*:\s*\[[\s\S]*\]\s*\}/);
+    if (match) {
+      try {
+        const parsed = JSON.parse(match[0]);
+        if (parsed.topics && Array.isArray(parsed.topics)) return parsed;
+      } catch { /* ignore */ }
+    }
+    return null;
+  }
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
