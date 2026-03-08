@@ -123,7 +123,7 @@ export default function Tutor() {
         content: msg.content,
       }));
 
-      await externalSupabase.from("chat_messages").insert(messagesToSave);
+      await supabase.from("chat_messages").insert(messagesToSave);
       
       return currentSessionId;
     } catch (error) {
