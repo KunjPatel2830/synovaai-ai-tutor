@@ -12,6 +12,8 @@ type InvokeOptions = {
   label?: string;
   /** Warn when request exceeds this duration (ms) */
   slowThresholdMs?: number;
+  /** Use external Supabase URL instead of Lovable Cloud */
+  useExternal?: boolean;
 };
 
 export type InvokeResult<T> = {
