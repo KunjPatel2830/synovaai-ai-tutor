@@ -12,6 +12,7 @@ import { HelpCircle, Send, Mic, MicOff, Volume2, BookOpen, Tag } from "lucide-re
 import { Skeleton } from "@/components/ui/skeleton";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
+import { useLearningHistory } from "@/hooks/useLearningHistory";
 import { cn } from "@/lib/utils";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { Badge } from "@/components/ui/badge";
