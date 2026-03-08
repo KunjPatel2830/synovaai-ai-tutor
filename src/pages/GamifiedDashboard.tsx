@@ -91,19 +91,21 @@ export default function GamifiedDashboard() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
 
-    const [profileRes, streakRes, sessionsRes, todayRes, recentRes] = await Promise.all([
+    const [profileRes, streakRes, sessionsRes, todayRes, recentRes, homeworkTotalRes, homeworkTodayRes] = await Promise.all([
       externalSupabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
       externalSupabase.from("learning_streaks").select("current_streak").eq("user_id", user.id).maybeSingle(),
       externalSupabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id),
       externalSupabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", today.toISOString()),
       externalSupabase.from("chat_sessions").select("id, mode, subject, topic, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
+      externalSupabase.from("homework_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      externalSupabase.from("homework_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", today.toISOString()),
     ]);
 
     if (profileRes.data?.display_name) setDisplayName(profileRes.data.display_name);
     else if (user.email) setDisplayName(user.email.split("@")[0]);
     setStreak(streakRes.data?.current_streak || 0);
-    setQuestionsSolved(sessionsRes.count || 0);
-    setTodayUsage(todayRes.count || 0);
+    setQuestionsSolved((sessionsRes.count || 0) + (homeworkTotalRes.count || 0));
+    setTodayUsage((todayRes.count || 0) + (homeworkTodayRes.count || 0));
     if (recentRes.data) setRecentSessions(recentRes.data);
   };
 
