@@ -122,6 +122,11 @@ export default function LanguagePractice() {
       const reply = result.data.reply;
       setMessages((prev) => [...prev, { role: "assistant", content: reply }]);
       if (autoSpeak) speakText(reply);
+      // Save session in background
+      saveMessages(
+        [{ role: "user", content: userContent }, { role: "assistant", content: reply }],
+        selectedLanguage
+      ).catch(() => {});
     } else {
       toast.error(result.error || "Failed to get response. Please try again.");
       setMessages((prev) => [

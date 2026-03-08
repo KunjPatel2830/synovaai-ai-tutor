@@ -223,6 +223,11 @@ export default function VoiceTutor() {
       ];
       setMessages(newMessages);
       conversationHistoryRef.current = newMessages;
+      // Save session in background
+      saveMessages(
+        [{ role: "user", content: question }, { role: "assistant", content: reply }],
+        selectedLanguage === "en" ? "General" : LANGUAGES.find(l => l.code === selectedLanguage)?.name
+      ).catch(() => {});
       
       if (autoSpeak) {
         speakText(reply);
