@@ -240,6 +240,11 @@ export default function GamifiedDashboard() {
           })}
         </div>
 
+        {/* Continue Learning / Recommendations */}
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.32, duration: 0.5 }}>
+          <ContinueLearningWidget />
+        </motion.div>
+
         {/* Recent Doubts + Daily Goals */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
           <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35, duration: 0.5 }}>
