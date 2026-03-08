@@ -69,7 +69,7 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
       })
       .subscribe();
 
-    return () => { externalSupabase.removeChannel(channel); };
+    return () => { supabase.removeChannel(channel); };
   }, [userId]);
 
   const convertToBase64 = (file: File): Promise<string> => {

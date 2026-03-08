@@ -123,7 +123,7 @@ export function PYQQuizChat() {
       .order("year", { ascending: false });
 
     if (data) {
-      const uniqueYears = [...new Set(data.map((d) => d.year))];
+      const uniqueYears = [...new Set(data.map((d: any) => d.year as number))] as number[];
       setAvailableYears(uniqueYears);
     }
   };
