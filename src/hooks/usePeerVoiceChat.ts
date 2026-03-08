@@ -213,13 +213,13 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
       setIsVoiceEnabled(true);
 
       // Announce our presence
-      await externalSupabase.from('peer_voice_signals').insert([{
+      await externalSupabase.from('peer_voice_signals').insert({
         room_id: roomId,
         from_user_id: userId,
         to_user_id: null,
         signal_type: 'join',
-        signal_data: { timestamp: Date.now() } as unknown as Json,
-      }]);
+        signal_data: { timestamp: Date.now() },
+      });
 
       toast({
         title: 'Voice Chat Enabled',
