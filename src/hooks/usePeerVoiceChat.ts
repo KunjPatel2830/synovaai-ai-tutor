@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { externalSupabase } from '@/lib/external-supabase';
-import type { Json } from '@/integrations/supabase/types';
 import { useToast } from '@/hooks/use-toast';
 
 interface PeerConnection {
@@ -69,13 +68,13 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
     pc.onicecandidate = async (event) => {
       if (event.candidate && roomId && userId) {
         console.log(`Sending ICE candidate to ${peerId}`);
-        await externalSupabase.from('peer_voice_signals').insert([{
+        await externalSupabase.from('peer_voice_signals').insert({
           room_id: roomId,
           from_user_id: userId,
           to_user_id: peerId,
           signal_type: 'ice-candidate',
-          signal_data: event.candidate.toJSON() as unknown as Json,
-        }]);
+          signal_data: event.candidate.toJSON(),
+        });
       }
     };
 
@@ -106,13 +105,13 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
         const offer = await pc.createOffer();
         await pc.setLocalDescription(offer);
         
-        await externalSupabase.from('peer_voice_signals').insert([{
+        await externalSupabase.from('peer_voice_signals').insert({
           room_id: roomId,
           from_user_id: userId,
           to_user_id: peerId,
           signal_type: 'offer',
-          signal_data: { sdp: offer.sdp, type: offer.type } as unknown as Json,
-        }]);
+          signal_data: { sdp: offer.sdp, type: offer.type },
+        });
       }
     } else if (signal.signal_type === 'offer') {
       // Received offer, create answer
@@ -127,13 +126,13 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
         const answer = await peerData.connection.createAnswer();
         await peerData.connection.setLocalDescription(answer);
         
-        await externalSupabase.from('peer_voice_signals').insert([{
+        await externalSupabase.from('peer_voice_signals').insert({
           room_id: roomId,
           from_user_id: userId,
           to_user_id: peerId,
           signal_type: 'answer',
-          signal_data: { sdp: answer.sdp, type: answer.type } as unknown as Json,
-        }]);
+          signal_data: { sdp: answer.sdp, type: answer.type },
+        });
       }
     } else if (signal.signal_type === 'answer') {
       // Received answer
@@ -214,13 +213,13 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
       setIsVoiceEnabled(true);
 
       // Announce our presence
-      await externalSupabase.from('peer_voice_signals').insert([{
+      await externalSupabase.from('peer_voice_signals').insert({
         room_id: roomId,
         from_user_id: userId,
         to_user_id: null,
         signal_type: 'join',
-        signal_data: { timestamp: Date.now() } as unknown as Json,
-      }]);
+        signal_data: { timestamp: Date.now() },
+      });
 
       toast({
         title: 'Voice Chat Enabled',
@@ -243,13 +242,13 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
     if (!roomId || !userId) return;
 
     // Announce leaving
-    await externalSupabase.from('peer_voice_signals').insert([{
+    await externalSupabase.from('peer_voice_signals').insert({
       room_id: roomId,
       from_user_id: userId,
       to_user_id: null,
       signal_type: 'leave',
-      signal_data: { timestamp: Date.now() } as unknown as Json,
-    }]);
+      signal_data: { timestamp: Date.now() },
+    });
 
     // Close all peer connections
     peerConnectionsRef.current.forEach(({ connection }) => {

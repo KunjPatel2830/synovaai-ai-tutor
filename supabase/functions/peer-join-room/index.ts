@@ -8,6 +8,8 @@ const corsHeaders = {
 
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL");
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL");
+const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY");
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -47,8 +49,10 @@ serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    // Use Authorization header to verify the user making the request
-    const supabaseUser = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
+    // Use External Supabase to verify user (users registered on external project)
+    const externalUrl = EXTERNAL_SUPABASE_URL || SUPABASE_URL;
+    const externalKey = EXTERNAL_SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUser = createClient(externalUrl!, externalKey!, {
       global: { headers: { Authorization: authHeader } },
       auth: { persistSession: false },
     });
