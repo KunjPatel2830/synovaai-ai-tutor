@@ -69,6 +69,13 @@ export default function VoiceTutor() {
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
   const recognitionRef = useRef<any>(null);
   const conversationHistoryRef = useRef<Message[]>([]);
+  const { saveMessages, resetSession, loadSession } = useChatSession("voice");
+
+  const handleLoadSession = (loadedMessages: Message[], session: { id: string; subject?: string | null; topic?: string | null }) => {
+    setMessages(loadedMessages);
+    conversationHistoryRef.current = loadedMessages;
+    loadSession(loadedMessages, session);
+  };
 
   // Load available voices
   useEffect(() => {

@@ -66,6 +66,19 @@ export default function LanguagePractice() {
   const [autoSpeak, setAutoSpeak] = useState(false);
   const [hasStarted, setHasStarted] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { saveMessages, resetSession, loadSession } = useChatSession("language");
+
+  const handleLoadSession = (loadedMessages: Message[], session: { id: string; subject?: string | null; topic?: string | null }) => {
+    setMessages(loadedMessages);
+    setHasStarted(true);
+    loadSession(loadedMessages, session);
+  };
+
+  const startNewSession = () => {
+    setMessages([]);
+    setHasStarted(false);
+    resetSession();
+  };
 
   useEffect(() => {
     if (scrollRef.current) {
