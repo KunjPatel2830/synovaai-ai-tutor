@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
-import { motion, useScroll, useTransform } from "framer-motion";
+import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -57,8 +57,6 @@ const Landing = () => {
   const { theme, toggleTheme } = useTheme();
   const { user } = useAuth();
   const { toast } = useToast();
-  const { scrollYProgress } = useScroll();
-  const bgY = useTransform(scrollYProgress, [0, 1], ["0%", "30%"]);
 
   const [reviews, setReviews] = useState<ReviewData[]>(fallbackTestimonials);
   const [newReview, setNewReview] = useState("");
@@ -103,14 +101,13 @@ const Landing = () => {
   return (
     <div className="min-h-screen bg-background text-foreground overflow-x-hidden">
       {/* Animated gradient background */}
-      <motion.div
+      <div
         className="fixed inset-0 pointer-events-none -z-10"
-        style={{ y: bgY }}
       >
         <div className="absolute inset-0 bg-gradient-to-br from-primary/[0.03] via-transparent to-accent/[0.05]" />
         <div className="absolute top-0 right-0 w-[600px] h-[600px] rounded-full bg-primary/[0.04] blur-[120px]" />
         <div className="absolute bottom-0 left-0 w-[500px] h-[500px] rounded-full bg-accent/[0.06] blur-[100px]" />
-      </motion.div>
+      </div>
 
       {/* Navigation */}
       <nav className="sticky top-0 z-50 glass-strong border-b border-border/50">
