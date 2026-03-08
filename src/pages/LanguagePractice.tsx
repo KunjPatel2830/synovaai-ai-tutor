@@ -241,7 +241,7 @@ export default function LanguagePractice() {
                         }`}
                       >
                         {message.role === "assistant" ? (
-                          idx === messages.length - 1 && !loading ? (
+                          index === messages.length - 1 && !isLoading ? (
                             <TypingMarkdown content={message.content} />
                           ) : (
                             <MarkdownContent content={message.content} />

@@ -1095,7 +1095,7 @@ export default function CurriculumStudy() {
                       )}
                     >
                       {message.role === "assistant" ? (
-                        i === topicMessages.length - 1 && !isLoading ? (
+                        index === messages.length - 1 && !isLoading ? (
                           <TypingMarkdown content={message.content} className="prose-sm prose-invert max-w-none" />
                         ) : (
                           <MarkdownContent content={message.content} className="prose-sm prose-invert max-w-none" />
