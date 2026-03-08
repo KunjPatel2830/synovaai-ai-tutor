@@ -55,7 +55,7 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
   useEffect(() => {
     fetchUploads();
     
-    const channel = externalSupabase
+    const channel = supabase
       .channel("pyq_uploads_changes")
       .on("postgres_changes", {
         event: "UPDATE",
