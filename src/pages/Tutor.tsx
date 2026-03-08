@@ -193,6 +193,14 @@ export default function Tutor() {
       
       // Track progress in background (non-blocking)
       trackProgress(topic, subject, 10).catch(() => {});
+      
+      // Track in learning history
+      trackLearning({
+        subject,
+        topic,
+        status: "in_progress",
+        mode: "tutor",
+      }).catch(() => {});
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
         const msg = error instanceof Error ? error.message : "Unknown error";
