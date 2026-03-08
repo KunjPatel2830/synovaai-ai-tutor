@@ -55,7 +55,7 @@ async function extractAndStructure(
   // Attempt with tool calling
   const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
     method: "POST",
-    signal: createTimeoutSignal(55000),
+    signal: createTimeoutSignal(150000),
     headers: {
       Authorization: `Bearer ${LOVABLE_API_KEY}`,
       "Content-Type": "application/json",
