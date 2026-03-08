@@ -110,7 +110,7 @@ export default function DoubtSolver() {
 
   return (
     <AppLayout>
-      <div className="h-[calc(100vh-5rem)] flex flex-col w-full">
+      <div className="h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)] flex flex-col w-full">
         {/* Header */}
         <GlassCard className="mb-2 shrink-0">
           <GlassCardHeader className="py-4">

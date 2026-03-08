@@ -334,7 +334,7 @@ export default function Tutor() {
   if (!sessionStarted) {
     return (
       <AppLayout>
-        <div className="flex flex-col h-[calc(100vh-4.5rem)] max-w-2xl mx-auto lg:max-w-3xl">
+        <div className="flex flex-col h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)] max-w-2xl mx-auto lg:max-w-3xl">
           {/* Compact Header Row */}
           <div className="flex items-center justify-between gap-4 mb-3 shrink-0">
             <div className="flex items-center gap-3">
@@ -432,7 +432,7 @@ export default function Tutor() {
 
   return (
     <AppLayout>
-      <div className="flex flex-col h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1.5rem)]">
+      <div className="flex flex-col h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)]">
         {/* Header with controls */}
         <div className="flex items-center justify-between gap-2 mb-3 shrink-0 flex-wrap">
           <div className="flex items-center gap-1.5 flex-wrap">
