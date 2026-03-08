@@ -12,6 +12,7 @@ import { HelpCircle, Send, Mic, MicOff, Volume2, BookOpen, Tag } from "lucide-re
 import { Skeleton } from "@/components/ui/skeleton";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
+import { useLearningHistory } from "@/hooks/useLearningHistory";
 import { cn } from "@/lib/utils";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { Badge } from "@/components/ui/badge";
@@ -36,6 +37,7 @@ export default function DoubtSolver() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { getAIContext } = useStudentProfile();
+  const { trackLearning, getMemoryContext } = useLearningHistory();
 
   useEffect(() => {
     if (messages.length === 0) return;
@@ -96,6 +98,7 @@ export default function DoubtSolver() {
           messages: updatedMessages.map((msg) => ({ role: msg.role, content: msg.content })),
           mode: "doubt",
           studentContext: getAIContext(),
+          memoryContext: getMemoryContext(),
         },
         { signal: controller.signal, timeoutMs: 20000, retries: 1, label: "doubt:chat" }
       );
@@ -103,12 +106,26 @@ export default function DoubtSolver() {
       if (!res.ok) throw new Error(res.error || "Failed");
       
       const reply = res.data?.reply || "I understand your question. Let me help you with that.";
+      const detectedSubject = res.data?.detectedSubject || "";
+      const detectedTopic = res.data?.detectedTopic || "";
+      
       setMessages(prev => [...prev, {
         role: "assistant",
         content: reply,
-        detectedSubject: res.data?.detectedSubject,
-        detectedTopic: res.data?.detectedTopic,
+        detectedSubject,
+        detectedTopic,
       }]);
+
+      // Track learning in background
+      if (detectedSubject && detectedSubject !== "General") {
+        trackLearning({
+          subject: detectedSubject,
+          topic: detectedTopic || undefined,
+          question: userMessage,
+          status: "solved",
+          mode: "doubt",
+        }).catch(() => {});
+      }
     } catch (error) {
       setMessages(prev => [
         ...prev,

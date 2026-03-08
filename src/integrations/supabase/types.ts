@@ -294,6 +294,48 @@ export type Database = {
         }
         Relationships: []
       }
+      learning_history: {
+        Row: {
+          created_at: string
+          difficulty: string | null
+          id: string
+          mode: string
+          question: string | null
+          session_duration_seconds: number | null
+          status: string
+          subject: string
+          topic: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          difficulty?: string | null
+          id?: string
+          mode?: string
+          question?: string | null
+          session_duration_seconds?: number | null
+          status?: string
+          subject: string
+          topic?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          difficulty?: string | null
+          id?: string
+          mode?: string
+          question?: string | null
+          session_duration_seconds?: number | null
+          status?: string
+          subject?: string
+          topic?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       learning_progress: {
         Row: {
           attempts: number | null

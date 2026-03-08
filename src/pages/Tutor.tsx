@@ -15,6 +15,7 @@ import { useVoice } from "@/hooks/useVoice";
 import { useRateLimiter } from "@/hooks/useRateLimiter";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
+import { useLearningHistory } from "@/hooks/useLearningHistory";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -54,6 +55,7 @@ export default function Tutor() {
   const { waitForRateLimit } = useRateLimiter({ minDelayMs: 500 });
   const { trackProgress } = useProgressTracker();
   const { getAIContext } = useStudentProfile();
+  const { trackLearning, getMemoryContext } = useLearningHistory();
 
   // Profile loaded flag
   useEffect(() => {
@@ -155,6 +157,7 @@ export default function Tutor() {
           subject,
           topic,
           studentContext: getAIContext(),
+          memoryContext: getMemoryContext(),
         },
         {
           signal: inFlightControllerRef.current.signal,
@@ -190,6 +193,14 @@ export default function Tutor() {
       
       // Track progress in background (non-blocking)
       trackProgress(topic, subject, 10).catch(() => {});
+      
+      // Track in learning history
+      trackLearning({
+        subject,
+        topic,
+        status: "in_progress",
+        mode: "tutor",
+      }).catch(() => {});
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
         const msg = error instanceof Error ? error.message : "Unknown error";
@@ -284,6 +295,7 @@ export default function Tutor() {
           subject,
           topic,
           studentContext: getAIContext(),
+          memoryContext: getMemoryContext(),
         },
         {
           signal: inFlightControllerRef.current.signal,
@@ -327,6 +339,16 @@ export default function Tutor() {
       
       // Track progress incrementally (non-blocking)
       trackProgress(topic, subject, 10).catch(() => {});
+      
+      // Track in learning history
+      const detectedTopic = res.data?.detectedTopic || topic;
+      trackLearning({
+        subject: res.data?.detectedSubject || subject,
+        topic: detectedTopic || undefined,
+        question: userMessage.content,
+        status: "solved",
+        mode: "tutor",
+      }).catch(() => {});
     } catch (error) {
       if ((error as any)?.name !== "AbortError") {
         const msg = error instanceof Error ? error.message : "Unknown error";

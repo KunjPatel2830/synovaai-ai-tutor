@@ -191,7 +191,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { messages, preferredLanguage, subject, topic, curriculum, studentContext } = body;
+    const { messages, preferredLanguage, subject, topic, curriculum, studentContext, memoryContext } = body;
 
     const validation = validateMessages(messages);
     if (!validation.valid) {
@@ -231,12 +231,14 @@ serve(async (req) => {
     const studentProfileContext = typeof studentContext === "string" && studentContext.trim()
       ? studentContext.trim()
       : "";
+    const learningMemory = typeof memoryContext === "string" && memoryContext.trim()
+      ? memoryContext.trim()
+      : "";
 
     const systemPrompt = `You are SYNOVA, an adaptive AI tutor. Follow these rules:
 
 CURRICULUM: ${selectedCurriculum}
-${studentProfileContext ? `${studentProfileContext}\n` : ""}
-${subjectContext}
+${studentProfileContext ? `${studentProfileContext}\n` : ""}${learningMemory ? `${learningMemory}\n` : ""}${subjectContext}
 ${topicContext}
 
 RULES:
