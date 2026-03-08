@@ -115,7 +115,7 @@ export function ChatHistory({ mode, onLoadSession }: ChatHistoryProps) {
     
     try {
       // Delete messages first (due to foreign key)
-      await externalSupabase
+      await supabase
         .from("chat_messages")
         .delete()
         .eq("session_id", sessionId);
