@@ -279,7 +279,7 @@ export default function PeerMode() {
   if (!user) {
     return (
       <AppLayout>
-        <div className="flex items-center justify-center h-[calc(100vh-5rem)]">
+        <div className="flex items-center justify-center h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)]">
           <p className="text-muted-foreground">Please sign in to use Peer Mode</p>
         </div>
       </AppLayout>
@@ -288,7 +288,7 @@ export default function PeerMode() {
 
   return (
     <AppLayout>
-      <div className="max-w-6xl mx-auto flex flex-col h-[calc(100vh-5rem)]">
+      <div className="max-w-6xl mx-auto flex flex-col h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)]">
         {/* Header */}
         <div className="flex items-center justify-between gap-4 mb-4 shrink-0">
           <div className="flex items-center gap-3">
