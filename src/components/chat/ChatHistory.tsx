@@ -87,7 +87,7 @@ export function ChatHistory({ mode, onLoadSession }: ChatHistoryProps) {
   const loadSession = async (session: ChatSession) => {
     setLoadingSessionId(session.id);
     try {
-      const { data, error } = await externalSupabase
+      const { data, error } = await supabase
         .from("chat_messages")
         .select("role, content")
         .eq("session_id", session.id)
