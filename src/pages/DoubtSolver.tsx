@@ -112,12 +112,22 @@ export default function DoubtSolver() {
       const detectedSubject = res.data?.detectedSubject || "";
       const detectedTopic = res.data?.detectedTopic || "";
       
-      setMessages(prev => [...prev, {
+      const assistantMsg: Message = {
         role: "assistant",
         content: reply,
         detectedSubject,
         detectedTopic,
-      }]);
+      };
+      
+      setMessages(prev => [...prev, assistantMsg]);
+
+      // Save session in background
+      const userMsg = updatedMessages[updatedMessages.length - 1];
+      saveMessages(
+        [userMsg, assistantMsg],
+        detectedSubject || undefined,
+        detectedTopic || undefined
+      ).catch(() => {});
 
       // Track learning in background
       if (detectedSubject && detectedSubject !== "General") {
