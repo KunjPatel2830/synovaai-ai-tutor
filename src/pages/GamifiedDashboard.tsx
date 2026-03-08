@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { externalSupabase } from "@/lib/external-supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { Brain, BookOpen, FileText, ClipboardList, ArrowRight, Flame, Search, MessageSquare, Zap, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
