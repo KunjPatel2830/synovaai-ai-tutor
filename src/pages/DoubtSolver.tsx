@@ -42,7 +42,19 @@ export default function DoubtSolver() {
   const { trackLearning, getMemoryContext } = useLearningHistory();
   const { saveMessages, resetSession, loadSession } = useChatSession("doubt");
 
-  useEffect(() => {
+  const handleLoadSession = (loadedMessages: Message[], session: { id: string; subject?: string | null; topic?: string | null }) => {
+    setMessages(loadedMessages);
+    loadSession(loadedMessages, session);
+  };
+
+  const startNewSession = () => {
+    setMessages([{
+      role: "assistant",
+      content: "Hi! I'm your Doubt Solver. Ask me any question and I'll give you a clear, concise answer. Need an example? Just ask!",
+    }]);
+    resetSession();
+  };
+
     if (messages.length === 0) return;
     requestAnimationFrame(() => {
       messagesEndRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
