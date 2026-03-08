@@ -17,6 +17,7 @@ import { useProgressTracker } from "@/hooks/useProgressTracker";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
+import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
 import { Brain, Send, Mic, MicOff, Volume2, Plus, Pause, Play, Square } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -510,7 +511,11 @@ export default function Tutor() {
                     )}>
                       <div className="flex items-start gap-2">
                         {msg.role === "assistant" ? (
-                          <MarkdownContent content={msg.content} className="flex-1 overflow-x-auto" />
+                          i === messages.length - 1 && !isLoading ? (
+                            <TypingMarkdown content={msg.content} className="flex-1 overflow-x-auto" />
+                          ) : (
+                            <MarkdownContent content={msg.content} className="flex-1 overflow-x-auto" />
+                          )
                         ) : (
                           <div className="flex-1">
                             {isPausedMessage && (

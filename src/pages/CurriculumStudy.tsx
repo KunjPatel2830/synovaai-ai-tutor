@@ -21,6 +21,7 @@ import { useCurriculumStudyProgress } from "@/hooks/useCurriculumStudyProgress";
 import { useCurriculumPreference } from "@/hooks/useCurriculumPreference";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { MarkdownContent } from "@/components/ui/markdown-content";
+import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
 import { 
   BookOpen, Send, ArrowLeft, ArrowRight, CheckCircle2, 
   Clock, ChevronRight, Play, RotateCcw, Loader2, Download
@@ -1094,7 +1095,11 @@ export default function CurriculumStudy() {
                       )}
                     >
                       {message.role === "assistant" ? (
-                        <MarkdownContent content={message.content} className="prose-sm prose-invert max-w-none" />
+                        index === messages.length - 1 && !isLoading ? (
+                          <TypingMarkdown content={message.content} className="prose-sm prose-invert max-w-none" />
+                        ) : (
+                          <MarkdownContent content={message.content} className="prose-sm prose-invert max-w-none" />
+                        )
                       ) : (
                         <p>{message.content}</p>
                       )}

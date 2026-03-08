@@ -22,6 +22,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { MarkdownContent } from "@/components/ui/markdown-content";
+import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
 import { toast } from "sonner";
 
 interface Message {
@@ -240,7 +241,11 @@ export default function LanguagePractice() {
                         }`}
                       >
                         {message.role === "assistant" ? (
-                          <MarkdownContent content={message.content} />
+                          index === messages.length - 1 && !isLoading ? (
+                            <TypingMarkdown content={message.content} />
+                          ) : (
+                            <MarkdownContent content={message.content} />
+                          )
                         ) : (
                           <p className="text-base leading-relaxed">{message.content}</p>
                         )}
