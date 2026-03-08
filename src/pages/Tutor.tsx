@@ -51,6 +51,7 @@ export default function Tutor() {
   const voice = useVoice();
   const { waitForRateLimit } = useRateLimiter({ minDelayMs: 500 });
   const { trackProgress } = useProgressTracker();
+  const { getAIContext } = useStudentProfile();
 
   // Profile loaded flag
   useEffect(() => {
