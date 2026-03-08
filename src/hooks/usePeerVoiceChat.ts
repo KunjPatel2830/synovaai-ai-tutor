@@ -242,13 +242,13 @@ export function usePeerVoiceChat(roomId: string | null, userId: string | null) {
     if (!roomId || !userId) return;
 
     // Announce leaving
-    await externalSupabase.from('peer_voice_signals').insert([{
+    await externalSupabase.from('peer_voice_signals').insert({
       room_id: roomId,
       from_user_id: userId,
       to_user_id: null,
       signal_type: 'leave',
-      signal_data: { timestamp: Date.now() } as unknown as Json,
-    }]);
+      signal_data: { timestamp: Date.now() },
+    });
 
     // Close all peer connections
     peerConnectionsRef.current.forEach(({ connection }) => {
