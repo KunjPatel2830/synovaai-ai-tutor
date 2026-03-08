@@ -568,8 +568,14 @@ export default function Tutor() {
                   aiPaused ? sendPausedMessage() : sendMessage();
                 }
               }}
+              onInput={(e) => {
+                const t = e.target as HTMLTextAreaElement;
+                t.style.height = 'auto';
+                t.style.height = Math.min(t.scrollHeight, 192) + 'px';
+              }}
+              rows={1}
               disabled={isLoading}
-              className={cn("flex-1 min-h-[120px] max-h-48 resize-none", aiPaused && "border-warning/50")}
+              className={cn("flex-1 min-h-10 max-h-48 resize-none overflow-y-auto", aiPaused && "border-warning/50")}
             />
             {isLoading && !aiPaused && (
               <Button
