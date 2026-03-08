@@ -12,7 +12,7 @@ import { HelpCircle, Send, Mic, MicOff, Volume2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { cn } from "@/lib/utils";
-import { Square } from "lucide-react";
+import { MarkdownContent } from "@/components/ui/markdown-content";
 
 interface Message {
   role: "user" | "assistant";
