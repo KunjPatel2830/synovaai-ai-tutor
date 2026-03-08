@@ -24,15 +24,14 @@ serve(async (req) => {
     let userPrompt: string;
 
     if (isFollowUp) {
-      // Follow-up question: keep it short and directly useful
       systemPrompt = `You are an expert ${subject} teacher helping students prepare for ${examType || "competitive exams"} like JEE and NEET.
 
-Answer the student's follow-up question in an exam-style, VERY SHORT way.
+Answer the student's follow-up question clearly and completely.
 
 RULES:
-- Total length: <= 80 words
-- No long theory, no extra sections, no fluff
+- Total length: <= 250 words
 - Use LaTeX for any math/formulas
+- Show complete working — do NOT cut off mid-solution
 - Prefer bullets if multiple points
 - If a diagram/visual is necessary, include exactly ONE tag on its own line: [IMAGE: ...]
 `;
@@ -51,26 +50,25 @@ ${topic ? `Topic: ${topic}` : ""}
 
 Student's Follow-up Question: ${followUpQuery}
 
-Reply briefly (<= 80 words).`;
+Give a complete answer.`;
     } else {
-      // Initial explanation after answering: short, direct, exam-focused
       systemPrompt = `You are an expert ${subject} teacher helping students prepare for ${examType || "competitive exams"} like JEE and NEET.
 
-Give a SHORT exam-style explanation (not a full lecture).
+Give a COMPLETE exam-style explanation with full solution steps.
 
-OUTPUT FORMAT (follow EXACTLY):
+OUTPUT FORMAT:
 Result: ${isCorrect ? "Correct" : "Incorrect"}. Correct option: ${correctOption}.
-Why:
-- (1 to 3 bullets, max 12 words each)
-Key formula: (1 line, omit if not needed)
-Quick tip: (1 short line)
+
+**Solution:**
+(Show complete step-by-step working. Do NOT cut off mid-calculation.)
+
+**Key formula:** (if applicable)
+**Quick tip:** (1 short line)
 
 RULES:
-- Total length: <= 120 words
-- No extra headings/emojis/sections beyond the format above
-- Use LaTeX for formulas
-- If the question needs a diagram/visual (lens rays, circuits, geometry figure, graph, etc.), add EXACTLY ONE line right after the Why bullets:
-  [IMAGE: short descriptive diagram name]
+- Show ALL steps — never leave a solution incomplete
+- Use LaTeX for all math/formulas
+- If the question needs a diagram/visual, add ONE line: [IMAGE: short descriptive diagram name]
 `;
 
       userPrompt = `Question: ${question}
@@ -109,7 +107,7 @@ Explain using the exact format above.`;
           { role: "user", content: userPrompt },
         ],
         temperature: 0.3,
-        max_tokens: isFollowUp ? 220 : 320,
+        max_tokens: isFollowUp ? 800 : 1024,
         stream: true,
       }),
     });
