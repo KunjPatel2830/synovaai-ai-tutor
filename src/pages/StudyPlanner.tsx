@@ -179,7 +179,7 @@ export default function StudyPlanner() {
 
   return (
     <AppLayout>
-      <div className="max-w-6xl mx-auto h-[calc(100vh-5rem)] overflow-auto space-y-4">
+      <div className="max-w-6xl mx-auto h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)] overflow-auto space-y-4">
         {/* Header */}
         <GlassCard>
           <GlassCardHeader>

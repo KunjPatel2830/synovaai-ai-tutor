@@ -278,7 +278,7 @@ export default function ExamPrep() {
   if (state === "setup") {
     return (
       <AppLayout>
-        <div className="max-w-4xl mx-auto flex flex-col h-[calc(100vh-5rem)]">
+        <div className="max-w-4xl mx-auto flex flex-col h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)]">
           {/* Compact Header Row */}
           <div className="flex items-center justify-between gap-4 mb-3 shrink-0">
             <div className="flex items-center gap-3">
@@ -461,7 +461,7 @@ export default function ExamPrep() {
 
     return (
       <AppLayout>
-        <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-5rem)]">
+        <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)]">
           {/* Header row */}
           <div className="flex items-center justify-between gap-3 mb-3 shrink-0">
             <div className="flex items-center gap-3">
@@ -567,7 +567,7 @@ export default function ExamPrep() {
   if (state === "results" && results) {
     return (
       <AppLayout>
-        <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-5rem)]">
+        <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)]">
           {/* Header row */}
           <div className="flex items-center justify-between gap-3 mb-3 shrink-0">
             <div className="flex items-center gap-3">

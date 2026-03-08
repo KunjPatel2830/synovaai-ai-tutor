@@ -725,7 +725,7 @@ export default function CurriculumStudy() {
   if (phase === "setup") {
     return (
       <AppLayout>
-        <div className="flex flex-col h-[calc(100vh-4.5rem)] max-w-2xl mx-auto lg:max-w-3xl">
+        <div className="flex flex-col h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)] max-w-2xl mx-auto lg:max-w-3xl">
           <div className="flex items-center gap-3 mb-4 shrink-0">
             <div className="h-10 w-10 rounded-xl bg-primary flex items-center justify-center">
               <BookOpen className="h-5 w-5 text-primary-foreground" />
@@ -822,7 +822,7 @@ export default function CurriculumStudy() {
   if (phase === "select-subject") {
     return (
       <AppLayout>
-        <div className="flex flex-col h-[calc(100vh-4.5rem)] max-w-2xl mx-auto lg:max-w-3xl">
+        <div className="flex flex-col h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)] max-w-2xl mx-auto lg:max-w-3xl">
           <div className="flex items-center gap-3 mb-4 shrink-0">
             <Button variant="ghost" size="icon" onClick={() => setPhase("setup")}>
               <ArrowLeft className="h-5 w-5" />
@@ -879,7 +879,7 @@ export default function CurriculumStudy() {
   if (phase === "select-chapter") {
     return (
       <AppLayout>
-        <div className="flex flex-col h-[calc(100vh-4.5rem)] max-w-2xl mx-auto lg:max-w-3xl">
+        <div className="flex flex-col h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)] max-w-2xl mx-auto lg:max-w-3xl">
           <div className="flex items-center gap-3 mb-4 shrink-0">
             <Button variant="ghost" size="icon" onClick={() => setPhase("select-subject")}>
               <ArrowLeft className="h-5 w-5" />
@@ -928,7 +928,7 @@ export default function CurriculumStudy() {
 
   return (
     <AppLayout>
-      <div className="flex gap-4 h-[calc(100vh-5rem)]">
+      <div className="flex gap-4 h-[calc(100vh-4.5rem)] lg:h-[calc(100vh-1rem)]">
         {/* NCERT Reference Panel - Left Side */}
         <GlassCard className="hidden lg:block w-72 shrink-0 overflow-hidden">
           <div className="p-4 border-b border-border">
