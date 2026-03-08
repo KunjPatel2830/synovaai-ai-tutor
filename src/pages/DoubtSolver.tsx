@@ -187,7 +187,13 @@ export default function DoubtSolver() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Ask your doubt..."
-                className="min-h-[120px] max-h-48 resize-none flex-1"
+                className="min-h-10 max-h-48 resize-none flex-1 overflow-y-auto"
+                rows={1}
+                onInput={(e) => {
+                  const t = e.target as HTMLTextAreaElement;
+                  t.style.height = 'auto';
+                  t.style.height = Math.min(t.scrollHeight, 192) + 'px';
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();

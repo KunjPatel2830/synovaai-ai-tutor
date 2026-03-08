@@ -278,7 +278,13 @@ export default function LanguagePractice() {
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
                     placeholder="Type your answer or ask a question..."
-                    className="min-h-[120px] max-h-48 resize-none"
+                    className="min-h-10 max-h-48 resize-none overflow-y-auto"
+                    rows={1}
+                    onInput={(e) => {
+                      const t = e.target as HTMLTextAreaElement;
+                      t.style.height = 'auto';
+                      t.style.height = Math.min(t.scrollHeight, 192) + 'px';
+                    }}
                     onKeyDown={(e) => {
                       if (e.key === "Enter" && !e.shiftKey) {
                         e.preventDefault();

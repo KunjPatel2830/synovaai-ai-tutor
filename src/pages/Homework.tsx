@@ -443,18 +443,18 @@ export default function Homework() {
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Type, paste, or speak your homework question..."
-                className="min-h-[120px] max-h-48 resize-none flex-1 py-2"
-                rows={4}
+                className="min-h-10 max-h-48 resize-none flex-1 py-2 overflow-y-auto"
+                rows={1}
+                onInput={(e) => {
+                  const t = e.target as HTMLTextAreaElement;
+                  t.style.height = 'auto';
+                  t.style.height = Math.min(t.scrollHeight, 192) + 'px';
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !e.shiftKey) {
                     e.preventDefault();
                     sendMessage();
                   }
-                }}
-                onInput={(e) => {
-                  const target = e.target as HTMLTextAreaElement;
-                  target.style.height = 'auto';
-                  target.style.height = Math.min(target.scrollHeight, 128) + 'px';
                 }}
               />
               {isLoading && (
