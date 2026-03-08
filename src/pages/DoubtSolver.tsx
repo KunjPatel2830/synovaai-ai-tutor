@@ -40,6 +40,7 @@ export default function DoubtSolver() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { getAIContext } = useStudentProfile();
   const { trackLearning, getMemoryContext } = useLearningHistory();
+  const { saveMessages, resetSession, loadSession } = useChatSession("doubt");
 
   useEffect(() => {
     if (messages.length === 0) return;
