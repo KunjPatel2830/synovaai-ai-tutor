@@ -90,6 +90,7 @@ export default function ExamPrep() {
 
   const voice = useVoice();
   const { trackProgress, trackHelpRequest } = useProgressTracker();
+  const { getAIContext, profile } = useStudentProfile();
 
   // Sync voice transcript to current answer/topic
   useEffect(() => {
