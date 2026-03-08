@@ -77,7 +77,7 @@ export default function ExamPrep() {
   const fetchLinkedStudents = async () => {
     if (!user) return;
     try {
-      const { data } = await externalSupabase
+      const { data } = await supabase
         .from("teacher_student_links")
         .select("student_id")
         .eq("teacher_id", user.id);
