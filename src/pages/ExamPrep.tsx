@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
+import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { PYQQuizChat } from "@/components/exam/PYQQuizChat";
