@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { AppLayout } from "@/components/layout/AppLayout";
-import { externalSupabase } from "@/lib/external-supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { Brain, BookOpen, FileText, ClipboardList, ArrowRight, Flame, Search, MessageSquare, Zap, UserPlus } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { formatDistanceToNow } from "date-fns";
@@ -93,13 +93,13 @@ export default function GamifiedDashboard() {
     today.setHours(0, 0, 0, 0);
 
     const [profileRes, streakRes, sessionsRes, todayRes, recentRes, homeworkTotalRes, homeworkTodayRes] = await Promise.all([
-      externalSupabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
-      externalSupabase.from("learning_streaks").select("current_streak").eq("user_id", user.id).maybeSingle(),
-      externalSupabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      externalSupabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", today.toISOString()),
-      externalSupabase.from("chat_sessions").select("id, mode, subject, topic, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
-      externalSupabase.from("homework_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id),
-      externalSupabase.from("homework_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", today.toISOString()),
+      supabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle(),
+      supabase.from("learning_streaks").select("current_streak").eq("user_id", user.id).maybeSingle(),
+      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      supabase.from("chat_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", today.toISOString()),
+      supabase.from("chat_sessions").select("id, mode, subject, topic, created_at").eq("user_id", user.id).order("created_at", { ascending: false }).limit(3),
+      supabase.from("homework_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id),
+      supabase.from("homework_sessions").select("id", { count: "exact", head: true }).eq("user_id", user.id).gte("created_at", today.toISOString()),
     ]);
 
     if (profileRes.data?.display_name) setDisplayName(profileRes.data.display_name);

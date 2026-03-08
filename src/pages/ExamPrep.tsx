@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { externalSupabase } from "@/lib/external-supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent, GlassCardHeader, GlassCardTitle } from "@/components/ui/glass-card";
@@ -77,7 +77,7 @@ export default function ExamPrep() {
   const fetchLinkedStudents = async () => {
     if (!user) return;
     try {
-      const { data } = await externalSupabase
+      const { data } = await supabase
         .from("teacher_student_links")
         .select("student_id")
         .eq("teacher_id", user.id);
@@ -133,7 +133,7 @@ export default function ExamPrep() {
     if (!user) return;
     
     try {
-      const { data: session, error } = await externalSupabase
+      const { data: session, error } = await supabase
         .from("chat_sessions")
         .insert({
           user_id: user.id,
@@ -146,7 +146,7 @@ export default function ExamPrep() {
 
       if (error) throw error;
 
-      await externalSupabase.from("chat_messages").insert([
+      await supabase.from("chat_messages").insert([
         { session_id: session.id, role: "user", content: `Exam: ${topic} - ${difficulty}` },
         { session_id: session.id, role: "assistant", content: `Score: ${score}%` },
       ]);

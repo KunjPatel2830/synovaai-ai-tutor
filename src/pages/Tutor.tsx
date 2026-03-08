@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
-import { externalSupabase } from "@/lib/external-supabase";
+import { supabase } from "@/integrations/supabase/client";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { GlassCard, GlassCardContent } from "@/components/ui/glass-card";
@@ -100,7 +100,7 @@ export default function Tutor() {
       let currentSessionId = sessionId;
       
       if (!currentSessionId) {
-        const { data: session, error: sessionError } = await externalSupabase
+        const { data: session, error: sessionError } = await supabase
           .from("chat_sessions")
           .insert({
             user_id: user.id,
@@ -123,7 +123,7 @@ export default function Tutor() {
         content: msg.content,
       }));
 
-      await externalSupabase.from("chat_messages").insert(messagesToSave);
+      await supabase.from("chat_messages").insert(messagesToSave);
       
       return currentSessionId;
     } catch (error) {
@@ -330,7 +330,7 @@ export default function Tutor() {
       // Save to database (non-blocking)
       if (sessionId) {
         Promise.resolve(
-          externalSupabase.from("chat_messages").insert([
+          supabase.from("chat_messages").insert([
             { session_id: sessionId, role: userMessage.role, content: userMessage.content },
             { session_id: sessionId, role: assistantMessage.role, content: assistantMessage.content },
           ])
