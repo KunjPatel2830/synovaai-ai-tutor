@@ -238,8 +238,7 @@ serve(async (req) => {
     const systemPrompt = `You are SYNOVA, an adaptive AI tutor. Follow these rules:
 
 CURRICULUM: ${selectedCurriculum}
-${studentProfileContext ? `${studentProfileContext}\n` : ""}
-${subjectContext}
+${studentProfileContext ? `${studentProfileContext}\n` : ""}${learningMemory ? `${learningMemory}\n` : ""}${subjectContext}
 ${topicContext}
 
 RULES:
