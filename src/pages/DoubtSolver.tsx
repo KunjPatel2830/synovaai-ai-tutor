@@ -37,6 +37,7 @@ export default function DoubtSolver() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const { getAIContext } = useStudentProfile();
+  const { trackLearning, getMemoryContext } = useLearningHistory();
 
   useEffect(() => {
     if (messages.length === 0) return;
