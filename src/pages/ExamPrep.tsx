@@ -15,6 +15,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
+import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { PYQQuizChat } from "@/components/exam/PYQQuizChat";
@@ -89,6 +90,7 @@ export default function ExamPrep() {
 
   const voice = useVoice();
   const { trackProgress, trackHelpRequest } = useProgressTracker();
+  const { getAIContext, profile } = useStudentProfile();
 
   // Sync voice transcript to current answer/topic
   useEffect(() => {
@@ -163,7 +165,7 @@ export default function ExamPrep() {
     try {
       const res = await invokeBackendFunction<{ questions: Question[] }>(
         "exam-prep",
-        { action: "generate_questions", subject, topic, difficulty },
+        { action: "generate_questions", subject, topic, difficulty, studentContext: getAIContext(), curriculum: profile?.curriculum },
         { timeoutMs: 45000, retries: 2, label: "exam:generate" }
       );
 

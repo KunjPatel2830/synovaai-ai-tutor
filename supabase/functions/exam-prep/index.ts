@@ -74,7 +74,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { action, subject, topic, difficulty, curriculum } = body;
+    const { action, subject, topic, difficulty, curriculum, studentContext } = body;
 
     if (!action || typeof action !== "string" || !VALID_ACTIONS.includes(action)) {
       return jsonResponse({ error: `Invalid action. Must be one of: ${VALID_ACTIONS.join(", ")}` }, { status: 400 });
@@ -121,6 +121,10 @@ serve(async (req) => {
       : curriculumGuide["General"];
     const safeCurriculum = curriculum || "General";
 
+    const studentProfileContext = typeof studentContext === "string" && studentContext.trim() 
+      ? studentContext.trim() 
+      : "";
+
     const safeSubject = subjectValidation.value;
     const safeTopic = topicValidation.value;
     const safeDifficulty = validatedDifficulty || "medium";
@@ -130,6 +134,7 @@ serve(async (req) => {
 
     if (action === "generate_questions") {
       systemPrompt = `You are an exam preparation assistant. ${selectedCurriculum}
+${studentProfileContext ? `\n${studentProfileContext}\n` : ""}
 
 Generate exactly 5 questions following board exam format. Mix multiple choice and short answer.
 

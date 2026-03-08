@@ -11,6 +11,7 @@ import {
 import { HelpCircle, Send, Mic, MicOff, Volume2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
+import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { cn } from "@/lib/utils";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 
@@ -31,6 +32,7 @@ export default function DoubtSolver() {
   const [isListening, setIsListening] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { getAIContext } = useStudentProfile();
 
   useEffect(() => {
     if (messages.length === 0) return;
@@ -90,6 +92,7 @@ export default function DoubtSolver() {
         {
           messages: updatedMessages.map((msg) => ({ role: msg.role, content: msg.content })),
           mode: "doubt",
+          studentContext: getAIContext(),
         },
         { signal: controller.signal, timeoutMs: 20000, retries: 1, label: "doubt:chat" }
       );

@@ -14,6 +14,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useRateLimiter } from "@/hooks/useRateLimiter";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
+import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -50,6 +51,7 @@ export default function Tutor() {
   const voice = useVoice();
   const { waitForRateLimit } = useRateLimiter({ minDelayMs: 500 });
   const { trackProgress } = useProgressTracker();
+  const { getAIContext } = useStudentProfile();
 
   // Profile loaded flag
   useEffect(() => {
@@ -150,6 +152,7 @@ export default function Tutor() {
           mode: "start",
           subject,
           topic,
+          studentContext: getAIContext(),
         },
         {
           signal: inFlightControllerRef.current.signal,
@@ -278,6 +281,7 @@ export default function Tutor() {
           mode: "chat",
           subject,
           topic,
+          studentContext: getAIContext(),
         },
         {
           signal: inFlightControllerRef.current.signal,

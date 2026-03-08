@@ -11,6 +11,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { useToast } from "@/hooks/use-toast";
 import { useVoice } from "@/hooks/useVoice";
 import { useProgressTracker } from "@/hooks/useProgressTracker";
+import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
@@ -48,6 +49,7 @@ export default function Homework() {
 
   const voice = useVoice();
   const { trackProgress, trackHelpRequest } = useProgressTracker();
+  const { getAIContext } = useStudentProfile();
 
   useEffect(() => {
     if (messages.length === 0) return;
@@ -176,6 +178,7 @@ export default function Homework() {
           subject,
           messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
           files: fileData.length > 0 ? fileData : undefined,
+          studentContext: getAIContext(),
         },
         {
           signal: inFlightControllerRef.current.signal,
