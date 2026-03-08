@@ -146,7 +146,7 @@ export default function ExamPrep() {
 
       if (error) throw error;
 
-      await externalSupabase.from("chat_messages").insert([
+      await supabase.from("chat_messages").insert([
         { session_id: session.id, role: "user", content: `Exam: ${topic} - ${difficulty}` },
         { session_id: session.id, role: "assistant", content: `Score: ${score}%` },
       ]);
