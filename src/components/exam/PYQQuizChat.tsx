@@ -115,13 +115,13 @@ export function PYQQuizChat() {
   };
 
   const fetchAvailableYears = async () => {
-    const { data } = await externalSupabase
+    const { data } = await supabase
       .from("pyq_questions_public")
       .select("year")
       .order("year", { ascending: false });
 
     if (data) {
-      const uniqueYears = [...new Set(data.map((d) => d.year))];
+      const uniqueYears = [...new Set(data.map((d: any) => d.year as number))] as number[];
       setAvailableYears(uniqueYears);
     }
   };
