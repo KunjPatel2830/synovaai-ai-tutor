@@ -27,6 +27,8 @@ import { Badge } from "@/components/ui/badge";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  detectedSubject?: string;
+  detectedTopic?: string;
 }
 
 export default function Tutor() {
