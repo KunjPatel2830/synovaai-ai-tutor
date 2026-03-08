@@ -194,7 +194,7 @@ export default function DoubtSolver() {
                       {message.role === "user" ? (
                         <p className="whitespace-pre-line flex-1">{message.content}</p>
                       ) : (
-                        <MarkdownContent content={message.content} className="flex-1" enableImageGeneration={true} />
+                        <TypingMarkdown content={message.content} className="flex-1" enableImageGeneration={true} animate={index === messages.length - 1} />
                       )}
                       {message.role === "assistant" && (
                         <Button
