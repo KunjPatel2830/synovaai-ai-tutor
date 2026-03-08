@@ -44,6 +44,8 @@ export default function PeerMode() {
   const [newMessage, setNewMessage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
   const [isSending, setIsSending] = useState(false);
+  const [isAskingAI, setIsAskingAI] = useState(false);
+  const [aiMode, setAiMode] = useState(false);
   const [showWhiteboard, setShowWhiteboard] = useState(false);
   const [displayNames, setDisplayNames] = useState<Record<string, string>>({});
 
