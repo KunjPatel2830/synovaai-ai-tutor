@@ -173,6 +173,7 @@ export default function Homework() {
         {
           question: questionText,
           subject,
+          messages: updatedMessages.map((m) => ({ role: m.role, content: m.content })),
           files: fileData.length > 0 ? fileData : undefined,
         },
         {

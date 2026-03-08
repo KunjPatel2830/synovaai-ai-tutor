@@ -3,7 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? "";
@@ -12,6 +12,9 @@ const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ??
 const MAX_QUESTION_LENGTH = 4000;
 const MAX_SUBJECT_LENGTH = 100;
 const MAX_CONTEXT_LENGTH = 2000;
+const MAX_MESSAGES = 50;
+const MAX_MESSAGE_LENGTH = 4000;
+const VALID_ROLES = ["user", "assistant"];
 
 function jsonResponse(body: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(body), {
@@ -62,6 +65,21 @@ function validateString(value: unknown, fieldName: string, maxLength: number, re
   return { valid: true, value: trimmed };
 }
 
+function validateMessages(messages: unknown): { valid: true; messages: Array<{ role: string; content: string }> } | { valid: false } {
+  if (!Array.isArray(messages) || messages.length === 0) return { valid: false };
+  if (messages.length > MAX_MESSAGES) return { valid: false };
+
+  const validated: Array<{ role: string; content: string }> = [];
+  for (const msg of messages) {
+    if (!msg || typeof msg !== "object") continue;
+    if (typeof msg.content !== "string" || !msg.content.trim()) continue;
+    if (msg.content.length > MAX_MESSAGE_LENGTH) continue;
+    if (typeof msg.role !== "string" || !VALID_ROLES.includes(msg.role)) continue;
+    validated.push({ role: msg.role, content: msg.content.trim() });
+  }
+  return validated.length > 0 ? { valid: true, messages: validated } : { valid: false };
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -72,7 +90,7 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { question, subject, context, curriculum } = body;
+    const { question, subject, context, curriculum, messages } = body;
 
     const questionValidation = validateString(question, "Question", MAX_QUESTION_LENGTH, true);
     if (!questionValidation.valid) {
@@ -119,6 +137,8 @@ RULES:
 3. Explain the METHOD and reasoning
 4. Highlight common mistakes
 5. Ask student to try after explanation
+6. CRITICAL: You have FULL MEMORY of this conversation. Always refer back to previous messages for context. If a student says "9" or gives a short answer, it is a REPLY to your previous question — NOT a new unrelated topic.
+7. When a student answers your practice question, evaluate their answer in context of what you asked.
 
 RESPONSE FORMAT:
 1. 📋 **Problem Understanding** - Restate what's being asked
@@ -127,12 +147,25 @@ RESPONSE FORMAT:
 4. ⚠️ **Common Mistakes** - What to watch out for
 5. ✏️ **Your Turn** - Ask them to try
 
+For FOLLOW-UP messages (when student replies to your question):
+- Acknowledge their answer
+- Tell them if they're correct or not
+- If correct: praise and move to the next step
+- If wrong: gently correct and explain why
+- Continue building on the SAME problem
+
 Subject: ${subjectValidation.value || "General"}
 ${contextValidation.value ? `Context: ${contextValidation.value}` : ""}
 
 Be encouraging and patient!`;
 
-    console.log("[homework-assist] Calling Lovable AI Gateway");
+    // Build conversation messages: use full history if provided, otherwise just the question
+    const historyValidation = messages ? validateMessages(messages) : null;
+    const conversationMessages = historyValidation?.valid
+      ? historyValidation.messages
+      : [{ role: "user", content: questionValidation.value }];
+
+    console.log("[homework-assist] Calling Lovable AI Gateway, messages:", conversationMessages.length);
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -144,7 +177,7 @@ Be encouraging and patient!`;
         model: "google/gemini-3-flash-preview",
         messages: [
           { role: "system", content: systemPrompt },
-          { role: "user", content: questionValidation.value },
+          ...conversationMessages,
         ],
       }),
     });
