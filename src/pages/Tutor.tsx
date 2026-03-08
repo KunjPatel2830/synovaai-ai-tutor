@@ -19,7 +19,7 @@ import { VoiceControls } from "@/components/voice/VoiceControls";
 import { ChatHistory } from "@/components/chat/ChatHistory";
 import { MarkdownContent } from "@/components/ui/markdown-content";
 import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
-import { Brain, Send, Mic, MicOff, Volume2, Plus, Pause, Play, Square } from "lucide-react";
+import { Brain, Send, Mic, MicOff, Volume2, Plus, Pause, Play, Square, BookOpen, Tag } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,8 @@ import { Badge } from "@/components/ui/badge";
 interface Message {
   role: "user" | "assistant";
   content: string;
+  detectedSubject?: string;
+  detectedTopic?: string;
 }
 
 export default function Tutor() {
@@ -145,7 +147,7 @@ export default function Tutor() {
     try {
       await waitForRateLimit();
 
-      const res = await invokeBackendFunction<{ reply: string }>(
+      const res = await invokeBackendFunction<{ reply: string; detectedSubject?: string; detectedTopic?: string }>(
         "ai-tutor",
         {
           messages: [{ role: "user", content: systemMessage }],
@@ -179,7 +181,7 @@ export default function Tutor() {
       
       const newMessages: Message[] = [
         { role: "user", content: systemMessage },
-        { role: "assistant", content: res.data?.reply ?? "" },
+        { role: "assistant", content: res.data?.reply ?? "", detectedSubject: res.data?.detectedSubject, detectedTopic: res.data?.detectedTopic },
       ];
       
       setMessages(newMessages);
@@ -274,10 +276,10 @@ export default function Tutor() {
     try {
       await waitForRateLimit();
 
-      const res = await invokeBackendFunction<{ reply: string }>(
+      const res = await invokeBackendFunction<{ reply: string; detectedSubject?: string; detectedTopic?: string }>(
         "ai-tutor",
         {
-          messages: updatedMessages,
+          messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
           mode: "chat",
           subject,
           topic,
@@ -304,7 +306,12 @@ export default function Tutor() {
         return;
       }
 
-      const assistantMessage = { role: "assistant" as const, content: res.data?.reply ?? "" };
+      const assistantMessage: Message = {
+        role: "assistant",
+        content: res.data?.reply ?? "",
+        detectedSubject: res.data?.detectedSubject,
+        detectedTopic: res.data?.detectedTopic,
+      };
       const finalMessages = [...updatedMessages, assistantMessage];
       setMessages(finalMessages);
       
@@ -506,14 +513,31 @@ export default function Tutor() {
                 return (
                   <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                     <div className={cn(
-                      "max-w-[92%] sm:max-w-[80%] p-3 rounded-2xl",
+                      "max-w-[92%] sm:max-w-[80%] rounded-2xl",
                       msg.role === "user" 
                         ? isPausedMessage 
-                          ? "bg-warning/80 text-warning-foreground" 
-                          : "bg-primary text-primary-foreground"
+                          ? "bg-warning/80 text-warning-foreground p-3" 
+                          : "bg-primary text-primary-foreground p-3"
                         : "bg-card border border-border"
                     )}>
-                      <div className="flex items-start gap-2">
+                      {/* Subject/Topic tags */}
+                      {msg.role === "assistant" && (msg.detectedSubject || msg.detectedTopic) && (
+                        <div className="flex flex-wrap gap-1.5 px-3 pt-3 pb-0">
+                          {msg.detectedSubject && msg.detectedSubject !== "General" && (
+                            <Badge variant="secondary" className="text-[10px] sm:text-xs gap-1 font-medium">
+                              <BookOpen className="h-3 w-3" />
+                              {msg.detectedSubject}
+                            </Badge>
+                          )}
+                          {msg.detectedTopic && (
+                            <Badge variant="outline" className="text-[10px] sm:text-xs gap-1 font-medium">
+                              <Tag className="h-3 w-3" />
+                              {msg.detectedTopic}
+                            </Badge>
+                          )}
+                        </div>
+                      )}
+                      <div className={cn("flex items-start gap-2", msg.role === "assistant" ? "p-3" : "")}>
                         {msg.role === "assistant" ? (
                           i === messages.length - 1 && !isLoading ? (
                             <TypingMarkdown content={msg.content} className="flex-1 overflow-x-auto" />
