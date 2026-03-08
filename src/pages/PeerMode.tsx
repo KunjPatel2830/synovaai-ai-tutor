@@ -395,41 +395,92 @@ export default function PeerMode() {
                 {/* Messages */}
                 <ScrollArea className="flex-1 p-4">
                   <div className="space-y-3">
-                    {messages.map((msg) => (
-                      <div
-                        key={msg.id}
-                        className={cn(
-                          "flex flex-col max-w-[80%] rounded-xl p-3",
-                          msg.user_id === user.id ? "ml-auto bg-primary text-primary-foreground" : "bg-muted"
-                        )}
-                      >
-                        {msg.user_id !== user.id && (
-                          <span className="text-xs font-medium mb-1 opacity-70">
-                            {displayNames[msg.user_id] || "Anonymous"}
+                    {messages.map((msg) => {
+                      const isAI = msg.user_id === AI_USER_ID || msg.message_type === "ai";
+                      const isMe = msg.user_id === user.id;
+
+                      return (
+                        <div
+                          key={msg.id}
+                          className={cn(
+                            "flex flex-col max-w-[85%] rounded-xl p-3",
+                            isAI
+                              ? "bg-accent/50 border border-accent mx-auto max-w-[95%]"
+                              : isMe
+                                ? "ml-auto bg-primary text-primary-foreground"
+                                : "bg-muted"
+                          )}
+                        >
+                          {isAI && (
+                            <div className="flex items-center gap-1.5 mb-2">
+                              <Bot className="h-4 w-4 text-primary" />
+                              <span className="text-xs font-semibold text-primary">SYNOVA AI</span>
+                            </div>
+                          )}
+                          {!isAI && !isMe && (
+                            <span className="text-xs font-medium mb-1 opacity-70">
+                              {displayNames[msg.user_id] || "Anonymous"}
+                            </span>
+                          )}
+                          {isAI ? (
+                            <div className="text-sm prose prose-sm dark:prose-invert max-w-none">
+                              <ReactMarkdown>{msg.message}</ReactMarkdown>
+                            </div>
+                          ) : (
+                            <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
+                          )}
+                          <span className="text-xs opacity-50 mt-1">
+                            {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
                           </span>
-                        )}
-                        <p className="text-sm whitespace-pre-wrap">{msg.message}</p>
-                        <span className="text-xs opacity-50 mt-1">
-                          {new Date(msg.created_at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                        </span>
+                        </div>
+                      );
+                    })}
+                    {isAskingAI && (
+                      <div className="flex flex-col items-center gap-2 py-4">
+                        <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                        <span className="text-xs text-muted-foreground">SYNOVA AI soch raha hai...</span>
                       </div>
-                    ))}
+                    )}
                     <div ref={messagesEndRef} />
                   </div>
                 </ScrollArea>
 
                 {/* Message Input */}
-                <div className="p-4 border-t border-border flex gap-2">
-                  <Input
-                    placeholder="Type a message..."
-                    value={newMessage}
-                    onChange={(e) => setNewMessage(e.target.value)}
-                    onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-                    className="flex-1"
-                  />
-                  <Button onClick={sendMessage} disabled={!newMessage.trim() || isSending}>
-                    {isSending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-                  </Button>
+                <div className="p-4 border-t border-border space-y-2">
+                  {aiMode && (
+                    <div className="flex items-center gap-1.5 text-xs text-primary">
+                      <Sparkles className="h-3 w-3" />
+                      <span>AI Mode — question sabko dikhega with AI answer</span>
+                    </div>
+                  )}
+                  <div className="flex gap-2">
+                    <Button
+                      variant={aiMode ? "default" : "outline"}
+                      size="icon"
+                      className="shrink-0"
+                      onClick={() => setAiMode(!aiMode)}
+                      title="Ask AI"
+                    >
+                      <Bot className="h-4 w-4" />
+                    </Button>
+                    <Input
+                      placeholder={aiMode ? "AI se kuch poocho..." : "Type a message..."}
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !e.shiftKey) {
+                          aiMode ? askAI() : sendMessage();
+                        }
+                      }}
+                      className="flex-1"
+                    />
+                    <Button
+                      onClick={aiMode ? askAI : sendMessage}
+                      disabled={!newMessage.trim() || isSending || isAskingAI}
+                    >
+                      {isSending || isAskingAI ? <Loader2 className="h-4 w-4 animate-spin" /> : aiMode ? <Sparkles className="h-4 w-4" /> : <Send className="h-4 w-4" />}
+                    </Button>
+                  </div>
                 </div>
               </GlassCard>
             </div>
