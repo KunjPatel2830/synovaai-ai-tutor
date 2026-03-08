@@ -14,7 +14,7 @@ import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useStudentProfile } from "@/hooks/useStudentProfile";
 import { useLearningHistory } from "@/hooks/useLearningHistory";
 import { cn } from "@/lib/utils";
-import { MarkdownContent } from "@/components/ui/markdown-content";
+import { TypingMarkdown } from "@/components/chat/TypingMarkdown";
 import { Badge } from "@/components/ui/badge";
 
 interface Message {
