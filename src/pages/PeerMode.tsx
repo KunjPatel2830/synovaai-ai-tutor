@@ -162,6 +162,40 @@ export default function PeerMode() {
     }
   };
 
+  // ── Ask AI ──
+  const AI_USER_ID = "00000000-0000-0000-0000-000000000000";
+
+  const askAI = async () => {
+    if (!user || !activeRoom || !newMessage.trim() || isAskingAI) return;
+    setIsAskingAI(true);
+    const question = newMessage.trim();
+    setNewMessage("");
+    try {
+      const recentMessages = messages.slice(-10).map(m => ({
+        name: displayNames[m.user_id] || "User",
+        message: m.message,
+      }));
+      const data = await roomAction("ask-ai", {
+        question,
+        subject: activeRoom.subject,
+        recentMessages,
+      });
+      // AI response will come through polling
+    } catch (error: any) {
+      const msg = error?.message || "";
+      if (msg.includes("rate limit")) {
+        toast({ title: "AI rate limit, thoda wait karo", variant: "destructive" });
+      } else if (msg.includes("credits")) {
+        toast({ title: "AI credits exhausted", variant: "destructive" });
+      } else {
+        toast({ title: "AI se response nahi aaya", variant: "destructive" });
+      }
+    } finally {
+      setIsAskingAI(false);
+      setAiMode(false);
+    }
+  };
+
   // ── Load Initial Data ──
   useEffect(() => {
     if (!activeRoom) return;
