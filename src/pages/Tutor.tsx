@@ -276,10 +276,10 @@ export default function Tutor() {
     try {
       await waitForRateLimit();
 
-      const res = await invokeBackendFunction<{ reply: string }>(
+      const res = await invokeBackendFunction<{ reply: string; detectedSubject?: string; detectedTopic?: string }>(
         "ai-tutor",
         {
-          messages: updatedMessages,
+          messages: updatedMessages.map(m => ({ role: m.role, content: m.content })),
           mode: "chat",
           subject,
           topic,
