@@ -281,6 +281,7 @@ export default function Tutor() {
           mode: "chat",
           subject,
           topic,
+          studentContext: getAIContext(),
         },
         {
           signal: inFlightControllerRef.current.signal,
