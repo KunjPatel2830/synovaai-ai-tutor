@@ -9,6 +9,8 @@ const corsHeaders = {
 // Use external Supabase project
 const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? "";
 const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // Input validation constants
 const MAX_MESSAGE_LENGTH = 4000;
@@ -96,6 +98,15 @@ serve(async (req) => {
 
   const auth = await requireUser(req);
   if ("error" in auth) return auth.error;
+
+  // ── Rate Limiting ──
+  try {
+    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const { data: rl } = await admin.rpc("check_rate_limit", { _user_id: auth.userId, _endpoint: "ai-tutor", _max_requests: 20, _window_seconds: 60 });
+    if (rl && rl.length > 0 && !rl[0].allowed) {
+      return jsonResponse({ error: `Rate limit exceeded. Try again in ${rl[0].retry_after} seconds.` }, { status: 429 });
+    }
+  } catch (e) { console.error("Rate limit check failed, allowing request:", e); }
 
   try {
     const body = await req.json();

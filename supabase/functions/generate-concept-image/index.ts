@@ -8,6 +8,8 @@ const corsHeaders = {
 
 const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? Deno.env.get("SUPABASE_URL") ?? "";
 const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const MAX_CONCEPT_LENGTH = 500;
 const MAX_SUBJECT_LENGTH = 100;
@@ -49,9 +51,17 @@ serve(async (req) => {
     return jsonRes({ error: "Unauthorized" }, 401);
   }
 
+  // ── Rate Limiting (stricter for image generation) ──
+  try {
+    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const { data: rl } = await admin.rpc("check_rate_limit", { _user_id: authData.user.id, _endpoint: "generate-concept-image", _max_requests: 10, _window_seconds: 60 });
+    if (rl && rl.length > 0 && !rl[0].allowed) {
+      return jsonRes({ error: `Rate limit exceeded. Try again in ${rl[0].retry_after} seconds.` }, 429);
+    }
+  } catch (e) { console.error("Rate limit check failed, allowing request:", e); }
+
   try {
     const body = await req.json();
-
     const concept = sanitizeText(body.concept, MAX_CONCEPT_LENGTH);
     const subject = sanitizeText(body.subject, MAX_SUBJECT_LENGTH);
     const context = sanitizeText(body.context, MAX_CONTEXT_LENGTH);

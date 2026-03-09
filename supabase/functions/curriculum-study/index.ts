@@ -8,6 +8,8 @@ const corsHeaders = {
 
 const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? Deno.env.get("SUPABASE_URL") ?? "";
 const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 // ── Input validation ──
 const MAX_STRING_LENGTH = 200;
@@ -73,6 +75,15 @@ serve(async (req) => {
   if (authError || !authData.user) {
     return jsonResponse({ error: "Unauthorized" }, { status: 401 });
   }
+
+  // ── Rate Limiting ──
+  try {
+    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const { data: rl } = await admin.rpc("check_rate_limit", { _user_id: authData.user.id, _endpoint: "curriculum-study", _max_requests: 20, _window_seconds: 60 });
+    if (rl && rl.length > 0 && !rl[0].allowed) {
+      return jsonResponse({ error: `Rate limit exceeded. Try again in ${rl[0].retry_after} seconds.` }, { status: 429 });
+    }
+  } catch (e) { console.error("Rate limit check failed, allowing request:", e); }
 
   try {
     const body = await req.json();

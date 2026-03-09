@@ -8,6 +8,8 @@ const corsHeaders = {
 
 const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? Deno.env.get("SUPABASE_URL") ?? "";
 const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const MAX_QUESTION_LENGTH = 2000;
 const MAX_OPTION_LENGTH = 500;
@@ -52,11 +54,17 @@ serve(async (req) => {
     return jsonRes({ error: "Unauthorized" }, 401);
   }
 
+  // ── Rate Limiting ──
+  try {
+    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const { data: rl } = await admin.rpc("check_rate_limit", { _user_id: authData.user.id, _endpoint: "pyq-explain", _max_requests: 20, _window_seconds: 60 });
+    if (rl && rl.length > 0 && !rl[0].allowed) {
+      return jsonRes({ error: `Rate limit exceeded. Try again in ${rl[0].retry_after} seconds.` }, 429);
+    }
+  } catch (e) { console.error("Rate limit check failed, allowing request:", e); }
+
   try {
     const body = await req.json();
-
-    // Validate required fields
-    const question = sanitizeText(body.question, MAX_QUESTION_LENGTH);
     const correctOption = sanitizeText(body.correctOption, 2);
     const studentAnswer = sanitizeText(body.studentAnswer, 2);
     const subject = sanitizeText(body.subject, MAX_SUBJECT_LENGTH);

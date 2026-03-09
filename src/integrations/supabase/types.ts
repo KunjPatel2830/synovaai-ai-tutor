@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      api_rate_limits: {
+        Row: {
+          endpoint: string
+          id: string
+          requested_at: string
+          user_id: string
+        }
+        Insert: {
+          endpoint: string
+          id?: string
+          requested_at?: string
+          user_id: string
+        }
+        Update: {
+          endpoint?: string
+          id?: string
+          requested_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       badges: {
         Row: {
           category: string
@@ -1205,6 +1226,19 @@ export type Database = {
           failed_attempts: number
           is_locked: boolean
           locked_until: string
+        }[]
+      }
+      check_rate_limit: {
+        Args: {
+          _endpoint: string
+          _max_requests?: number
+          _user_id: string
+          _window_seconds?: number
+        }
+        Returns: {
+          allowed: boolean
+          current_count: number
+          retry_after: number
         }[]
       }
       generate_invitation_code: { Args: never; Returns: string }

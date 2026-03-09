@@ -252,6 +252,14 @@ serve(async (req) => {
       const { room_id } = body;
       if (!isValidUUID(room_id)) return jsonRes({ error: "Invalid room_id format" }, 400);
 
+      // Rate limit AI requests in peer rooms
+      try {
+        const { data: rl } = await admin.rpc("check_rate_limit", { _user_id: user.id, _endpoint: "peer-ask-ai", _max_requests: 15, _window_seconds: 60 });
+        if (rl && rl.length > 0 && !rl[0].allowed) {
+          return jsonRes({ error: `Rate limit exceeded. Try again in ${rl[0].retry_after} seconds.` }, 429);
+        }
+      } catch (e) { console.error("Rate limit check failed:", e); }
+
       const question = sanitizeText(body.question, MAX_QUESTION_LENGTH);
       if (!question) return jsonRes({ error: "Question is required" }, 400);
 
