@@ -1,20 +1,82 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? Deno.env.get("SUPABASE_URL") ?? "";
+const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+const MAX_QUESTION_LENGTH = 2000;
+const MAX_OPTION_LENGTH = 500;
+const MAX_SUBJECT_LENGTH = 100;
+const MAX_TOPIC_LENGTH = 200;
+const MAX_FOLLOWUP_LENGTH = 2000;
+const VALID_OPTIONS = ["A", "B", "C", "D"];
+
+function stripHtml(str: string): string {
+  return str.replace(/<[^>]*>/g, "").trim();
+}
+
+function sanitizeText(input: unknown, maxLen: number): string {
+  if (typeof input !== "string") return "";
+  return stripHtml(input).slice(0, maxLen);
+}
+
+function jsonRes(data: unknown, status = 200) {
+  return new Response(JSON.stringify(data), {
+    status,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
+}
+
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
-  try {
-    const { question, options, correctOption, studentAnswer, subject, topic, examType, followUpQuery } = await req.json();
+  // ── Auth check ──
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (!authHeader.startsWith("Bearer ")) {
+    return jsonRes({ error: "Unauthorized" }, 401);
+  }
 
-    if (!question || !options || !correctOption) {
-      throw new Error("Missing required fields");
+  const userClient = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false },
+  });
+  const { data: authData, error: authError } = await userClient.auth.getUser();
+  if (authError || !authData.user) {
+    return jsonRes({ error: "Unauthorized" }, 401);
+  }
+
+  try {
+    const body = await req.json();
+
+    // Validate required fields
+    const question = sanitizeText(body.question, MAX_QUESTION_LENGTH);
+    const correctOption = sanitizeText(body.correctOption, 2);
+    const studentAnswer = sanitizeText(body.studentAnswer, 2);
+    const subject = sanitizeText(body.subject, MAX_SUBJECT_LENGTH);
+    const topic = sanitizeText(body.topic, MAX_TOPIC_LENGTH);
+    const examType = sanitizeText(body.examType, 50);
+    const followUpQuery = sanitizeText(body.followUpQuery, MAX_FOLLOWUP_LENGTH);
+
+    if (!question) return jsonRes({ error: "Missing question" }, 400);
+    if (!correctOption || !VALID_OPTIONS.includes(correctOption)) {
+      return jsonRes({ error: "Invalid correctOption" }, 400);
+    }
+
+    // Validate options object
+    const options = body.options;
+    if (!options || typeof options !== "object") {
+      return jsonRes({ error: "Missing options" }, 400);
+    }
+    const sanitizedOptions: Record<string, string> = {};
+    for (const key of VALID_OPTIONS) {
+      sanitizedOptions[key] = sanitizeText(options[key], MAX_OPTION_LENGTH) || "";
     }
 
     const isCorrect = studentAnswer === correctOption;
@@ -24,7 +86,6 @@ serve(async (req) => {
     let userPrompt: string;
 
     if (isFollowUp) {
-      // Follow-up question: keep it short and directly useful
       systemPrompt = `You are an expert ${subject} teacher helping students prepare for ${examType || "competitive exams"} like JEE and NEET.
 
 Answer the student's follow-up question in an exam-style, VERY SHORT way.
@@ -40,10 +101,10 @@ RULES:
       userPrompt = `Original Question: ${question}
 
 Options:
-A) ${options.A}
-B) ${options.B}
-C) ${options.C}
-D) ${options.D}
+A) ${sanitizedOptions.A}
+B) ${sanitizedOptions.B}
+C) ${sanitizedOptions.C}
+D) ${sanitizedOptions.D}
 
 Correct Answer: ${correctOption}
 Subject: ${subject}
@@ -53,7 +114,6 @@ Student's Follow-up Question: ${followUpQuery}
 
 Reply briefly (<= 80 words).`;
     } else {
-      // Initial explanation after answering: short, direct, exam-focused
       systemPrompt = `You are an expert ${subject} teacher helping students prepare for ${examType || "competitive exams"} like JEE and NEET.
 
 Give a SHORT exam-style explanation (not a full lecture).
@@ -76,10 +136,10 @@ RULES:
       userPrompt = `Question: ${question}
 
 Options:
-A) ${options.A}
-B) ${options.B}
-C) ${options.C}
-D) ${options.D}
+A) ${sanitizedOptions.A}
+B) ${sanitizedOptions.B}
+C) ${sanitizedOptions.C}
+D) ${sanitizedOptions.D}
 
 Correct Answer: ${correctOption}
 Student's Answer: ${studentAnswer}
@@ -117,27 +177,11 @@ Explain using the exact format above.`;
     if (!response.ok) {
       const errText = await response.text();
       console.error("[pyq-explain] AI gateway error:", response.status, errText);
-
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: "Rate limits exceeded, please try again later." }), {
-          status: 429,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: "AI credits exhausted. Please try again later." }), {
-          status: 402,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      return new Response(JSON.stringify({ error: "AI service temporarily unavailable." }), {
-        status: 502,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (response.status === 429) return jsonRes({ error: "Rate limits exceeded, please try again later." }, 429);
+      if (response.status === 402) return jsonRes({ error: "AI credits exhausted." }, 402);
+      return jsonRes({ error: "AI service temporarily unavailable." }, 502);
     }
 
-    // Return streaming response directly
     return new Response(response.body, {
       headers: {
         ...corsHeaders,
@@ -148,9 +192,6 @@ Explain using the exact format above.`;
     });
   } catch (error) {
     console.error("[pyq-explain] Error:", error);
-    return new Response(
-      JSON.stringify({ error: error instanceof Error ? error.message : "Unknown error" }),
-      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-    );
+    return jsonRes({ error: "Something went wrong. Please try again." }, 500);
   }
 });
