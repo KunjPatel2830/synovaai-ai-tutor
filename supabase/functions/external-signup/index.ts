@@ -11,12 +11,23 @@ type SignupRole = "student" | "teacher" | "caregiver";
 const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? "";
 const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ?? "";
 const EXTERNAL_SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("EXTERNAL_SUPABASE_SERVICE_ROLE_KEY") ?? "";
+const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-function respond(body: unknown) {
+function respond(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
-    status: 200,
+    status,
     headers: { ...corsHeaders, "Content-Type": "application/json" },
   });
+}
+
+function getClientIP(req: Request): string {
+  return (
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
+    req.headers.get("x-real-ip") ||
+    req.headers.get("cf-connecting-ip") ||
+    "unknown"
+  );
 }
 
 serve(async (req) => {
@@ -27,6 +38,23 @@ serve(async (req) => {
   try {
     if (!EXTERNAL_SUPABASE_URL || !EXTERNAL_SUPABASE_ANON_KEY || !EXTERNAL_SUPABASE_SERVICE_ROLE_KEY) {
       return respond({ error: "Server misconfigured" });
+    }
+
+    // ── IP-based rate limiting (5 signups per IP per minute) ──
+    const clientIP = getClientIP(req);
+    try {
+      const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+      const { data: rl } = await admin.rpc("check_ip_rate_limit", {
+        _ip_address: clientIP,
+        _endpoint: "external-signup",
+        _max_requests: 5,
+        _window_seconds: 60,
+      });
+      if (rl && rl.length > 0 && !rl[0].allowed) {
+        return respond({ error: `Too many requests. Try again in ${rl[0].retry_after} seconds.` }, 429);
+      }
+    } catch (e) {
+      console.error("IP rate limit check failed, allowing request:", e);
     }
 
     const payload = (await req.json().catch(() => null)) as
