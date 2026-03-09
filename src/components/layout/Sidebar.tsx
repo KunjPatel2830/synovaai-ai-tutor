@@ -148,7 +148,7 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
 
         <Button
           variant="ghost"
-          className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10 rounded-xl h-11 text-sm"
+          className="w-full justify-start gap-3 text-red-600 dark:text-red-400 hover:text-red-700 dark:hover:text-red-300 hover:bg-red-100 dark:hover:bg-red-900/30 rounded-xl h-11 text-sm font-semibold"
           onClick={signOut}
         >
           <LogOut className="h-4 w-4" />
