@@ -1,5 +1,5 @@
 import { getExternalAccessToken } from "@/lib/external-auth";
-import { EXTERNAL_SUPABASE_URL_PUBLIC } from "@/lib/external-supabase";
+import { EXTERNAL_SUPABASE_URL_PUBLIC, EXTERNAL_SUPABASE_ANON_KEY_PUBLIC } from "@/lib/external-supabase";
 
 type InvokeOptions = {
   /** Abort signal for user-cancel / page unmount */
