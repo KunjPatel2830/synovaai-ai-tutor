@@ -10,6 +10,20 @@ const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// ── Input validation ──
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const VALID_EXAM_TYPES = ["JEE Main", "JEE Advanced", "NEET", "CUET", "BITSAT", "KVPY", "NTSE"];
+const MAX_SHIFT_LENGTH = 50;
+const MAX_FILENAME_LENGTH = 255;
+
+function isValidUUID(val: unknown): val is string {
+  return typeof val === "string" && UUID_RE.test(val);
+}
+
+function stripHtml(str: string): string {
+  return str.replace(/<[^>]*>/g, "").trim();
+}
+
 interface ParsedQuestion {
   question_text: string;
   options: { A: string; B: string; C: string; D: string };
