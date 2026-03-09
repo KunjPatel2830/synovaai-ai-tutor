@@ -62,6 +62,15 @@ serve(async (req) => {
   const auth = await requireUser(req);
   if ("error" in auth) return auth.error;
 
+  // ── Rate Limiting ──
+  try {
+    const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+    const { data: rl } = await admin.rpc("check_rate_limit", { _user_id: auth.userId, _endpoint: "language-practice", _max_requests: 20, _window_seconds: 60 });
+    if (rl && rl.length > 0 && !rl[0].allowed) {
+      return jsonResponse({ error: `Rate limit exceeded. Try again in ${rl[0].retry_after} seconds.` }, { status: 429 });
+    }
+  } catch (e) { console.error("Rate limit check failed, allowing request:", e); }
+
   try {
     const body = await req.json();
     const { messages, targetLanguage, level } = body;
