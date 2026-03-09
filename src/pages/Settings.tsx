@@ -18,6 +18,9 @@ export default function Settings() {
   const { toast } = useToast();
   const [displayName, setDisplayName] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
+  const [curriculum, setCurriculum] = useState("");
+  const [targetExam, setTargetExam] = useState("");
+  const [tutorLanguage, setTutorLanguage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -31,13 +34,16 @@ export default function Settings() {
 
     const { data } = await externalSupabase
       .from("profiles")
-      .select("display_name, grade_level")
+      .select("display_name, grade_level, curriculum, target_exam, tutor_language")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (data) {
       setDisplayName(data.display_name || "");
       setGradeLevel(data.grade_level || "");
+      setCurriculum(data.curriculum || "");
+      setTargetExam(data.target_exam || "");
+      setTutorLanguage(data.tutor_language || "");
     }
   };
 
@@ -51,6 +57,9 @@ export default function Settings() {
         .update({
           display_name: displayName,
           grade_level: gradeLevel,
+          curriculum,
+          target_exam: targetExam,
+          tutor_language: tutorLanguage,
         })
         .eq("user_id", user.id);
 
