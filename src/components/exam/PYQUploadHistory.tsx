@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from "react";
-import { externalSupabase } from "@/lib/external-supabase";
 import { invokeBackendFunction } from "@/lib/backend-invoke";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -36,14 +35,14 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
   const fetchUploads = async () => {
     setIsLoading(true);
     try {
-      const { data, error } = await externalSupabase
-        .from("pyq_uploads")
-        .select("*")
-        .eq("uploaded_by", userId)
-        .order("created_at", { ascending: false });
+      const result = await invokeBackendFunction<{ uploads: Upload[] }>(
+        "list-pyq-uploads",
+        { userId },
+        { timeoutMs: 10000, retries: 1, label: "list-pyq-uploads" }
+      );
 
-      if (error) throw error;
-      setUploads(data || []);
+      if (!result.ok) throw new Error(result.error || "Failed to fetch uploads");
+      setUploads(result.data?.uploads || []);
     } catch (error) {
       console.error("Failed to fetch uploads:", error);
       toast({ title: "Failed to load upload history", variant: "destructive" });
@@ -54,22 +53,10 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
 
   useEffect(() => {
     fetchUploads();
-    
-    const channel = externalSupabase
-      .channel("pyq_uploads_changes")
-      .on("postgres_changes", {
-        event: "UPDATE",
-        schema: "public",
-        table: "pyq_uploads",
-        filter: `uploaded_by=eq.${userId}`,
-      }, (payload) => {
-        setUploads((prev) =>
-          prev.map((u) => (u.id === payload.new.id ? (payload.new as Upload) : u))
-        );
-      })
-      .subscribe();
 
-    return () => { externalSupabase.removeChannel(channel); };
+    // Poll every 15s for status updates (replaces realtime subscription)
+    const interval = setInterval(fetchUploads, 15000);
+    return () => clearInterval(interval);
   }, [userId]);
 
   const convertToBase64 = (file: File): Promise<string> => {
@@ -104,7 +91,6 @@ export function PYQUploadHistory({ userId }: PYQUploadHistoryProps) {
     try {
       const pdfBase64 = await convertToBase64(file);
 
-      // Use invokeBackendFunction with proper timeout (passes existing uploadId for retry)
       const result = await invokeBackendFunction("parse-pyq-pdf", {
         uploadId: selectedUploadForRetry.id,
         pdfBase64,
