@@ -231,9 +231,9 @@ serve(async (req) => {
         .insert({
           uploaded_by: userId,
           exam_type: examType,
-          year: parseInt(year),
-          shift: shift || null,
-          file_name: fileName || "upload.pdf",
+          year: parseInt(String(year)),
+          shift: safeShift,
+          file_name: safeFileName,
           status: "processing",
         })
         .select("id")
