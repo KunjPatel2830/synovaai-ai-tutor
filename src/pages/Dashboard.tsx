@@ -33,6 +33,8 @@ import {
   Users,
   Link,
   Sparkles,
+  Clock,
+  AlertCircle,
 } from "lucide-react";
 
 interface LearningStreak {
