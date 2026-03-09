@@ -12,6 +12,8 @@ import {
 } from "@/components/ui/glass-card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { InvitationCodeGenerator } from "@/components/invitation/InvitationCodeGenerator";
 import { JoinWithCode } from "@/components/invitation/JoinWithCode";
 import { StudentProgressReport } from "@/components/progress/StudentProgressReport";
