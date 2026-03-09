@@ -203,9 +203,26 @@ serve(async (req) => {
     const { pdfBase64, examType, year, shift, userId, fileName } = body;
     uploadId = body.uploadId || null;
 
-    if (!pdfBase64 || !examType || !year || !userId) {
-      throw new Error("Missing required fields: pdfBase64, examType, year, userId");
+    // Validate required fields
+    if (!pdfBase64 || typeof pdfBase64 !== "string") {
+      throw new Error("Missing or invalid pdfBase64");
     }
+    if (!examType || typeof examType !== "string" || !VALID_EXAM_TYPES.includes(examType)) {
+      throw new Error(`Invalid examType. Must be one of: ${VALID_EXAM_TYPES.join(", ")}`);
+    }
+    if (!year || isNaN(Number(year)) || Number(year) < 1990 || Number(year) > 2100) {
+      throw new Error("Invalid year. Must be between 1990 and 2100");
+    }
+    if (!isValidUUID(userId)) {
+      throw new Error("Invalid userId format");
+    }
+    if (uploadId && !isValidUUID(uploadId)) {
+      throw new Error("Invalid uploadId format");
+    }
+
+    // Sanitize optional fields
+    const safeShift = shift ? stripHtml(String(shift)).slice(0, MAX_SHIFT_LENGTH) : null;
+    const safeFileName = fileName ? stripHtml(String(fileName)).slice(0, MAX_FILENAME_LENGTH) : "upload.pdf";
 
     if (!uploadId) {
       console.log(`[parse-pyq-pdf] Creating pyq_uploads record internally`);
