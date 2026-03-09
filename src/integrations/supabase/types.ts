@@ -315,6 +315,27 @@ export type Database = {
         }
         Relationships: []
       }
+      ip_rate_limits: {
+        Row: {
+          endpoint: string
+          id: string
+          ip_address: string
+          requested_at: string
+        }
+        Insert: {
+          endpoint: string
+          id?: string
+          ip_address: string
+          requested_at?: string
+        }
+        Update: {
+          endpoint?: string
+          id?: string
+          ip_address?: string
+          requested_at?: string
+        }
+        Relationships: []
+      }
       learning_history: {
         Row: {
           created_at: string
@@ -1220,6 +1241,19 @@ export type Database = {
       }
     }
     Functions: {
+      check_ip_rate_limit: {
+        Args: {
+          _endpoint: string
+          _ip_address: string
+          _max_requests?: number
+          _window_seconds?: number
+        }
+        Returns: {
+          allowed: boolean
+          current_count: number
+          retry_after: number
+        }[]
+      }
       check_login_lockout: {
         Args: { check_email: string }
         Returns: {
