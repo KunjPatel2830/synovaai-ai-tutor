@@ -1,9 +1,42 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL") ?? Deno.env.get("SUPABASE_URL") ?? "";
+const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY") ?? Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+
+// ── Input validation ──
+const MAX_STRING_LENGTH = 200;
+const MAX_MESSAGE_LENGTH = 4000;
+const MAX_MESSAGES = 50;
+const VALID_ACTIONS = ["get_chapters", "get_topics", "teach_topic", "continue_learning", "answer_doubt"];
+const VALID_ROLES = ["user", "assistant", "system"];
+
+function stripHtml(str: string): string {
+  return str.replace(/<[^>]*>/g, "").trim();
+}
+
+function sanitizeText(input: unknown, maxLen: number): string {
+  if (typeof input !== "string") return "";
+  return stripHtml(input).slice(0, maxLen);
+}
+
+function validateMessages(messages: unknown): Array<{ role: string; content: string }> {
+  if (!Array.isArray(messages)) return [];
+  return messages
+    .filter((m: any) =>
+      m && typeof m === "object" &&
+      typeof m.role === "string" && VALID_ROLES.includes(m.role) &&
+      typeof m.content === "string" && m.content.trim().length > 0 &&
+      m.content.length <= MAX_MESSAGE_LENGTH
+    )
+    .slice(0, MAX_MESSAGES)
+    .map((m: any) => ({ role: m.role, content: m.content.trim() }));
+}
 
 function jsonResponse(body: unknown, init?: ResponseInit) {
   return new Response(JSON.stringify(body), {
@@ -26,12 +59,47 @@ serve(async (req) => {
     return new Response(null, { headers: corsHeaders });
   }
 
+  // ── Auth check ──
+  const authHeader = req.headers.get("Authorization") ?? "";
+  if (!authHeader.startsWith("Bearer ")) {
+    return jsonResponse({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const userClient = createClient(EXTERNAL_SUPABASE_URL, EXTERNAL_SUPABASE_ANON_KEY, {
+    global: { headers: { Authorization: authHeader } },
+    auth: { persistSession: false },
+  });
+  const { data: authData, error: authError } = await userClient.auth.getUser();
+  if (authError || !authData.user) {
+    return jsonResponse({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const { action, curriculum, standard, subject, chapter, currentTopic, messages, completedTopics } =
-      await req.json();
+    const body = await req.json();
+
+    // Validate action
+    const action = sanitizeText(body.action, 30);
+    if (!action || !VALID_ACTIONS.includes(action)) {
+      return jsonResponse({ error: `Invalid action. Must be one of: ${VALID_ACTIONS.join(", ")}` }, { status: 400 });
+    }
+
+    // Sanitize all text inputs
+    const curriculum = sanitizeText(body.curriculum, MAX_STRING_LENGTH) || "General";
+    const standard = sanitizeText(body.standard, MAX_STRING_LENGTH);
+    const subject = sanitizeText(body.subject, MAX_STRING_LENGTH);
+    const chapter = sanitizeText(body.chapter, MAX_STRING_LENGTH);
+    const currentTopic = sanitizeText(body.currentTopic, MAX_STRING_LENGTH);
+    const messages = validateMessages(body.messages);
+
+    // Validate completedTopics as string array
+    const completedTopics: string[] = Array.isArray(body.completedTopics)
+      ? body.completedTopics
+          .filter((t: unknown) => typeof t === "string")
+          .map((t: string) => stripHtml(t).slice(0, MAX_STRING_LENGTH))
+          .slice(0, 100)
+      : [];
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-
     if (!LOVABLE_API_KEY) {
       throw new Error("AI provider is not configured");
     }
@@ -62,7 +130,6 @@ Task: List ALL chapters for ${subject} (${standard}, ${curriculum}) from the off
 CRITICAL: Return ONLY a valid JSON array. No explanations, no markdown, no code fences.
 Each item: {"number": number, "name": "chapter name", "topicsCount": number}
 Keep correct chapter order from the textbook.`;
-
       userPrompt = `Return the complete chapter list as JSON array.`;
     } else if (action === "get_topics") {
       systemPrompt = `You are SYNOVA, an expert curriculum advisor. ${selectedCurriculumContext}
@@ -72,7 +139,6 @@ Task: List ALL topics from Chapter "${chapter}" in ${subject} (${standard}, ${cu
 CRITICAL: Return ONLY a valid JSON array. No explanations, no markdown, no code fences.
 Each item: {"index": number, "name": "topic name", "description": "brief description", "estimatedMinutes": number}
 Order: basic to advanced, matching textbook sequence.`;
-
       userPrompt = `Return the complete topics list as JSON array.`;
     } else if (action === "teach_topic") {
       systemPrompt = `You are SYNOVA, a brilliant teacher for ${curriculum} curriculum (${standard}).
@@ -116,11 +182,10 @@ PRACTICE QUESTIONS:
 1) [Question for student to try]
 2) [Question for student to try]
 
-REMEMBER: Be thorough and complete. Students depend on your explanation to understand the topic fully.`;
-
+REMEMBER: Be thorough and complete.`;
       userPrompt = "Teach this topic now with a complete, detailed explanation.";
     } else if (action === "continue_learning") {
-      const completedList = completedTopics?.join(", ") || "none";
+      const completedList = completedTopics.join(", ") || "none";
 
       systemPrompt = `You are SYNOVA, a brilliant teacher for ${curriculum} curriculum (${standard}).
 
@@ -141,7 +206,7 @@ QUICK RECAP:
 [2-3 sentences connecting to previously learned concepts]
 
 CORE EXPLANATION:
-[Detailed explanation of the concept. Use simple language. Break down complex ideas into steps. Give real-world examples. This should be 4-6 paragraphs minimum.]
+[Detailed explanation. Use simple language. Break down complex ideas. Give real-world examples. 4-6 paragraphs minimum.]
 
 IMPORTANT LINES FOR EXAMS:
 1) [Key statement to memorize]
@@ -161,8 +226,7 @@ PRACTICE QUESTIONS:
 1) [Question for student to try]
 2) [Question for student to try]
 
-REMEMBER: Be thorough and complete. Students depend on your explanation.`;
-
+REMEMBER: Be thorough and complete.`;
       userPrompt = "Continue teaching with a complete explanation of the current topic.";
     } else if (action === "answer_doubt") {
       systemPrompt = `You are SYNOVA, helping a ${standard} student studying ${subject} under ${curriculum} curriculum.
@@ -173,9 +237,8 @@ Topic: ${currentTopic}
 CURRICULUM ALIGNMENT: ${selectedCurriculumContext}
 
 Answer the student's question clearly and completely. Give examples if helpful. Keep the answer focused but thorough.`;
-
       userPrompt =
-        messages && messages.length > 0
+        messages.length > 0
           ? messages[messages.length - 1].content
           : "Answer the student's question.";
     } else {
@@ -186,15 +249,11 @@ Answer the student's question clearly and completely. Give examples if helpful. 
 
     const chatMessages = [
       { role: "system", content: systemPrompt },
-      ...(messages || []),
+      ...messages,
       { role: "user", content: userPrompt },
     ];
 
     const isListAction = action === "get_chapters" || action === "get_topics";
-
-    let reply = "";
-
-    // Use Lovable AI Gateway
     const lovableModel = isListAction ? "google/gemini-2.5-flash-lite" : "google/gemini-3-flash-preview";
 
     const lovableResp = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
@@ -209,6 +268,8 @@ Answer the student's question clearly and completely. Give examples if helpful. 
         temperature: isListAction ? 0.2 : 0.7,
       }),
     });
+
+    let reply = "";
 
     if (lovableResp.ok) {
       const lovableJson = await lovableResp.json();
@@ -227,7 +288,7 @@ Answer the student's question clearly and completely. Give examples if helpful. 
           { status: 402 }
         );
       }
-      return jsonResponse({ error: `AI service error: ${providerMessage}` }, { status: 502 });
+      return jsonResponse({ error: "AI service temporarily unavailable." }, { status: 502 });
     }
 
     if (!reply) {
@@ -236,14 +297,12 @@ Answer the student's question clearly and completely. Give examples if helpful. 
 
     console.log("AI response received", { action, replyLength: reply.length });
 
-    if (action === "get_chapters" || action === "get_topics") {
+    if (isListAction) {
       try {
         let jsonStr = reply;
-        // Extract JSON from possible markdown code blocks
         const jsonMatch = reply.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (jsonMatch) jsonStr = jsonMatch[1].trim();
 
-        // Try to find JSON array in the response
         const arrayMatch = jsonStr.match(/\[[\s\S]*\]/);
         if (arrayMatch) jsonStr = arrayMatch[0];
 
@@ -262,7 +321,7 @@ Answer the student's question clearly and completely. Give examples if helpful. 
   } catch (error) {
     console.error("Curriculum study error:", error);
     return jsonResponse(
-      { error: error instanceof Error ? error.message : "Unknown error" },
+      { error: "Something went wrong. Please try again." },
       { status: 500 }
     );
   }

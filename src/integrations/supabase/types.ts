@@ -1234,6 +1234,7 @@ export type Database = {
         }
         Returns: undefined
       }
+      strip_html_tags: { Args: { input: string }; Returns: string }
       validate_invitation_code: {
         Args: { _code: string }
         Returns: {

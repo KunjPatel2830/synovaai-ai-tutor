@@ -10,6 +10,20 @@ const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// ── Input validation ──
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const VALID_EXAM_TYPES = ["JEE Main", "JEE Advanced", "NEET", "CUET", "BITSAT", "KVPY", "NTSE"];
+const MAX_SHIFT_LENGTH = 50;
+const MAX_FILENAME_LENGTH = 255;
+
+function isValidUUID(val: unknown): val is string {
+  return typeof val === "string" && UUID_RE.test(val);
+}
+
+function stripHtml(str: string): string {
+  return str.replace(/<[^>]*>/g, "").trim();
+}
+
 interface ParsedQuestion {
   question_text: string;
   options: { A: string; B: string; C: string; D: string };
@@ -189,9 +203,26 @@ serve(async (req) => {
     const { pdfBase64, examType, year, shift, userId, fileName } = body;
     uploadId = body.uploadId || null;
 
-    if (!pdfBase64 || !examType || !year || !userId) {
-      throw new Error("Missing required fields: pdfBase64, examType, year, userId");
+    // Validate required fields
+    if (!pdfBase64 || typeof pdfBase64 !== "string") {
+      throw new Error("Missing or invalid pdfBase64");
     }
+    if (!examType || typeof examType !== "string" || !VALID_EXAM_TYPES.includes(examType)) {
+      throw new Error(`Invalid examType. Must be one of: ${VALID_EXAM_TYPES.join(", ")}`);
+    }
+    if (!year || isNaN(Number(year)) || Number(year) < 1990 || Number(year) > 2100) {
+      throw new Error("Invalid year. Must be between 1990 and 2100");
+    }
+    if (!isValidUUID(userId)) {
+      throw new Error("Invalid userId format");
+    }
+    if (uploadId && !isValidUUID(uploadId)) {
+      throw new Error("Invalid uploadId format");
+    }
+
+    // Sanitize optional fields
+    const safeShift = shift ? stripHtml(String(shift)).slice(0, MAX_SHIFT_LENGTH) : null;
+    const safeFileName = fileName ? stripHtml(String(fileName)).slice(0, MAX_FILENAME_LENGTH) : "upload.pdf";
 
     if (!uploadId) {
       console.log(`[parse-pyq-pdf] Creating pyq_uploads record internally`);
@@ -200,9 +231,9 @@ serve(async (req) => {
         .insert({
           uploaded_by: userId,
           exam_type: examType,
-          year: parseInt(year),
-          shift: shift || null,
-          file_name: fileName || "upload.pdf",
+          year: parseInt(String(year)),
+          shift: safeShift,
+          file_name: safeFileName,
           status: "processing",
         })
         .select("id")
@@ -224,8 +255,8 @@ serve(async (req) => {
 
     const questionsToInsert = parsedQuestions.map((q) => ({
       exam_type: examType,
-      year: parseInt(year),
-      shift: shift || null,
+      year: parseInt(String(year)),
+      shift: safeShift,
       question_text: q.question_text,
       options: q.options,
       correct_option: q.correct_option,

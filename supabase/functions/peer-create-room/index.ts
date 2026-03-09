@@ -11,6 +11,20 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
 const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL");
 const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY");
 
+// ── Input validation ──
+const MAX_NAME_LENGTH = 100;
+const MAX_SUBJECT_LENGTH = 100;
+const MAX_TOPIC_LENGTH = 200;
+
+function stripHtml(str: string): string {
+  return str.replace(/<[^>]*>/g, "").trim();
+}
+
+function sanitizeText(input: unknown, maxLen: number): string {
+  if (typeof input !== "string") return "";
+  return stripHtml(input).slice(0, maxLen);
+}
+
 type CreateRoomBody = {
   name?: string;
   subject?: string | null;
@@ -42,13 +56,13 @@ serve(async (req) => {
 
     const body = (await req.json().catch(() => ({}))) as CreateRoomBody;
 
-    const name = typeof body?.name === "string" ? body.name.trim() : "";
-    const subject = typeof body?.subject === "string" ? body.subject.trim() : null;
-    const topic = typeof body?.topic === "string" ? body.topic.trim() : null;
+    const name = sanitizeText(body?.name, MAX_NAME_LENGTH);
+    const subject = sanitizeText(body?.subject, MAX_SUBJECT_LENGTH) || null;
+    const topic = sanitizeText(body?.topic, MAX_TOPIC_LENGTH) || null;
     const desiredRole = body?.role === "teacher" ? "teacher" : "student";
 
     if (!name || name.length < 3) {
-      return new Response(JSON.stringify({ error: "Invalid room name" }), {
+      return new Response(JSON.stringify({ error: "Room name must be 3-100 characters" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -58,7 +72,6 @@ serve(async (req) => {
       auth: { persistSession: false },
     });
 
-    // Use External Supabase to verify the user (users are registered on external project)
     const externalUrl = EXTERNAL_SUPABASE_URL || SUPABASE_URL;
     const externalKey = EXTERNAL_SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY;
     const supabaseUser = createClient(externalUrl!, externalKey!, {
@@ -79,7 +92,6 @@ serve(async (req) => {
       });
     }
 
-    // Generate a unique room code via DB helper (fallback to random)
     let roomCode = "";
     const { data: codeData, error: codeError } = await supabaseAdmin.rpc("generate_room_code");
     if (codeError) {
@@ -96,8 +108,8 @@ serve(async (req) => {
       .from("peer_rooms")
       .insert({
         name,
-        subject: subject || null,
-        topic: topic || null,
+        subject,
+        topic,
         created_by: user.id,
         room_code: roomCode,
         is_active: true,
@@ -113,7 +125,6 @@ serve(async (req) => {
       });
     }
 
-    // Participant row (re-activate if exists)
     const { data: updatedRows, error: updateError } = await supabaseAdmin
       .from("peer_room_participants")
       .update({ left_at: null, role: desiredRole })
@@ -147,7 +158,6 @@ serve(async (req) => {
       }
     }
 
-    // Initialize whiteboard (best-effort)
     const { error: whiteboardError } = await supabaseAdmin.from("peer_whiteboard_data").insert({
       room_id: room.id,
       data: [],

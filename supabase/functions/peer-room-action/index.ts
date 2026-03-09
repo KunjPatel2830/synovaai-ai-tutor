@@ -11,6 +11,33 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL");
 const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY");
 
+// ── Input validation helpers ──
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_MESSAGE_LENGTH = 5000;
+const MAX_QUESTION_LENGTH = 4000;
+const VALID_ACTIONS = ["load-data", "send-message", "poll-messages", "leave-room", "ask-ai"];
+
+function isValidUUID(val: unknown): val is string {
+  return typeof val === "string" && UUID_RE.test(val);
+}
+
+function stripHtml(str: string): string {
+  return str.replace(/<[^>]*>/g, "").trim();
+}
+
+function sanitizeText(input: unknown, maxLen: number): string | null {
+  if (typeof input !== "string") return null;
+  const cleaned = stripHtml(input);
+  if (cleaned.length === 0) return null;
+  return cleaned.slice(0, maxLen);
+}
+
+function isValidISOTimestamp(val: unknown): val is string {
+  if (typeof val !== "string") return false;
+  const d = new Date(val);
+  return !isNaN(d.getTime());
+}
+
 function jsonRes(data: unknown, status = 200) {
   return new Response(JSON.stringify(data), {
     status,
@@ -45,6 +72,11 @@ serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const action = body.action as string;
 
+    // Validate action against whitelist
+    if (!action || !VALID_ACTIONS.includes(action)) {
+      return jsonRes({ error: `Invalid action. Must be one of: ${VALID_ACTIONS.join(", ")}` }, 400);
+    }
+
     const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, {
       auth: { persistSession: false },
     });
@@ -52,16 +84,14 @@ serve(async (req) => {
     // ── LOAD ROOM DATA ──
     if (action === "load-data") {
       const roomId = body.room_id;
-      if (!roomId) return jsonRes({ error: "Missing room_id" }, 400);
+      if (!isValidUUID(roomId)) return jsonRes({ error: "Invalid room_id format" }, 400);
 
-      // Get participants
       const { data: participants } = await admin
         .from("peer_room_participants")
         .select("*")
         .eq("room_id", roomId)
         .is("left_at", null);
 
-      // Get messages
       const { data: messages } = await admin
         .from("peer_room_messages")
         .select("*")
@@ -69,7 +99,6 @@ serve(async (req) => {
         .order("created_at", { ascending: true })
         .limit(500);
 
-      // Get display names for all user_ids
       const allUserIds = [
         ...new Set([
           ...(participants || []).map((p: any) => p.user_id),
@@ -79,7 +108,6 @@ serve(async (req) => {
 
       let displayNames: Record<string, string> = {};
       if (allUserIds.length > 0) {
-        // Try external profiles first, then internal
         const externalUrl = EXTERNAL_SUPABASE_URL || SUPABASE_URL;
         const externalKey = EXTERNAL_SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY;
         const extClient = createClient(externalUrl, externalKey, {
@@ -97,7 +125,6 @@ serve(async (req) => {
           });
         }
 
-        // Fallback: check internal profiles for any missing
         const missingIds = allUserIds.filter(id => !displayNames[id]);
         if (missingIds.length > 0) {
           const { data: internalProfiles } = await admin
@@ -117,10 +144,12 @@ serve(async (req) => {
 
     // ── SEND MESSAGE ──
     if (action === "send-message") {
-      const { room_id, message } = body;
-      if (!room_id || !message?.trim()) return jsonRes({ error: "Missing data" }, 400);
+      const { room_id } = body;
+      if (!isValidUUID(room_id)) return jsonRes({ error: "Invalid room_id format" }, 400);
 
-      // Verify participant
+      const message = sanitizeText(body.message, MAX_MESSAGE_LENGTH);
+      if (!message) return jsonRes({ error: "Message is required and must be non-empty text" }, 400);
+
       const { data: participant } = await admin
         .from("peer_room_participants")
         .select("id")
@@ -136,7 +165,7 @@ serve(async (req) => {
         .insert({
           room_id,
           user_id: user.id,
-          message: message.trim(),
+          message,
           message_type: "text",
         })
         .select()
@@ -153,7 +182,12 @@ serve(async (req) => {
     // ── POLL NEW MESSAGES (since timestamp) ──
     if (action === "poll-messages") {
       const { room_id, since } = body;
-      if (!room_id) return jsonRes({ error: "Missing room_id" }, 400);
+      if (!isValidUUID(room_id)) return jsonRes({ error: "Invalid room_id format" }, 400);
+
+      // Validate timestamp if provided
+      if (since !== undefined && since !== null && !isValidISOTimestamp(since)) {
+        return jsonRes({ error: "Invalid timestamp format for 'since'" }, 400);
+      }
 
       let query = admin
         .from("peer_room_messages")
@@ -161,13 +195,12 @@ serve(async (req) => {
         .eq("room_id", room_id)
         .order("created_at", { ascending: true });
 
-      if (since) {
+      if (since && isValidISOTimestamp(since)) {
         query = query.gt("created_at", since);
       }
 
       const { data: messages } = await query.limit(100);
 
-      // Get display names for new messages
       const userIds = [...new Set((messages || []).map((m: any) => m.user_id))];
       let displayNames: Record<string, string> = {};
       if (userIds.length > 0) {
@@ -187,7 +220,6 @@ serve(async (req) => {
         }
       }
 
-      // Also get updated participant count
       const { data: participants } = await admin
         .from("peer_room_participants")
         .select("id, user_id, role")
@@ -204,7 +236,7 @@ serve(async (req) => {
     // ── LEAVE ROOM ──
     if (action === "leave-room") {
       const { room_id } = body;
-      if (!room_id) return jsonRes({ error: "Missing room_id" }, 400);
+      if (!isValidUUID(room_id)) return jsonRes({ error: "Invalid room_id format" }, 400);
 
       await admin
         .from("peer_room_participants")
@@ -217,10 +249,14 @@ serve(async (req) => {
 
     // ── ASK AI ──
     if (action === "ask-ai") {
-      const { room_id, question, subject, recentMessages } = body;
-      if (!room_id || !question?.trim()) return jsonRes({ error: "Missing question" }, 400);
+      const { room_id } = body;
+      if (!isValidUUID(room_id)) return jsonRes({ error: "Invalid room_id format" }, 400);
 
-      // Verify participant
+      const question = sanitizeText(body.question, MAX_QUESTION_LENGTH);
+      if (!question) return jsonRes({ error: "Question is required" }, 400);
+
+      const subject = sanitizeText(body.subject, 100) || "";
+
       const { data: participant } = await admin
         .from("peer_room_participants")
         .select("id")
@@ -231,18 +267,19 @@ serve(async (req) => {
 
       if (!participant) return jsonRes({ error: "Not a participant" }, 403);
 
-      // Insert user's question as a message
       await admin.from("peer_room_messages").insert({
         room_id,
         user_id: user.id,
-        message: question.trim(),
+        message: question,
         message_type: "text",
       });
 
-      // Build context from recent chat
-      const chatContext = (recentMessages || [])
+      // Validate and sanitize recent messages context
+      const recentMessages = Array.isArray(body.recentMessages) ? body.recentMessages : [];
+      const chatContext = recentMessages
         .slice(-10)
-        .map((m: any) => `${m.name || "User"}: ${m.message}`)
+        .filter((m: any) => typeof m?.message === "string" && typeof m?.name === "string")
+        .map((m: any) => `${stripHtml(m.name).slice(0, 50)}: ${stripHtml(m.message).slice(0, 500)}`)
         .join("\n");
 
       const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -276,7 +313,7 @@ ${chatContext ? `Recent chat:\n${chatContext}` : ""}`;
             model: "google/gemini-3-flash-preview",
             messages: [
               { role: "system", content: systemPrompt },
-              { role: "user", content: question.trim() },
+              { role: "user", content: question },
             ],
           }),
         });
@@ -292,7 +329,6 @@ ${chatContext ? `Recent chat:\n${chatContext}` : ""}`;
         const aiData = await aiResponse.json();
         const aiText = aiData.choices?.[0]?.message?.content || "Sorry, I couldn't generate a response.";
 
-        // Insert AI response as a message
         const AI_USER_ID = "00000000-0000-0000-0000-000000000000";
         const { data: aiMsg } = await admin
           .from("peer_room_messages")

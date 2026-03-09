@@ -10,6 +10,25 @@ const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
+// ── Input validation ──
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const MAX_SUBJECT_LENGTH = 100;
+const MAX_CHAPTER_LENGTH = 200;
+const MAX_FILENAME_LENGTH = 255;
+
+function isValidUUID(val: unknown): val is string {
+  return typeof val === "string" && UUID_RE.test(val);
+}
+
+function stripHtml(str: string): string {
+  return str.replace(/<[^>]*>/g, "").trim();
+}
+
+function sanitizeText(input: unknown, maxLen: number): string {
+  if (typeof input !== "string") return "";
+  return stripHtml(input).slice(0, maxLen);
+}
+
 function tryParseContent(text: string): { topics: any[] } | null {
   if (!text) return null;
   let cleaned = text.replace(/```json\s*/gi, "").replace(/```\s*/g, "").trim();
@@ -45,12 +64,23 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { pdfBase64, subject, chapter, teacherId, fileName } = body;
+    const { pdfBase64 } = body;
     pdfId = body.pdfId || null;
 
-    if (!pdfBase64 || !subject || !chapter || !teacherId) {
-      throw new Error("Missing required fields: pdfBase64, subject, chapter, teacherId");
+    // Validate and sanitize inputs
+    if (!pdfBase64 || typeof pdfBase64 !== "string") {
+      throw new Error("Missing or invalid pdfBase64");
     }
+
+    const subject = sanitizeText(body.subject, MAX_SUBJECT_LENGTH);
+    const chapter = sanitizeText(body.chapter, MAX_CHAPTER_LENGTH);
+    const teacherId = body.teacherId;
+    const fileName = sanitizeText(body.fileName, MAX_FILENAME_LENGTH) || "upload.pdf";
+
+    if (!subject) throw new Error("Missing subject");
+    if (!chapter) throw new Error("Missing chapter");
+    if (!isValidUUID(teacherId)) throw new Error("Invalid teacherId format");
+    if (pdfId && !isValidUUID(pdfId)) throw new Error("Invalid pdfId format");
 
     if (!pdfId) {
       console.log(`[process-study-pdf] Creating study_pdfs record internally`);
@@ -60,7 +90,7 @@ serve(async (req) => {
           teacher_id: teacherId,
           subject,
           chapter,
-          file_name: fileName || "upload.pdf",
+          file_name: fileName,
           processing_status: "processing",
         })
         .select("id")
