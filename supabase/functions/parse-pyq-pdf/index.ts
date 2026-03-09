@@ -255,8 +255,8 @@ serve(async (req) => {
 
     const questionsToInsert = parsedQuestions.map((q) => ({
       exam_type: examType,
-      year: parseInt(year),
-      shift: shift || null,
+      year: parseInt(String(year)),
+      shift: safeShift,
       question_text: q.question_text,
       options: q.options,
       correct_option: q.correct_option,

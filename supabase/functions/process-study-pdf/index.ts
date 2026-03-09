@@ -90,7 +90,7 @@ serve(async (req) => {
           teacher_id: teacherId,
           subject,
           chapter,
-          file_name: fileName || "upload.pdf",
+          file_name: fileName,
           processing_status: "processing",
         })
         .select("id")
