@@ -64,12 +64,23 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { pdfBase64, subject, chapter, teacherId, fileName } = body;
+    const { pdfBase64 } = body;
     pdfId = body.pdfId || null;
 
-    if (!pdfBase64 || !subject || !chapter || !teacherId) {
-      throw new Error("Missing required fields: pdfBase64, subject, chapter, teacherId");
+    // Validate and sanitize inputs
+    if (!pdfBase64 || typeof pdfBase64 !== "string") {
+      throw new Error("Missing or invalid pdfBase64");
     }
+
+    const subject = sanitizeText(body.subject, MAX_SUBJECT_LENGTH);
+    const chapter = sanitizeText(body.chapter, MAX_CHAPTER_LENGTH);
+    const teacherId = body.teacherId;
+    const fileName = sanitizeText(body.fileName, MAX_FILENAME_LENGTH) || "upload.pdf";
+
+    if (!subject) throw new Error("Missing subject");
+    if (!chapter) throw new Error("Missing chapter");
+    if (!isValidUUID(teacherId)) throw new Error("Invalid teacherId format");
+    if (pdfId && !isValidUUID(pdfId)) throw new Error("Invalid pdfId format");
 
     if (!pdfId) {
       console.log(`[process-study-pdf] Creating study_pdfs record internally`);
