@@ -61,7 +61,7 @@ serve(async (req) => {
   } catch (e) { console.error("Rate limit check failed, allowing request:", e); }
 
   try {
-
+    const body = await req.json();
     const concept = sanitizeText(body.concept, MAX_CONCEPT_LENGTH);
     const subject = sanitizeText(body.subject, MAX_SUBJECT_LENGTH);
     const context = sanitizeText(body.context, MAX_CONTEXT_LENGTH);
