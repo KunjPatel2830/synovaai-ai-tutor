@@ -105,7 +105,7 @@ export async function invokeBackendFunction<T = any>(
   } = opts;
 
   const baseUrl = useExternal ? EXTERNAL_SUPABASE_URL_PUBLIC.replace(/\/$/, "") : getBackendBaseUrl();
-  const apiKey = useExternal ? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imh5ZWNoYnhmZmJnbnVrZ2ZyZnlpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njc5NDE0MzAsImV4cCI6MjA4MzUxNzQzMH0.ip0gQwK9x5mvlNHq_ge9xlt8yfz5O_AZpz8YPLei3rw" : getBackendApiKey();
+  const apiKey = useExternal ? EXTERNAL_SUPABASE_ANON_KEY_PUBLIC : getBackendApiKey();
   const url = `${baseUrl}/functions/v1/${functionName}`;
 
   const token = await getExternalAccessToken();
