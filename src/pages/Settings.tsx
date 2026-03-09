@@ -18,6 +18,9 @@ export default function Settings() {
   const { toast } = useToast();
   const [displayName, setDisplayName] = useState("");
   const [gradeLevel, setGradeLevel] = useState("");
+  const [curriculum, setCurriculum] = useState("");
+  const [targetExam, setTargetExam] = useState("");
+  const [tutorLanguage, setTutorLanguage] = useState("");
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -31,13 +34,16 @@ export default function Settings() {
 
     const { data } = await externalSupabase
       .from("profiles")
-      .select("display_name, grade_level")
+      .select("display_name, grade_level, curriculum, target_exam, tutor_language")
       .eq("user_id", user.id)
       .maybeSingle();
 
     if (data) {
       setDisplayName(data.display_name || "");
       setGradeLevel(data.grade_level || "");
+      setCurriculum(data.curriculum || "");
+      setTargetExam(data.target_exam || "");
+      setTutorLanguage(data.tutor_language || "");
     }
   };
 
@@ -51,6 +57,9 @@ export default function Settings() {
         .update({
           display_name: displayName,
           grade_level: gradeLevel,
+          curriculum,
+          target_exam: targetExam,
+          tutor_language: tutorLanguage,
         })
         .eq("user_id", user.id);
 
@@ -107,20 +116,59 @@ export default function Settings() {
               </div>
 
               {userRole === "student" && (
-                <div className="space-y-2">
-                  <Label>Grade Level</Label>
-                  <Select value={gradeLevel} onValueChange={setGradeLevel}>
-                    <SelectTrigger><SelectValue placeholder="Select grade" /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="elementary">Elementary (K-5)</SelectItem>
-                      <SelectItem value="middle">Middle School (6-8)</SelectItem>
-                      <SelectItem value="high">High School (9-12)</SelectItem>
-                      <SelectItem value="college">College / University</SelectItem>
-                      <SelectItem value="adult">Adult Learner</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <>
+                  <div className="space-y-2">
+                    <Label>Grade Level</Label>
+                    <Select value={gradeLevel} onValueChange={setGradeLevel}>
+                      <SelectTrigger><SelectValue placeholder="Select grade" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="elementary">Elementary (K-5)</SelectItem>
+                        <SelectItem value="middle">Middle School (6-8)</SelectItem>
+                        <SelectItem value="high">High School (9-12)</SelectItem>
+                        <SelectItem value="college">College / University</SelectItem>
+                        <SelectItem value="adult">Adult Learner</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div className="space-y-2">
+                    <Label>Curriculum / Board</Label>
+                    <Select value={curriculum} onValueChange={setCurriculum}>
+                      <SelectTrigger><SelectValue placeholder="Select curriculum" /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="cbse">CBSE</SelectItem>
+                        <SelectItem value="icse">ICSE</SelectItem>
+                        <SelectItem value="state_board">State Board</SelectItem>
+                        <SelectItem value="ib">IB / Cambridge</SelectItem>
+                        <SelectItem value="other">Other</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label>Target Exam</Label>
+                    <Input
+                      value={targetExam}
+                      onChange={(e) => setTargetExam(e.target.value)}
+                      placeholder="e.g. JEE, NEET, SAT, UPSC"
+                    />
+                  </div>
+                </>
               )}
+
+              <div className="space-y-2">
+                <Label>AI Tutor Language</Label>
+                <Select value={tutorLanguage} onValueChange={setTutorLanguage}>
+                  <SelectTrigger><SelectValue placeholder="Select preferred language" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="english">English</SelectItem>
+                    <SelectItem value="hindi">Hindi</SelectItem>
+                    <SelectItem value="hinglish">Hinglish</SelectItem>
+                    <SelectItem value="spanish">Spanish</SelectItem>
+                    <SelectItem value="french">French</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
 
               <Button onClick={saveProfile} disabled={isLoading}>
                 {isLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
