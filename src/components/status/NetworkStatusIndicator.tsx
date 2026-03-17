@@ -29,16 +29,28 @@ export function NetworkStatusIndicator() {
   const [backendPending, setBackendPending] = useState(0);
   const [authRefreshing, setAuthRefreshing] = useState(false);
   const authRefreshHideTimer = useRef<number | null>(null);
+  const backendResetTimer = useRef<number | null>(null);
 
   useEffect(() => {
     const onPending = (e: Event) => {
       const detail = (e as CustomEvent).detail as { delta?: number } | undefined;
       const delta = typeof detail?.delta === "number" ? detail.delta : 0;
       if (!delta) return;
-      setBackendPending((v) => Math.max(0, v + delta));
+      setBackendPending((v) => {
+        const next = Math.max(0, v + delta);
+        // Auto-reset after 8s to prevent stale "Connecting…" if a decrement is missed
+        if (backendResetTimer.current) window.clearTimeout(backendResetTimer.current);
+        if (next > 0) {
+          backendResetTimer.current = window.setTimeout(() => setBackendPending(0), 8000);
+        }
+        return next;
+      });
     };
     window.addEventListener("synova:backend-pending", onPending);
-    return () => window.removeEventListener("synova:backend-pending", onPending);
+    return () => {
+      window.removeEventListener("synova:backend-pending", onPending);
+      if (backendResetTimer.current) window.clearTimeout(backendResetTimer.current);
+    };
   }, []);
 
   useEffect(() => {
