@@ -142,6 +142,8 @@ serve(async (req) => {
     if (action === "generate_questions") {
       systemPrompt = `You are an exam preparation assistant. ${selectedCurriculum}
 
+LANGUAGE: All question text, options, answers, and explanations MUST be in English only. Do not use Hindi, Hinglish, or any other language.
+
 Generate exactly 5 questions following board exam format. Mix multiple choice and short answer.
 
 RESPONSE FORMAT (JSON only, no markdown):
@@ -160,6 +162,8 @@ RESPONSE FORMAT (JSON only, no markdown):
       userPrompt = `Generate 5 ${safeDifficulty} level ${safeCurriculum} curriculum questions for ${safeSubject} on: ${safeTopic}`;
     } else if (action === "study_plan") {
       systemPrompt = `You are a study planner.
+
+LANGUAGE: All plan content, tips, and focus areas MUST be in English only.
 
 RESPONSE FORMAT (JSON only, no markdown):
 {
