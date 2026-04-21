@@ -178,8 +178,44 @@ export function useVoice(): UseVoiceReturn {
     // Cancel any ongoing speech
     window.speechSynthesis.cancel();
 
+    // Strip markdown/LaTeX/code symbols so TTS doesn't read "asterisk", "backslash", "bracket", etc.
+    const cleanText = text
+      // Remove fenced code blocks
+      .replace(/```[\s\S]*?```/g, " ")
+      // Remove inline code
+      .replace(/`([^`]+)`/g, "$1")
+      // Remove image/diagram placeholders like [IMAGE: ...]
+      .replace(/\[IMAGE:[^\]]*\]/gi, " ")
+      // Remove LaTeX block $$...$$ and inline $...$
+      .replace(/\$\$[\s\S]*?\$\$/g, " ")
+      .replace(/\$([^$\n]+)\$/g, "$1")
+      // Remove LaTeX commands like \frac, \sqrt, \times, \cdot, \left, \right, etc.
+      .replace(/\\[a-zA-Z]+\*?/g, " ")
+      // Remove remaining backslashes
+      .replace(/\\/g, " ")
+      // Remove markdown headings markers
+      .replace(/^#{1,6}\s+/gm, "")
+      // Remove bold/italic asterisks and underscores (keep inner text)
+      .replace(/\*\*([^*]+)\*\*/g, "$1")
+      .replace(/\*([^*]+)\*/g, "$1")
+      .replace(/__([^_]+)__/g, "$1")
+      .replace(/_([^_]+)_/g, "$1")
+      // Remove stray asterisks
+      .replace(/\*/g, " ")
+      // Remove markdown links [text](url) -> text
+      .replace(/\[([^\]]+)\]\([^)]+\)/g, "$1")
+      // Remove remaining brackets/braces/pipes
+      .replace(/[\[\]{}|]/g, " ")
+      // Remove bullet/list markers at line start
+      .replace(/^\s*[-•]\s+/gm, "")
+      // Collapse whitespace
+      .replace(/\s+/g, " ")
+      .trim();
+
+    if (!cleanText) return;
+
     // Split text into sentences for natural pauses
-    const sentences = text.match(/[^.!?]+[.!?]+/g) || [text];
+    const sentences = cleanText.match(/[^.!?]+[.!?]+/g) || [cleanText];
     
     let currentIndex = 0;
     
