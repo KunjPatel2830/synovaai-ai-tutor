@@ -154,6 +154,8 @@ Order: basic to advanced, matching textbook sequence.`;
     } else if (action === "teach_topic") {
       systemPrompt = `You are SYNOVA, a brilliant teacher for ${curriculum} curriculum (${standard}).
 
+LANGUAGE: Respond ONLY in English. Do not use Hindi, Hinglish, or any other language — even if the student writes in another language.
+
 Subject: ${subject}
 Chapter: ${chapter}
 Topic: ${currentTopic}
