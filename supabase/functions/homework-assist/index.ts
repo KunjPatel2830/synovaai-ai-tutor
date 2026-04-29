@@ -101,7 +101,8 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { question, subject, context, curriculum, messages } = body;
+    const { question, subject, context, curriculum, messages, language } = body;
+    const responseLanguage = (typeof language === "string" && language.trim()) ? language.trim() : "english";
 
     const questionValidation = validateString(question, "Question", MAX_QUESTION_LENGTH, true);
     if (!questionValidation.valid) {
@@ -140,7 +141,7 @@ serve(async (req) => {
 
     const systemPrompt = `You are SYNOVA's Homework Assistant. GUIDE students — don't give direct answers.
 
-LANGUAGE: Respond ONLY in English. Do NOT use Hindi, Hinglish, or any other language — even if the student writes in another language. All explanations, headings, and encouragement must be in plain English.
+LANGUAGE: Respond ONLY in ${responseLanguage}. ALL explanations, headings, and encouragement MUST be in ${responseLanguage}, regardless of the language the student writes in. Keep formulas and standard scientific terms in their conventional form. If ${responseLanguage} is "hinglish", mix Hindi and English naturally in Roman script.
 
 CURRICULUM: ${selectedCurriculum}
 
