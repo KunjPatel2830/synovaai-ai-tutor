@@ -118,12 +118,6 @@ export function useVoice(): UseVoiceReturn {
           selectedVoice: availableVoices.find((v) => v.lang.startsWith(prefix)) || availableVoices.find((v) => v.lang.startsWith("en")) || availableVoices[0],
         }));
       }
-        setState((prev) => ({
-          ...prev,
-          voices: availableVoices,
-          selectedVoice: availableVoices.find((v) => v.lang.startsWith("en")) || availableVoices[0],
-        }));
-      }
     };
 
     loadVoices();
@@ -132,7 +126,7 @@ export function useVoice(): UseVoiceReturn {
     return () => {
       window.speechSynthesis.onvoiceschanged = null;
     };
-  }, []);
+  }, [bcp47]);
 
   // Initialize speech recognition
   useEffect(() => {
