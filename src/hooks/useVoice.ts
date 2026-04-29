@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
+import { useLanguagePreference } from "@/hooks/useLanguagePreference";
 
 // Type declarations for Web Speech API
 interface SpeechRecognitionEvent extends Event {
@@ -80,6 +81,7 @@ const SUPPORTED_LANGUAGES = [
 export { SUPPORTED_LANGUAGES };
 
 export function useVoice(): UseVoiceReturn {
+  const { bcp47 } = useLanguagePreference();
   const [state, setState] = useState<VoiceState>({
     isListening: false,
     isSpeaking: false,
@@ -87,10 +89,20 @@ export function useVoice(): UseVoiceReturn {
     error: null,
     voices: [],
     selectedVoice: null,
-    selectedLanguage: "en-US",
+    selectedLanguage: bcp47 || "en-US",
     autoSpeak: true,
     blindMode: false,
   });
+
+  // Sync TTS/STT language with global preference
+  useEffect(() => {
+    setState((prev) => {
+      if (prev.selectedLanguage === bcp47) return prev;
+      const prefix = bcp47.split("-")[0];
+      const matchingVoice = prev.voices.find((v) => v.lang.startsWith(prefix)) || prev.selectedVoice;
+      return { ...prev, selectedLanguage: bcp47, selectedVoice: matchingVoice };
+    });
+  }, [bcp47]);
 
   const recognitionRef = useRef<SpeechRecognitionInstance | null>(null);
 
