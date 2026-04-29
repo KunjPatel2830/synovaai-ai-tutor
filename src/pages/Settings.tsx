@@ -157,17 +157,19 @@ export default function Settings() {
               )}
 
               <div className="space-y-2">
-                <Label>AI Tutor Language</Label>
-                <Select value={tutorLanguage} onValueChange={setTutorLanguage}>
-                  <SelectTrigger><SelectValue placeholder="Select preferred language" /></SelectTrigger>
+                <Label>Response Language (applies to all modes & voice)</Label>
+                <Select value={tutorLanguage || "english"} onValueChange={setTutorLanguage}>
+                  <SelectTrigger><SelectValue placeholder="Select language" /></SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="english">English</SelectItem>
+                    <SelectItem value="english">English (default)</SelectItem>
                     <SelectItem value="hindi">Hindi</SelectItem>
                     <SelectItem value="hinglish">Hinglish</SelectItem>
                     <SelectItem value="spanish">Spanish</SelectItem>
                     <SelectItem value="french">French</SelectItem>
+                    <SelectItem value="german">German</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-xs text-muted-foreground">AI replies in every learning mode and voice output will use this language.</p>
               </div>
 
               <Button onClick={saveProfile} disabled={isLoading}>
