@@ -85,7 +85,8 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const { action, subject, topic, difficulty, curriculum } = body;
+    const { action, subject, topic, difficulty, curriculum, language } = body;
+    const responseLanguage = (typeof language === "string" && language.trim()) ? language.trim() : "english";
 
     if (!action || typeof action !== "string" || !VALID_ACTIONS.includes(action)) {
       return jsonResponse({ error: `Invalid action. Must be one of: ${VALID_ACTIONS.join(", ")}` }, { status: 400 });
@@ -142,7 +143,7 @@ serve(async (req) => {
     if (action === "generate_questions") {
       systemPrompt = `You are an exam preparation assistant. ${selectedCurriculum}
 
-LANGUAGE: All question text, options, answers, and explanations MUST be in English only. Do not use Hindi, Hinglish, or any other language.
+LANGUAGE: All question text, options, answers, and explanations MUST be in ${responseLanguage}. Keep formulas and standard scientific terms in conventional form. If ${responseLanguage} is "hinglish", mix Hindi and English naturally in Roman script.
 
 Generate exactly 5 questions following board exam format. Mix multiple choice and short answer.
 
@@ -163,7 +164,7 @@ RESPONSE FORMAT (JSON only, no markdown):
     } else if (action === "study_plan") {
       systemPrompt = `You are a study planner.
 
-LANGUAGE: All plan content, tips, and focus areas MUST be in English only.
+LANGUAGE: All plan content, tips, and focus areas MUST be in ${responseLanguage}.
 
 RESPONSE FORMAT (JSON only, no markdown):
 {
