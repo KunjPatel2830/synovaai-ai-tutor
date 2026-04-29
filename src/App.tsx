@@ -52,7 +52,11 @@ const App = () => (
           <Sonner />
           <BrowserRouter>
             <NetworkStatusIndicator />
-            <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-background"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div></div>}>
+            <Suspense fallback={
+              <div className="fixed top-0 left-0 right-0 z-[100] h-0.5 bg-primary/20 overflow-hidden">
+                <div className="h-full w-1/3 bg-primary animate-[loading-bar_1.2s_ease-in-out_infinite]" />
+              </div>
+            }>
               <Routes>
                 <Route path="/" element={<Landing />} />
                 <Route path="/reviews" element={<Reviews />} />
