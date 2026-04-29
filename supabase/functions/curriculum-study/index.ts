@@ -100,6 +100,7 @@ serve(async (req) => {
     const subject = sanitizeText(body.subject, MAX_STRING_LENGTH);
     const chapter = sanitizeText(body.chapter, MAX_STRING_LENGTH);
     const currentTopic = sanitizeText(body.currentTopic, MAX_STRING_LENGTH);
+    const responseLanguage = sanitizeText(body.language, 30) || "english";
     const messages = validateMessages(body.messages);
 
     // Validate completedTopics as string array
@@ -154,7 +155,7 @@ Order: basic to advanced, matching textbook sequence.`;
     } else if (action === "teach_topic") {
       systemPrompt = `You are SYNOVA, a brilliant teacher for ${curriculum} curriculum (${standard}).
 
-LANGUAGE: Respond ONLY in English. Do not use Hindi, Hinglish, or any other language — even if the student writes in another language.
+LANGUAGE: Respond ONLY in ${responseLanguage}. ALL teaching content, examples, and encouragement MUST be in ${responseLanguage}, regardless of the language the student writes in. Keep technical terms and formulas in standard form. If ${responseLanguage} is "hinglish", mix Hindi and English naturally in Roman script.
 
 Subject: ${subject}
 Chapter: ${chapter}
