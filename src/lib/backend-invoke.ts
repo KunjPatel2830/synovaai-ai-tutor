@@ -28,6 +28,28 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+/**
+ * Auto-injects the user's global response-language preference into every
+ * backend call so all AI modes (tutor, homework, exam-prep, curriculum, etc.)
+ * reply in the same language. Caller-provided `language` always wins.
+ */
+function withLanguagePreference(body: unknown): unknown {
+  try {
+    if (typeof window === "undefined") return body ?? {};
+    const lang = window.localStorage.getItem("synova_language_preference") || "english";
+    if (body && typeof body === "object" && !Array.isArray(body)) {
+      const obj = body as Record<string, unknown>;
+      if (obj.language === undefined || obj.language === null || obj.language === "") {
+        return { ...obj, language: lang };
+      }
+      return obj;
+    }
+    return { language: lang, payload: body };
+  } catch {
+    return body ?? {};
+  }
+}
+
 function isRetryableStatus(status: number) {
   return [408, 425, 429, 500, 502, 503, 504].includes(status);
 }
@@ -135,7 +157,7 @@ export async function invokeBackendFunction<T = any>(
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify(body ?? {}),
+        body: JSON.stringify(withLanguagePreference(body)),
         signal: controller.signal,
       });
 
