@@ -111,6 +111,13 @@ export function useVoice(): UseVoiceReturn {
     const loadVoices = () => {
       const availableVoices = window.speechSynthesis.getVoices();
       if (availableVoices.length > 0) {
+        const prefix = (bcp47 || "en-US").split("-")[0];
+        setState((prev) => ({
+          ...prev,
+          voices: availableVoices,
+          selectedVoice: availableVoices.find((v) => v.lang.startsWith(prefix)) || availableVoices.find((v) => v.lang.startsWith("en")) || availableVoices[0],
+        }));
+      }
         setState((prev) => ({
           ...prev,
           voices: availableVoices,
