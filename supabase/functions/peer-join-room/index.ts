@@ -35,7 +35,7 @@ serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const code = typeof body?.code === "string" ? body.code : "";
-    const role = typeof body?.role === "string" ? body.role : "student";
+    // Role is determined server-side from user_roles, never trusted from client.
 
     const normalizedCode = code.trim().toUpperCase();
     if (!normalizedCode || normalizedCode.length < 4) {
@@ -92,7 +92,13 @@ serve(async (req) => {
       });
     }
 
-    const desiredRole = role === "teacher" ? "teacher" : "student";
+    // Resolve actual role from user_roles — ignore client-supplied role
+    const { data: roleRow } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const desiredRole = roleRow?.role === "teacher" || roleRow?.role === "admin" ? "teacher" : "student";
 
     // Try to re-activate an existing participation row first
     const { data: updatedRows, error: updateError } = await supabaseAdmin
