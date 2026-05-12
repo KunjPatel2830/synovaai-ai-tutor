@@ -59,7 +59,7 @@ serve(async (req) => {
     const name = sanitizeText(body?.name, MAX_NAME_LENGTH);
     const subject = sanitizeText(body?.subject, MAX_SUBJECT_LENGTH) || null;
     const topic = sanitizeText(body?.topic, MAX_TOPIC_LENGTH) || null;
-    const desiredRole = body?.role === "teacher" ? "teacher" : "student";
+    // Role is determined server-side from user_roles, never trusted from client.
 
     if (!name || name.length < 3) {
       return new Response(JSON.stringify({ error: "Room name must be 3-100 characters" }), {
@@ -91,6 +91,14 @@ serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Resolve actual role from user_roles table — ignore any client-supplied role
+    const { data: roleRow } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .maybeSingle();
+    const desiredRole = roleRow?.role === "teacher" || roleRow?.role === "admin" ? "teacher" : "student";
 
     let roomCode = "";
     const { data: codeData, error: codeError } = await supabaseAdmin.rpc("generate_room_code");
