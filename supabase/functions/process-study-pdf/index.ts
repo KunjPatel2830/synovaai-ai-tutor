@@ -9,6 +9,8 @@ const corsHeaders = {
 const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL")!;
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+const EXTERNAL_SUPABASE_URL = Deno.env.get("EXTERNAL_SUPABASE_URL");
+const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get("EXTERNAL_SUPABASE_ANON_KEY");
 
 // ── Input validation ──
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -63,6 +65,43 @@ serve(async (req) => {
   let pdfId: string | null = null;
 
   try {
+    // ── Authenticate caller via JWT ──
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader?.startsWith("Bearer ")) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const externalUrl = EXTERNAL_SUPABASE_URL || SUPABASE_URL;
+    const externalKey = EXTERNAL_SUPABASE_ANON_KEY || SUPABASE_SERVICE_ROLE_KEY;
+    const supabaseUser = createClient(externalUrl, externalKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { persistSession: false },
+    });
+    const { data: userData, error: userErr } = await supabaseUser.auth.getUser();
+    if (userErr || !userData?.user) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    const teacherId = userData.user.id;
+
+    // Authorize: only teachers/admins may upload study PDFs
+    const { data: roleRow } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", teacherId)
+      .maybeSingle();
+    if (!roleRow || !["teacher", "admin"].includes(roleRow.role)) {
+      return new Response(
+        JSON.stringify({ success: false, error: "Forbidden: teacher role required" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const body = await req.json();
     const { pdfBase64 } = body;
     pdfId = body.pdfId || null;
@@ -74,12 +113,10 @@ serve(async (req) => {
 
     const subject = sanitizeText(body.subject, MAX_SUBJECT_LENGTH);
     const chapter = sanitizeText(body.chapter, MAX_CHAPTER_LENGTH);
-    const teacherId = body.teacherId;
     const fileName = sanitizeText(body.fileName, MAX_FILENAME_LENGTH) || "upload.pdf";
 
     if (!subject) throw new Error("Missing subject");
     if (!chapter) throw new Error("Missing chapter");
-    if (!isValidUUID(teacherId)) throw new Error("Invalid teacherId format");
     if (pdfId && !isValidUUID(pdfId)) throw new Error("Invalid pdfId format");
 
     if (!pdfId) {
