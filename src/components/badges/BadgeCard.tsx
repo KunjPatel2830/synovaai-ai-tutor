@@ -1,3 +1,4 @@
+import { forwardRef } from "react";
 import { cn } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import {
@@ -43,23 +44,27 @@ const iconMap: Record<string, React.ElementType> = {
   mic: Mic,
 };
 
-export function BadgeCard({
-  name,
-  description,
-  icon,
-  points,
-  earned,
-  progress = 0,
-  target = 1,
-  earnedAt,
-  compact = false,
-}: BadgeCardProps) {
+export const BadgeCard = forwardRef<HTMLDivElement, BadgeCardProps>(function BadgeCard(
+  {
+    name,
+    description,
+    icon,
+    points,
+    earned,
+    progress = 0,
+    target = 1,
+    earnedAt,
+    compact = false,
+  },
+  ref,
+) {
   const IconComponent = iconMap[icon] || Award;
   const progressPercent = Math.min((progress / target) * 100, 100);
 
   if (compact) {
     return (
       <div
+        ref={ref}
         className={cn(
           "relative flex flex-col items-center p-3 rounded-xl border transition-all duration-300",
           earned
@@ -91,6 +96,7 @@ export function BadgeCard({
 
   return (
     <div
+      ref={ref}
       className={cn(
         "relative p-4 rounded-xl border transition-all duration-300",
         earned
@@ -148,4 +154,4 @@ export function BadgeCard({
       </div>
     </div>
   );
-}
+});
