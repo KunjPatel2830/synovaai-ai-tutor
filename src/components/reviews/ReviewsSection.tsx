@@ -10,7 +10,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 interface Review {
   id: string;
-  user_id: string;
   display_name: string;
   content: string;
   rating: number;
@@ -35,20 +34,29 @@ export function ReviewsSection() {
   }, []);
 
   useEffect(() => {
-    if (user && reviews.length > 0) {
-      setUserHasReview(reviews.some(r => r.user_id === user.id));
+    if (!user) {
+      setUserHasReview(false);
+      return;
     }
-  }, [user, reviews]);
+    // Query the user's own review directly (RLS allows owner SELECT on base table)
+    externalSupabase
+      .from("reviews")
+      .select("id")
+      .eq("user_id", user.id)
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setUserHasReview(!!data));
+  }, [user]);
 
   const fetchReviews = async () => {
     setIsLoading(true);
     const { data, error } = await externalSupabase
-      .from("reviews")
+      .from("reviews_public")
       .select("*")
       .order("created_at", { ascending: false });
 
     if (!error && data) {
-      setReviews(data);
+      setReviews(data as Review[]);
     }
     setIsLoading(false);
   };
