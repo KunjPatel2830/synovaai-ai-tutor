@@ -169,7 +169,7 @@ export const MarkdownContent = forwardRef<HTMLDivElement, MarkdownContentProps>(
       if (parsedContent.images.length === 0) {
         return (
           <ReactMarkdown
-            remarkPlugins={[remarkMath]}
+            remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeKatex]}
             components={markdownComponents}
           >
@@ -188,7 +188,7 @@ export const MarkdownContent = forwardRef<HTMLDivElement, MarkdownContentProps>(
           parts.push(
             <ReactMarkdown
               key={`text-${idx}`}
-              remarkPlugins={[remarkMath]}
+              remarkPlugins={[remarkGfm, remarkMath]}
               rehypePlugins={[rehypeKatex]}
               components={markdownComponents}
             >
@@ -205,7 +205,7 @@ export const MarkdownContent = forwardRef<HTMLDivElement, MarkdownContentProps>(
         parts.push(
           <ReactMarkdown
             key="text-final"
-            remarkPlugins={[remarkMath]}
+            remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeKatex]}
             components={markdownComponents}
           >
