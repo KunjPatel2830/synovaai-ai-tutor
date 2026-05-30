@@ -1,5 +1,6 @@
 import ReactMarkdown from "react-markdown";
 import remarkMath from "remark-math";
+import remarkGfm from "remark-gfm";
 import rehypeKatex from "rehype-katex";
 import "katex/dist/katex.min.css";
 import { cn } from "@/lib/utils";
@@ -126,6 +127,24 @@ export const MarkdownContent = forwardRef<HTMLDivElement, MarkdownContentProps>(
       pre: ({ children }: { children?: React.ReactNode }) => (
         <pre className="bg-muted p-2 rounded overflow-x-auto mb-2">{children}</pre>
       ),
+      table: ({ children }: { children?: React.ReactNode }) => (
+        <div className="my-3 overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm border-collapse text-foreground">{children}</table>
+        </div>
+      ),
+      thead: ({ children }: { children?: React.ReactNode }) => (
+        <thead className="bg-muted/60">{children}</thead>
+      ),
+      tbody: ({ children }: { children?: React.ReactNode }) => <tbody>{children}</tbody>,
+      tr: ({ children }: { children?: React.ReactNode }) => (
+        <tr className="border-b border-border last:border-0">{children}</tr>
+      ),
+      th: ({ children }: { children?: React.ReactNode }) => (
+        <th className="px-3 py-2 text-left font-semibold text-foreground border-r border-border last:border-0">{children}</th>
+      ),
+      td: ({ children }: { children?: React.ReactNode }) => (
+        <td className="px-3 py-2 align-top text-foreground border-r border-border last:border-0">{children}</td>
+      ),
     };
 
     const parsedContent = useMemo(() => {
@@ -150,7 +169,7 @@ export const MarkdownContent = forwardRef<HTMLDivElement, MarkdownContentProps>(
       if (parsedContent.images.length === 0) {
         return (
           <ReactMarkdown
-            remarkPlugins={[remarkMath]}
+            remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeKatex]}
             components={markdownComponents}
           >
@@ -169,7 +188,7 @@ export const MarkdownContent = forwardRef<HTMLDivElement, MarkdownContentProps>(
           parts.push(
             <ReactMarkdown
               key={`text-${idx}`}
-              remarkPlugins={[remarkMath]}
+              remarkPlugins={[remarkGfm, remarkMath]}
               rehypePlugins={[rehypeKatex]}
               components={markdownComponents}
             >
@@ -186,7 +205,7 @@ export const MarkdownContent = forwardRef<HTMLDivElement, MarkdownContentProps>(
         parts.push(
           <ReactMarkdown
             key="text-final"
-            remarkPlugins={[remarkMath]}
+            remarkPlugins={[remarkGfm, remarkMath]}
             rehypePlugins={[rehypeKatex]}
             components={markdownComponents}
           >
