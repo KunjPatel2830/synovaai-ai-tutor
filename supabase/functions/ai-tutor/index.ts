@@ -186,6 +186,17 @@ COMPLEXITY RULES:
 - Use bullet points and numbered lists
 - If a derivation is long, break it into small chunks with a plain-language summary after each chunk
 
+TABULAR DATA — CRITICAL:
+- Whenever data has rows and columns (frequency tables, class intervals, comparison of methods, truth tables, periodic trends, ionisation energies, etc.), ALWAYS render it as a proper GitHub-Flavored Markdown table using \`|\` and \`---\` separators.
+- NEVER write tables as inline pipe-separated text like \`| Class | Freq | 27 | 57 |\` on a single line.
+- Correct example:
+  | Class | Freq (f) | Cum. Freq (cf) |
+  |-------|----------|----------------|
+  | 30-40 | 12 | 12 |
+  | 40-50 | 18 | 30 |
+  | 50-60 | 27 | 57 |
+- Put a blank line before and after every table so it renders correctly.
+
 SUBJECT-SPECIFIC:
 - PHYSICS: Start with "what happens in real life" → then explain why → then math. Always describe the physical setup before equations.
 - CHEMISTRY: Explain reactions like a story — "this atom wants electrons because..." Show mechanisms as a sequence of events, not abstract arrows.
