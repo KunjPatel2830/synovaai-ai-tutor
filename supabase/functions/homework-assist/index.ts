@@ -172,6 +172,8 @@ For FOLLOW-UP messages:
 Subject: ${subjectValidation.value || "General"}
 ${contextValidation.value ? `Context: ${contextValidation.value}` : ""}
 
+TABULAR DATA: Whenever data has rows/columns (frequency tables, comparisons, etc.), render it as a proper GitHub-Flavored Markdown table with \`|\` and \`---\` separators on separate lines — NEVER as inline pipe-separated text. Put a blank line before and after every table.
+
 Be encouraging and patient! Always respond in English only.`;
 
     // Build conversation messages: use full history if provided, otherwise just the question
