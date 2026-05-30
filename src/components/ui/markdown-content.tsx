@@ -127,6 +127,24 @@ export const MarkdownContent = forwardRef<HTMLDivElement, MarkdownContentProps>(
       pre: ({ children }: { children?: React.ReactNode }) => (
         <pre className="bg-muted p-2 rounded overflow-x-auto mb-2">{children}</pre>
       ),
+      table: ({ children }: { children?: React.ReactNode }) => (
+        <div className="my-3 overflow-x-auto rounded-lg border border-border">
+          <table className="w-full text-sm border-collapse text-foreground">{children}</table>
+        </div>
+      ),
+      thead: ({ children }: { children?: React.ReactNode }) => (
+        <thead className="bg-muted/60">{children}</thead>
+      ),
+      tbody: ({ children }: { children?: React.ReactNode }) => <tbody>{children}</tbody>,
+      tr: ({ children }: { children?: React.ReactNode }) => (
+        <tr className="border-b border-border last:border-0">{children}</tr>
+      ),
+      th: ({ children }: { children?: React.ReactNode }) => (
+        <th className="px-3 py-2 text-left font-semibold text-foreground border-r border-border last:border-0">{children}</th>
+      ),
+      td: ({ children }: { children?: React.ReactNode }) => (
+        <td className="px-3 py-2 align-top text-foreground border-r border-border last:border-0">{children}</td>
+      ),
     };
 
     const parsedContent = useMemo(() => {
