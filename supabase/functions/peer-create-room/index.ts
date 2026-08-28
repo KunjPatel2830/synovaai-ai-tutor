@@ -98,12 +98,23 @@ serve(async (req) => {
       });
     }
 
-    // Resolve actual role from user_roles table — ignore any client-supplied role
-    const { data: roleRow } = await supabaseAdmin
+    // Resolve actual role from user_roles table — check external project then internal
+    let roleRow: { role?: string } | null = null;
+    const { data: extRole } = await supabaseUser
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
       .maybeSingle();
+    if (extRole) {
+      roleRow = extRole;
+    } else {
+      const { data: intRole } = await supabaseAdmin
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", user.id)
+        .maybeSingle();
+      roleRow = intRole;
+    }
     const desiredRole = roleRow?.role === "teacher" || roleRow?.role === "admin" ? "teacher" : "student";
 
     const generateSecureCode = () => {
