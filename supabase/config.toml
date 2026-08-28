@@ -1,0 +1,45 @@
+project_id = "xsnxdtsdqjqiyzxscvuz"
+
+# We validate the user's session inside each function (server-side) because the platform JWT check
+# is rejecting otherwise-valid tokens in this environment.
+[functions.ai-tutor]
+verify_jwt = false
+
+[functions.homework-assist]
+verify_jwt = false
+
+[functions.exam-prep]
+verify_jwt = false
+
+[functions.parse-pyq-pdf]
+verify_jwt = false
+
+[functions.pyq-explain]
+verify_jwt = false
+
+[functions.external-ai-tutor]
+verify_jwt = false
+
+[functions.external-create-profile]
+verify_jwt = false
+
+[functions.generate-concept-image]
+verify_jwt = false
+
+[functions.curriculum-study]
+verify_jwt = false
+
+[functions.process-study-pdf]
+verify_jwt = false
+
+[functions.external-signup]
+verify_jwt = false
+
+[functions.peer-create-room]
+verify_jwt = false
+
+[functions.peer-join-room]
+verify_jwt = false
+
+[functions.language-practice]
+verify_jwt = false

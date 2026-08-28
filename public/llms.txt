@@ -1,0 +1,18 @@
+# Synova.AI
+
+> AI-powered learning platform that teaches students step-by-step across maths, science, and exam prep — built to grow real understanding, not just deliver answers.
+
+Synova.AI offers a personalised AI tutor, homework method-explainer, voice tutor, language practice, exam prep (PYQ-based), study planner, and peer study mode. Caregivers and teachers can monitor progress while respecting student privacy.
+
+## Pages
+
+- [Home](/): Product overview and how Synova.AI teaches.
+- [Reviews](/reviews): Student, parent, and teacher reviews.
+- [About](/about): Mission and approach behind Synova.AI.
+- [Contact](/contact): Get in touch with the team.
+- [Privacy](/privacy): Privacy policy.
+- [Terms](/terms): Terms of service.
+
+## Optional
+
+- [Sign in / Sign up](/auth): Account access for students, teachers, and caregivers.

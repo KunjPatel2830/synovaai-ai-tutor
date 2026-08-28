@@ -1,0 +1,1 @@
+ALTER TABLE public.pyq_uploads DROP CONSTRAINT pyq_uploads_uploaded_by_fkey;

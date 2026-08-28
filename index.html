@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- Content Security Policy -->
+    <meta http-equiv="Content-Security-Policy" content="
+      default-src 'self';
+      script-src 'self' 'unsafe-inline' 'unsafe-eval';
+      style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+      font-src 'self' https://fonts.gstatic.com;
+      img-src 'self' data: https: blob:;
+      connect-src 'self' https://*.supabase.co wss://*.supabase.co https://openrouter.ai https://api.lovable.ai;
+      frame-src 'self';
+      object-src 'none';
+      base-uri 'self';
+    " />
+    <!-- Preconnect to Google Fonts for faster font loading -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" />
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" media="print" onload="this.media='all'" />
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" media="print" onload="this.media='all'" />
+    <noscript>
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" />
+      <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" />
+    </noscript>
+
+    <title>Synova.AI — AI-Powered Learning Platform for Students</title>
+    <meta name="description" content="Synova.AI is an AI-powered learning platform that teaches students step-by-step across maths, science, and exam prep with personalised tutoring." />
+    <meta name="author" content="Synova.AI" />
+    <link rel="canonical" href="https://synovaai.in/" />
+    <link rel="icon" type="image/png" href="/favicon.png" />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Synova.AI — AI-Powered Learning Platform for Students" />
+    <meta property="og:description" content="Step-by-step AI tutoring for maths, science, and exam prep — built to grow real understanding, not just answers." />
+    <meta property="og:url" content="https://synovaai.in/" />
+    <meta property="og:image" content="https://synovaai.in/favicon.png" />
+    <meta property="og:site_name" content="Synova.AI" />
+
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content="Synova.AI — AI-Powered Learning Platform for Students" />
+    <meta name="twitter:description" content="Step-by-step AI tutoring for maths, science, and exam prep — built to grow real understanding, not just answers." />
+    <meta name="twitter:image" content="https://synovaai.in/favicon.png" />
+
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "Organization",
+        "name": "Synova.AI",
+        "url": "https://synovaai.in/",
+        "logo": "https://synovaai.in/favicon.png",
+        "description": "AI-powered learning platform that teaches students step-by-step across maths, science, and exam prep."
+      }
+    </script>
+    <script type="application/ld+json">
+      {
+        "@context": "https://schema.org",
+        "@type": "WebSite",
+        "name": "Synova.AI",
+        "url": "https://synovaai.in/"
+      }
+    </script>
+  </head>
+
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
