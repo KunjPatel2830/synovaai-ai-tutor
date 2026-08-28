@@ -16,7 +16,13 @@ const MAX_SUBJECT_LENGTH = 100;
 const MAX_CONTEXT_LENGTH = 1000;
 
 function stripHtml(str: string): string {
-  return str.replace(/<[^>]*>/g, "").trim();
+  let prev = "";
+  let curr = str;
+  while (curr !== prev) {
+    prev = curr;
+    curr = curr.replace(/<[^>]*>/g, "");
+  }
+  return curr.replace(/[<>]/g, "").trim();
 }
 
 function sanitizeText(input: unknown, maxLen: number): string {

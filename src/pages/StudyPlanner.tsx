@@ -68,7 +68,12 @@ export default function StudyPlanner() {
       const generatedPlan: DayPlan[] = daysOfWeek.map((day, dayIndex) => {
         const tasksForDay: StudyTask[] = [];
         let remainingMinutes = minutesPerDay;
-        const subjectsForDay = [...subjects].sort(() => Math.random() - 0.5).slice(0, 3);
+        const shuffledSubjects = [...subjects];
+        for (let i = shuffledSubjects.length - 1; i > 0; i--) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [shuffledSubjects[i], shuffledSubjects[j]] = [shuffledSubjects[j], shuffledSubjects[i]];
+        }
+        const subjectsForDay = shuffledSubjects.slice(0, 3);
         
         subjectsForDay.forEach((subject, index) => {
           const duration = Math.min(remainingMinutes, 45 + Math.floor(Math.random() * 30));

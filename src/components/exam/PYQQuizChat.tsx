@@ -93,7 +93,11 @@ export function PYQQuizChat() {
         year: q.year,
       }));
 
-      const shuffled = mappedQuestions.sort(() => Math.random() - 0.5);
+      const shuffled = [...mappedQuestions];
+      for (let i = shuffled.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+      }
       setQuestions(shuffled);
       setCurrentIndex(0);
       setMessages([]);

@@ -17,7 +17,13 @@ const MAX_SUBJECT_LENGTH = 100;
 const MAX_TOPIC_LENGTH = 200;
 
 function stripHtml(str: string): string {
-  return str.replace(/<[^>]*>/g, "").trim();
+  let prev = "";
+  let curr = str;
+  while (curr !== prev) {
+    prev = curr;
+    curr = curr.replace(/<[^>]*>/g, "");
+  }
+  return curr.replace(/[<>]/g, "").trim();
 }
 
 function sanitizeText(input: unknown, maxLen: number): string {
@@ -100,15 +106,22 @@ serve(async (req) => {
       .maybeSingle();
     const desiredRole = roleRow?.role === "teacher" || roleRow?.role === "admin" ? "teacher" : "student";
 
+    const generateSecureCode = () => {
+      const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+      const bytes = new Uint8Array(6);
+      crypto.getRandomValues(bytes);
+      return Array.from(bytes, (b) => chars[b % chars.length]).join("");
+    };
+
     let roomCode = "";
     const { data: codeData, error: codeError } = await supabaseAdmin.rpc("generate_room_code");
     if (codeError) {
       console.warn("[peer-create-room] generate_room_code failed, falling back:", codeError);
-      roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+      roomCode = generateSecureCode();
     } else {
       roomCode = String(codeData ?? "").trim().toUpperCase();
       if (!roomCode) {
-        roomCode = Math.random().toString(36).substring(2, 8).toUpperCase();
+        roomCode = generateSecureCode();
       }
     }
 

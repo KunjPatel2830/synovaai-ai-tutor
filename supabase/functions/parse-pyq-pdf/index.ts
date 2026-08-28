@@ -23,7 +23,13 @@ function isValidUUID(val: unknown): val is string {
 }
 
 function stripHtml(str: string): string {
-  return str.replace(/<[^>]*>/g, "").trim();
+  let prev = "";
+  let curr = str;
+  while (curr !== prev) {
+    prev = curr;
+    curr = curr.replace(/<[^>]*>/g, "");
+  }
+  return curr.replace(/[<>]/g, "").trim();
 }
 
 interface ParsedQuestion {

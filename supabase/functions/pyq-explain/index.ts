@@ -19,7 +19,13 @@ const MAX_FOLLOWUP_LENGTH = 2000;
 const VALID_OPTIONS = ["A", "B", "C", "D"];
 
 function stripHtml(str: string): string {
-  return str.replace(/<[^>]*>/g, "").trim();
+  let prev = "";
+  let curr = str;
+  while (curr !== prev) {
+    prev = curr;
+    curr = curr.replace(/<[^>]*>/g, "");
+  }
+  return curr.replace(/[<>]/g, "").trim();
 }
 
 function sanitizeText(input: unknown, maxLen: number): string {
