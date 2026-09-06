@@ -16,7 +16,7 @@ const MAX_STRING_LENGTH = 200;
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_MESSAGES = 50;
 const VALID_ACTIONS = ["get_chapters", "get_topics", "teach_topic", "continue_learning", "answer_doubt"];
-const VALID_ROLES = ["user", "assistant", "system"];
+const VALID_ROLES = ["user", "assistant"];
 
 const DETERMINISTIC_AI_SETTINGS = {
   temperature: 0,

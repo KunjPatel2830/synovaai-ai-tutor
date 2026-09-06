@@ -108,6 +108,24 @@ serve(async (req) => {
       );
     }
 
+    // ── Rate Limiting (5 PDF parses per 10 minutes) ──
+    try {
+      const { data: rl } = await supabase.rpc("check_rate_limit", {
+        _user_id: teacherId,
+        _endpoint: "process-study-pdf",
+        _max_requests: 5,
+        _window_seconds: 600,
+      });
+      if (rl && rl.length > 0 && !rl[0].allowed) {
+        return new Response(
+          JSON.stringify({ success: false, error: `Rate limit exceeded. Try again in ${rl[0].retry_after} seconds.` }),
+          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    } catch (e) {
+      console.error("Rate limit check failed, allowing request:", e);
+    }
+
     const body = await req.json();
     const { pdfBase64 } = body;
     pdfId = body.pdfId || null;

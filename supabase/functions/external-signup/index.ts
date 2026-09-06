@@ -23,9 +23,9 @@ function respond(body: unknown, status = 200) {
 
 function getClientIP(req: Request): string {
   return (
-    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    req.headers.get("x-real-ip") ||
     req.headers.get("cf-connecting-ip") ||
+    req.headers.get("x-real-ip") ||
+    req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
     "unknown"
   );
 }
@@ -70,12 +70,10 @@ serve(async (req) => {
     const password = payload?.password ?? "";
     const displayName = (payload?.displayName ?? "").trim();
 
-    // Security: never allow 'admin' signup from public endpoint
-    const allowedRoles: SignupRole[] = ["student", "teacher", "caregiver"];
-    const requestedRole = (payload?.role ?? "student").trim();
-    const role: SignupRole = allowedRoles.includes(requestedRole as SignupRole)
-      ? (requestedRole as SignupRole)
-      : "student";
+    // Security: Public self-signup is strictly restricted to 'student'.
+    // Elevated roles ('teacher', 'caregiver', 'admin') must be granted through
+    // verified administrative processes or approved invitation flows.
+    const role: SignupRole = "student";
 
     if (!email) return respond({ error: "Email is required" });
     if (!password || password.length < 6) return respond({ error: "Password must be at least 6 characters" });

@@ -10,28 +10,8 @@ const corsHeaders = {
 const EXTERNAL_SUPABASE_URL = Deno.env.get('EXTERNAL_SUPABASE_URL') ?? '';
 const EXTERNAL_SUPABASE_ANON_KEY = Deno.env.get('EXTERNAL_SUPABASE_ANON_KEY') ?? '';
 const EXTERNAL_SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('EXTERNAL_SUPABASE_SERVICE_ROLE_KEY') ?? '';
-
-// Rate limiting configuration
-const RATE_LIMIT_WINDOW_MS = 60000; // 1 minute
-const MAX_REQUESTS_PER_WINDOW = 10;
-const rateLimit = new Map<string, { count: number; resetTime: number }>();
-
-function checkRateLimit(userId: string): { allowed: boolean; remaining: number; resetIn: number } {
-  const now = Date.now();
-  const userLimit = rateLimit.get(userId);
-
-  if (!userLimit || now > userLimit.resetTime) {
-    rateLimit.set(userId, { count: 1, resetTime: now + RATE_LIMIT_WINDOW_MS });
-    return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW - 1, resetIn: RATE_LIMIT_WINDOW_MS };
-  }
-
-  if (userLimit.count >= MAX_REQUESTS_PER_WINDOW) {
-    return { allowed: false, remaining: 0, resetIn: userLimit.resetTime - now };
-  }
-
-  userLimit.count++;
-  return { allowed: true, remaining: MAX_REQUESTS_PER_WINDOW - userLimit.count, resetIn: userLimit.resetTime - now };
-}
+const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
+const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
 serve(async (req) => {
   // Handle CORS preflight
@@ -91,22 +71,31 @@ serve(async (req) => {
     const userId = user.id;
     console.log(`[external-ai-tutor] Authenticated user: ${userId}`);
 
-    // Check rate limit
-    const rateLimitResult = checkRateLimit(userId);
-    if (!rateLimitResult.allowed) {
-      console.log(`[external-ai-tutor] Rate limit exceeded for user: ${userId}`);
-      return new Response(JSON.stringify({ 
-        error: 'Rate limit exceeded',
-        resetIn: Math.ceil(rateLimitResult.resetIn / 1000)
-      }), {
-        status: 429,
-        headers: { 
-          ...corsHeaders, 
-          'Content-Type': 'application/json',
-          'X-RateLimit-Remaining': '0',
-          'X-RateLimit-Reset': String(Math.ceil(rateLimitResult.resetIn / 1000))
-        },
+    // Check rate limit via persistent database RPC
+    try {
+      const admin = createClient(SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, { auth: { persistSession: false } });
+      const { data: rl } = await admin.rpc("check_rate_limit", {
+        _user_id: userId,
+        _endpoint: "external-ai-tutor",
+        _max_requests: 15,
+        _window_seconds: 60,
       });
+      if (rl && rl.length > 0 && !rl[0].allowed) {
+        return new Response(JSON.stringify({
+          error: `Rate limit exceeded. Try again in ${rl[0].retry_after} seconds.`,
+          resetIn: rl[0].retry_after,
+        }), {
+          status: 429,
+          headers: {
+            ...corsHeaders,
+            'Content-Type': 'application/json',
+            'X-RateLimit-Remaining': '0',
+            'X-RateLimit-Reset': String(rl[0].retry_after),
+          },
+        });
+      }
+    } catch (e) {
+      console.error("Rate limit check failed, allowing request:", e);
     }
 
     // Parse request body
@@ -119,7 +108,7 @@ serve(async (req) => {
       });
     }
 
-    // Validate messages
+    // Validate messages (disallow client-supplied 'system' role to prevent prompt injection)
     for (const msg of messages) {
       if (!msg.role || !msg.content) {
         return new Response(JSON.stringify({ error: 'Each message must have role and content' }), {
@@ -127,8 +116,8 @@ serve(async (req) => {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      if (!['user', 'assistant', 'system'].includes(msg.role)) {
-        return new Response(JSON.stringify({ error: 'Invalid message role' }), {
+      if (!['user', 'assistant'].includes(msg.role)) {
+        return new Response(JSON.stringify({ error: 'Invalid message role. Must be user or assistant.' }), {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });

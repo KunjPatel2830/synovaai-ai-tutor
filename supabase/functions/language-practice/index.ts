@@ -13,7 +13,7 @@ const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
 const MAX_MESSAGE_LENGTH = 4000;
 const MAX_MESSAGES = 50;
-const VALID_ROLES = ["user", "assistant", "system"];
+const VALID_ROLES = ["user", "assistant"];
 
 const DETERMINISTIC_AI_SETTINGS = {
   temperature: 0,
