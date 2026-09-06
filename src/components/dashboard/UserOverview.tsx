@@ -63,7 +63,7 @@ export function UserOverview() {
         .eq("user_id", user.id),
       externalSupabase
         .from("user_badges")
-        .select("badge_id, badges:badges_public(points)")
+        .select("badge_id, badges:badges(points)")
         .eq("user_id", user.id),
     ]);
 

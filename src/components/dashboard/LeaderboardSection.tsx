@@ -27,7 +27,7 @@ export function LeaderboardSection() {
     try {
       const { data: badgeData } = await externalSupabase
         .from("user_badges")
-        .select("user_id, badges:badges_public(points)");
+        .select("user_id, badges:badges(points)");
 
       if (badgeData) {
         const userPoints: Record<string, number> = {};
