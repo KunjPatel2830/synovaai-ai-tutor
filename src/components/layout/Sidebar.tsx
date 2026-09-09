@@ -75,6 +75,8 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
     { to: "/tutor", icon: Brain, label: "AI Tutor" },
     { to: "/curriculum-study", icon: BookOpen, label: "Curriculum Study" },
     { to: "/snap-solve", icon: Camera, label: "Snap-to-Solve" },
+    { to: "/review", icon: Brain, label: "Spaced Revision" },
+
     { to: "/homework", icon: FileText, label: "Homework Help" },
     { to: "/exam-prep", icon: ClipboardList, label: "Exam Prep" },
     { to: "/voice-tutor", icon: Mic, label: "Voice Tutor" },
