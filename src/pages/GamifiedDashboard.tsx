@@ -10,6 +10,8 @@ import { motion } from "framer-motion";
 
 import { StatsCards } from "@/components/dashboard/StatsCards";
 import { DailyQuestSection } from "@/components/dashboard/DailyQuestSection";
+import { ReviewDueCard } from "@/components/dashboard/ReviewDueCard";
+
 import { WeeklyActivityWidget } from "@/components/dashboard/WeeklyActivityWidget";
 import { StudyStreakCalendar } from "@/components/dashboard/StudyStreakCalendar";
 import { SubjectProgressWidget } from "@/components/dashboard/SubjectProgressWidget";
@@ -206,6 +208,13 @@ export default function GamifiedDashboard() {
         <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.18, duration: 0.5 }}>
           <StatsCards />
         </motion.div>
+
+        {/* Spaced revision */}
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2, duration: 0.5 }}>
+          <ReviewDueCard />
+        </motion.div>
+
+
 
         {/* 4 Main Cards */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
