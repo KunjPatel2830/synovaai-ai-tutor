@@ -29,6 +29,7 @@ const PeerMode = lazy(() => import("./pages/PeerMode"));
 const CurriculumStudy = lazy(() => import("./pages/CurriculumStudy"));
 const SnapSolve = lazy(() => import("./pages/SnapSolve"));
 const Review = lazy(() => import("./pages/Review"));
+const MockTest = lazy(() => import("./pages/MockTest"));
 
 
 const Settings = lazy(() => import("./pages/Settings"));
@@ -86,6 +87,7 @@ const App = () => (
                 <Route path="/curriculum-study" element={<ProtectedRoute><CurriculumStudy /></ProtectedRoute>} />
                 <Route path="/snap-solve" element={<ProtectedRoute><SnapSolve /></ProtectedRoute>} />
                 <Route path="/review" element={<ProtectedRoute><Review /></ProtectedRoute>} />
+                <Route path="/mock-test" element={<ProtectedRoute><MockTest /></ProtectedRoute>} />
 
                 
                 <Route path="/children" element={<ProtectedRoute allowedRoles={['caregiver']}><Children /></ProtectedRoute>} />

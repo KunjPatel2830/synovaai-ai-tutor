@@ -22,6 +22,7 @@ import {
   HelpCircle,
   Calendar,
   Camera,
+  ClipboardCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -76,6 +77,7 @@ function SidebarContent({ onClose }: { onClose: () => void }) {
     { to: "/curriculum-study", icon: BookOpen, label: "Curriculum Study" },
     { to: "/snap-solve", icon: Camera, label: "Snap-to-Solve" },
     { to: "/review", icon: Brain, label: "Spaced Revision" },
+    { to: "/mock-test", icon: ClipboardCheck, label: "Mock Test" },
 
     { to: "/homework", icon: FileText, label: "Homework Help" },
     { to: "/exam-prep", icon: ClipboardList, label: "Exam Prep" },
