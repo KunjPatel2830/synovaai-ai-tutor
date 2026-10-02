@@ -47,25 +47,21 @@ Rules:
 - For numericals: solve fully yourself, double-check the arithmetic, and make sure the correct option exactly matches your computed value. Distractors should be common mistakes.
 - Explanation: concise step-by-step working, under 80 words. Use $...$ for math.
 - No markdown fences, no commentary.`;
-  const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+  const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${key}` },
     body: JSON.stringify({
-      model: "google/gemini-2.5-flash",
-      temperature: 0,
-      top_p: 1,
-      max_tokens: 8000,
-      messages: [
-        { role: "system", content: system },
-        { role: "user", content: `Generate set #${o.seed} for ${o.subject}.` },
-      ],
+      model: "openai/gpt-6-astra",
+      instructions: system,
+      input: `Generate set #${o.seed} for ${o.subject}.`,
     }),
   });
   if (res.status === 429) throw new Error("RATE_LIMIT");
   if (res.status === 402) throw new Error("CREDITS");
-  if (!res.ok) throw new Error(`AI error ${res.status}`);
+  if (!res.ok) throw new Error(`AI error ${res.status}: ${(await res.text()).slice(0, 200)}`);
   const data = await res.json();
-  const raw: string = data?.choices?.[0]?.message?.content ?? "";
+  const raw: string = data?.output_text ??
+    (data?.output ?? []).flatMap((o: any) => o?.content ?? []).map((c: any) => c?.text ?? "").join("");
   const cleaned = raw.replace(/```json/gi, "").replace(/```/g, "").trim();
   const m = cleaned.match(/\{[\s\S]*\}/);
   const parsed = JSON.parse(m ? m[0] : cleaned);
