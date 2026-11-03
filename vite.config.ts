@@ -29,12 +29,16 @@ export default defineConfig(({ mode }) => {
         "@": path.resolve(__dirname, "./src"),
       },
     },
-    define: {
-      "import.meta.env.VITE_SUPABASE_URL": JSON.stringify(env.VITE_SUPABASE_URL),
-      "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": JSON.stringify(env.VITE_SUPABASE_PUBLISHABLE_KEY),
-      "import.meta.env.VITE_SUPABASE_PROJECT_ID": JSON.stringify(env.VITE_SUPABASE_PROJECT_ID),
-      "import.meta.env.VITE_EXTERNAL_SUPABASE_URL": JSON.stringify(env.VITE_EXTERNAL_SUPABASE_URL),
-      "import.meta.env.VITE_EXTERNAL_SUPABASE_ANON_KEY": JSON.stringify(env.VITE_EXTERNAL_SUPABASE_ANON_KEY),
-    },
+    define: Object.fromEntries(
+      Object.entries({
+        "import.meta.env.VITE_SUPABASE_URL": env.VITE_SUPABASE_URL,
+        "import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY": env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        "import.meta.env.VITE_SUPABASE_PROJECT_ID": env.VITE_SUPABASE_PROJECT_ID,
+        "import.meta.env.VITE_EXTERNAL_SUPABASE_URL": env.VITE_EXTERNAL_SUPABASE_URL,
+        "import.meta.env.VITE_EXTERNAL_SUPABASE_ANON_KEY": env.VITE_EXTERNAL_SUPABASE_ANON_KEY,
+      })
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => [k, JSON.stringify(v)])
+    ),
   };
 });
