@@ -28,6 +28,14 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function getRetryDelayMs(attempt: number, response?: Response) {
+  const retryAfter = Number(response?.headers.get("Retry-After"));
+  if (Number.isFinite(retryAfter) && retryAfter > 0) {
+    return Math.min(retryAfter * 1000, 3000);
+  }
+  return Math.min(500 * 2 ** attempt, 2000);
+}
+
 /**
  * Auto-injects the user's global response-language preference into every
  * backend call so all AI modes (tutor, homework, exam-prep, curriculum, etc.)
@@ -188,7 +196,7 @@ export async function invokeBackendFunction<T = any>(
 
         // Retry on transient statuses
         if (attempt < retries && isRetryableStatus(status)) {
-          await sleep(350 * (attempt + 1));
+          await sleep(getRetryDelayMs(attempt, res));
           continue;
         }
 
@@ -202,6 +210,10 @@ export async function invokeBackendFunction<T = any>(
 
       if (isAbortError(err)) {
         recordPerf({ name: functionName, label, status: 0, durationMs, at: Date.now() });
+        if (timedOut && attempt < retries && !signal?.aborted) {
+          await sleep(getRetryDelayMs(attempt));
+          continue;
+        }
         return {
           ok: false,
           status: 0,
@@ -212,7 +224,7 @@ export async function invokeBackendFunction<T = any>(
 
       // Network error (TypeError: Failed to fetch) is retryable
       if (attempt < retries) {
-        await sleep(350 * (attempt + 1));
+        await sleep(getRetryDelayMs(attempt));
         continue;
       }
 
@@ -235,6 +247,13 @@ export async function invokeBackendFunction<T = any>(
     error: lastError instanceof Error ? lastError.message : "Unknown error",
     durationMs: 0,
   };
+  } catch (err) {
+    return {
+      ok: false,
+      status: 0,
+      error: err instanceof Error ? err.message : "Unable to start the request. Please try again.",
+      durationMs: 0,
+    };
   } finally {
     dispatchPending(-1);
   }
