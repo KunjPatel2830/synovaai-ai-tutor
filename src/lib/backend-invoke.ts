@@ -28,6 +28,14 @@ function sleep(ms: number) {
   return new Promise((r) => setTimeout(r, ms));
 }
 
+function getRetryDelayMs(attempt: number, response?: Response) {
+  const retryAfter = Number(response?.headers.get("Retry-After"));
+  if (Number.isFinite(retryAfter) && retryAfter > 0) {
+    return Math.min(retryAfter * 1000, 15000);
+  }
+  return Math.min(500 * 2 ** attempt, 2000);
+}
+
 /**
  * Auto-injects the user's global response-language preference into every
  * backend call so all AI modes (tutor, homework, exam-prep, curriculum, etc.)
@@ -117,124 +125,147 @@ export async function invokeBackendFunction<T = any>(
   dispatchPending(1);
 
   try {
-  const {
-    signal,
-    timeoutMs = 20000,
-    retries = 1,
-    label,
-    slowThresholdMs = 2500,
-    useExternal = false,
-  } = opts;
+    const {
+      signal,
+      timeoutMs = 35000,
+      retries = 1,
+      label,
+      slowThresholdMs = 2500,
+      useExternal = false,
+    } = opts;
 
-  const baseUrl = useExternal ? EXTERNAL_SUPABASE_URL_PUBLIC.replace(/\/$/, "") : getBackendBaseUrl();
-  const apiKey = useExternal ? EXTERNAL_SUPABASE_ANON_KEY_PUBLIC : getBackendApiKey();
-  const url = `${baseUrl}/functions/v1/${functionName}`;
+    const baseUrl = useExternal ? EXTERNAL_SUPABASE_URL_PUBLIC.replace(/\/$/, "") : getBackendBaseUrl();
+    const apiKey = useExternal ? EXTERNAL_SUPABASE_ANON_KEY_PUBLIC : getBackendApiKey();
+    const url = `${baseUrl}/functions/v1/${functionName}`;
 
-  const token = await getExternalAccessToken();
-
-  let lastError: unknown;
-
-  for (let attempt = 0; attempt <= retries; attempt++) {
-    const started = performance.now();
-    const controller = new AbortController();
-    let timedOut = false;
-    const timeoutId = window.setTimeout(() => {
-      timedOut = true;
-      controller.abort();
-    }, timeoutMs);
-
-    const abortListener = () => controller.abort();
-    if (signal) {
-      if (signal.aborted) controller.abort();
-      signal.addEventListener("abort", abortListener, { once: true });
+    if (signal?.aborted) {
+      return { ok: false, status: 0, error: "Request aborted", durationMs: 0 };
     }
 
-    try {
-      const res = await fetch(url, {
-        method: "POST",
-        headers: {
-          apikey: apiKey,
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-        },
-        body: JSON.stringify(withLanguagePreference(body)),
-        signal: controller.signal,
-      });
+    let lastError: unknown;
 
-      const durationMs = Math.round(performance.now() - started);
-      const status = res.status;
+    for (let attempt = 0; attempt <= retries; attempt++) {
+      const started = performance.now();
+      const controller = new AbortController();
+      let timedOut = false;
+      const timeoutId = window.setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+      }, timeoutMs);
 
-      const text = await res.text();
-      let json: any = undefined;
+      const abortListener = () => controller.abort();
+      if (signal) signal.addEventListener("abort", abortListener, { once: true });
+
       try {
-        json = text ? JSON.parse(text) : undefined;
-      } catch {
-        // not json
-      }
+        // Read the current session on each attempt so a refreshed login token is used
+        // after a transient network/auth refresh failure.
+        const token = await getExternalAccessToken();
+        const res = await fetch(url, {
+          method: "POST",
+          headers: {
+            apikey: apiKey,
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify(withLanguagePreference(body)),
+          signal: controller.signal,
+        });
 
-      recordPerf({ name: functionName, label, status, durationMs, at: Date.now() });
-      if (durationMs >= slowThresholdMs) {
-        // Lightweight slow-call warning
-        console.warn(
-          `[perf] slow backend call: ${functionName}${label ? ` (${label})` : ""} took ${durationMs}ms (status ${status})`
-        );
-      }
+        const durationMs = Math.round(performance.now() - started);
+        const status = res.status;
 
-      if (!res.ok) {
-        const msg =
-          (json?.error as string | undefined) ||
-          (json?.message as string | undefined) ||
-          (typeof text === "string" && text.trim() ? text.trim() : `Request failed (${status})`);
+        const text = await res.text();
+        let json: any = undefined;
+        try {
+          json = text ? JSON.parse(text) : undefined;
+        } catch {
+          // handled below as a transient malformed response
+        }
 
-        // Retry on transient statuses
-        if (attempt < retries && isRetryableStatus(status)) {
-          await sleep(350 * (attempt + 1));
+        recordPerf({ name: functionName, label, status, durationMs, at: Date.now() });
+        if (durationMs >= slowThresholdMs) {
+          console.warn(
+            `[perf] slow backend call: ${functionName}${label ? ` (${label})` : ""} took ${durationMs}ms (status ${status})`
+          );
+        }
+
+        if (!res.ok) {
+          const msg =
+            (json?.error as string | undefined) ||
+            (json?.message as string | undefined) ||
+            (typeof text === "string" && text.trim() ? text.trim() : `Request failed (${status})`);
+
+          if (attempt < retries && isRetryableStatus(status)) {
+            await sleep(getRetryDelayMs(attempt, res));
+            continue;
+          }
+          return { ok: false, status, error: msg, durationMs };
+        }
+
+        const emptyReply = json && typeof json === "object" &&
+          Object.prototype.hasOwnProperty.call(json, "reply") &&
+          (typeof json.reply !== "string" || !json.reply.trim());
+        if (json === undefined || emptyReply) {
+          const error = emptyReply
+            ? "The AI returned an empty answer. Please try again."
+            : "The server returned an unreadable answer. Please try again.";
+          if (attempt < retries) {
+            await sleep(getRetryDelayMs(attempt));
+            continue;
+          }
+          return { ok: false, status: 502, error, durationMs };
+        }
+
+        return { ok: true, status, data: json as T, durationMs };
+      } catch (err) {
+        lastError = err;
+        const durationMs = Math.round(performance.now() - started);
+
+        if (isAbortError(err)) {
+          recordPerf({ name: functionName, label, status: 0, durationMs, at: Date.now() });
+          if (timedOut && attempt < retries && !signal?.aborted) {
+            await sleep(getRetryDelayMs(attempt));
+            continue;
+          }
+          return {
+            ok: false,
+            status: 0,
+            error: timedOut ? "Request timed out. Please try again." : "Request aborted",
+            durationMs,
+          };
+        }
+
+        if (attempt < retries) {
+          await sleep(getRetryDelayMs(attempt));
           continue;
         }
 
-        return { ok: false, status, error: msg, durationMs };
-      }
-
-      return { ok: true, status, data: json as T, durationMs };
-    } catch (err) {
-      lastError = err;
-      const durationMs = Math.round(performance.now() - started);
-
-      if (isAbortError(err)) {
         recordPerf({ name: functionName, label, status: 0, durationMs, at: Date.now() });
         return {
           ok: false,
           status: 0,
-          error: timedOut ? "Request timed out" : "Request aborted",
+          error: err instanceof Error ? err.message : "Network error",
           durationMs,
         };
+      } finally {
+        window.clearTimeout(timeoutId);
+        if (signal) signal.removeEventListener("abort", abortListener);
       }
-
-      // Network error (TypeError: Failed to fetch) is retryable
-      if (attempt < retries) {
-        await sleep(350 * (attempt + 1));
-        continue;
-      }
-
-      recordPerf({ name: functionName, label, status: 0, durationMs, at: Date.now() });
-      return {
-        ok: false,
-        status: 0,
-        error: err instanceof Error ? err.message : "Network error",
-        durationMs,
-      };
-    } finally {
-      window.clearTimeout(timeoutId);
-      if (signal) signal.removeEventListener("abort", abortListener);
     }
-  }
 
-  return {
-    ok: false,
-    status: 0,
-    error: lastError instanceof Error ? lastError.message : "Unknown error",
-    durationMs: 0,
-  };
+    return {
+      ok: false,
+      status: 0,
+      error: lastError instanceof Error ? lastError.message : "Unknown error",
+      durationMs: 0,
+    };
+  } catch (err) {
+    return {
+      ok: false,
+      status: 0,
+      error: err instanceof Error ? err.message : "Unable to start the request. Please try again.",
+      durationMs: 0,
+    };
   } finally {
     dispatchPending(-1);
   }
